@@ -1,0 +1,26 @@
+package gov.doe.kbase.scripts;
+
+import java.util.Map;
+
+/**
+ * Input or output part of KbFuncdef.
+ * @author rsutormin
+ */
+public class KbParameter {
+	private String name;
+	private KbType type;
+	
+	public KbParameter loadFromMap(Map<?,?> data, JSyncProcessor subst, boolean isReturn) {
+		name = isReturn ? Utils.propOrNull(data, "name") : Utils.prop(data, "name");
+		type = Utils.createTypeFromMap(Utils.propMap(data, "type", subst), subst);
+		return this;
+	}
+	
+	public String getName() {
+		return name;
+	}
+	
+	public KbType getType() {
+		return type;
+	}
+}
