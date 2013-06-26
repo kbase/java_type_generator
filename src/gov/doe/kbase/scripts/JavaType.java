@@ -25,7 +25,7 @@ public class JavaType implements Comparable<JavaType> {
 	}
 	
 	public boolean needClassGeneration() {
-		return !(mainType instanceof KbScalar || mainType instanceof KbList);		
+		return !(mainType instanceof KbScalar || mainType instanceof KbList || mainType instanceof KbMapping);		
 	}
 	
 	public void addInternalType(JavaType iType) {

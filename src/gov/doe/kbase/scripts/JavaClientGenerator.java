@@ -21,8 +21,11 @@ import com.googlecode.jsonschema2pojo.Jackson1Annotator;
 import com.googlecode.jsonschema2pojo.SchemaGenerator;
 import com.googlecode.jsonschema2pojo.SchemaMapper;
 import com.googlecode.jsonschema2pojo.SchemaStore;
+import com.googlecode.jsonschema2pojo.rules.Rule;
 import com.googlecode.jsonschema2pojo.rules.RuleFactory;
 import com.sun.codemodel.JCodeModel;
+import com.sun.codemodel.JPackage;
+import com.sun.codemodel.JType;
 
 public class JavaClientGenerator {
 	private static final char[] propWordDelim = {'_', '-'};
@@ -119,7 +122,12 @@ public class JavaClientGenerator {
 			}
 		};
 		SchemaStore ss = new SchemaStore();
-		RuleFactory rf = new RuleFactory(cfg, new Jackson1Annotator(), ss);
+		RuleFactory rf = new RuleFactory(cfg, new Jackson1Annotator(), ss) {
+			@Override
+			public Rule<JPackage, JType> getObjectRule() {
+				return new JsonSchemaToPojoCustomObjectRule(this);
+			}
+		};
 		SchemaGenerator sg = new SchemaGenerator();
 		SchemaMapper sm = new SchemaMapper(rf, sg);
 		for (JavaType type : data.getTypes()) {
@@ -344,14 +352,14 @@ public class JavaClientGenerator {
 				throw new IllegalStateException("Type [" + type.getInternalTypes().get(0).getOriginalTypeName() + "] " +
 						"can not be used as map key type");
 			JavaType subType = type.getInternalTypes().get(1);
-			LinkedHashMap<String, Object> typeTree = createJsonRefTypeTree(type.getModuleName(), subType, null);
+			LinkedHashMap<String, Object> typeTree = createJsonRefTypeTree(type.getModuleName(), subType, null, false);
 			tree.put("additionalProperties", typeTree);
 		} else {
 			LinkedHashMap<String, Object> props = new LinkedHashMap<String, Object>();
 			for (int itemPos = 0; itemPos < type.getInternalTypes().size(); itemPos++) {
 				JavaType iType = type.getInternalTypes().get(itemPos);
 				String field = type.getInternalFields().get(itemPos);
-				props.put(field, createJsonRefTypeTree(type.getModuleName(), iType, type.getInternalComment(itemPos)));
+				props.put(field, createJsonRefTypeTree(type.getModuleName(), iType, type.getInternalComment(itemPos), false));
 			}
 			tree.put("properties", props);
 			tree.put("additionalProperties", true);
@@ -366,7 +374,7 @@ public class JavaClientGenerator {
 		return jsonFile;
 	}
 
-	private static LinkedHashMap<String, Object> createJsonRefTypeTree(String module, JavaType type, String comment) {
+	private static LinkedHashMap<String, Object> createJsonRefTypeTree(String module, JavaType type, String comment, boolean insideTypeParam) {
 		LinkedHashMap<String, Object> typeTree = new LinkedHashMap<String, Object>();
 		if (comment != null && comment.trim().length() > 0)
 			typeTree.put("description", comment);
@@ -374,10 +382,29 @@ public class JavaClientGenerator {
 			String modulePrefix = type.getModuleName().equals(module) ? "" : ("../" + type.getModuleName() + "/");
 			typeTree.put("$ref", modulePrefix + type.getJavaClassName() + ".json");
 		} else if (type.getMainType() instanceof KbScalar) {
-			typeTree.put("type", ((KbScalar)type.getMainType()).getJsonStyleName());
+			if (insideTypeParam) {
+				typeTree.put("type", "object");
+				typeTree.put("javaType", ((KbScalar)type.getMainType()).getJavaStyleName());
+			} else {
+				typeTree.put("type", ((KbScalar)type.getMainType()).getJsonStyleName());
+			}
 		} else if (type.getMainType() instanceof KbList) {
-			typeTree.put("type", "array");
-			typeTree.put("items", createJsonRefTypeTree(module, type.getInternalTypes().get(0), null));
+			LinkedHashMap<String, Object> subType = createJsonRefTypeTree(module, type.getInternalTypes().get(0), null, insideTypeParam);
+			if (insideTypeParam) {
+				typeTree.put("type", "object");
+				typeTree.put("javaType", "java.util.List");
+				typeTree.put("javaTypeParams", subType);
+			} else {
+				typeTree.put("type", "array");
+				typeTree.put("items", subType);
+			}
+		} else if (type.getMainType() instanceof KbMapping) {
+			typeTree.put("type", "object");
+			typeTree.put("javaType", "java.util.Map");
+			List<LinkedHashMap<String, Object>> subList = new ArrayList<LinkedHashMap<String, Object>>();
+			for (JavaType iType : type.getInternalTypes())
+				subList.add(createJsonRefTypeTree(module, iType, null, true));
+			typeTree.put("javaTypeParams", subList);
 		} else {
 			throw new IllegalStateException("Unknown type: " + type.getMainType().getClass().getName());
 		}
@@ -426,7 +453,10 @@ public class JavaClientGenerator {
 		} else if (kbt instanceof KbScalar) {
 			return kbt.getJavaStyleName();
 		} else if (kbt instanceof KbList) {
-			return getPackagePrefix(packageParent, currentModule, type) + "List<" + getTypeName(type.getInternalTypes().get(0), packageParent, currentModule) + ">";
+			return "List<" + getTypeName(type.getInternalTypes().get(0), packageParent, currentModule) + ">";
+		} else if (kbt instanceof KbMapping) {
+			return "Map<" + getTypeName(type.getInternalTypes().get(0), packageParent, currentModule) + "," + 
+					getTypeName(type.getInternalTypes().get(1), packageParent, currentModule) + ">";
 		} else {
 			throw new IllegalStateException("Unknown data type: " + kbt.getClass().getName());
 		}

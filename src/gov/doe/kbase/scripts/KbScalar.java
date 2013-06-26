@@ -28,6 +28,10 @@ public class KbScalar extends KbBasicType {
 		}
 	}
 
+	public String getFullJavaStyleName() {
+		return "java.lang." + getJavaStyleName();
+	}
+
 	public String getJsonStyleName() {
 		switch (scalarType) {
 			case stringType: return "string";
