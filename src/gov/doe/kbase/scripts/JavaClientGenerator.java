@@ -12,6 +12,7 @@ import java.util.TreeSet;
 
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.SerializationConfig.Feature;
+import org.codehaus.jackson.type.TypeReference;
 
 import com.googlecode.jsonschema2pojo.DefaultGenerationConfig;
 import com.googlecode.jsonschema2pojo.Jackson1Annotator;
@@ -20,9 +21,18 @@ import com.googlecode.jsonschema2pojo.SchemaMapper;
 import com.googlecode.jsonschema2pojo.SchemaStore;
 import com.googlecode.jsonschema2pojo.rules.Rule;
 import com.googlecode.jsonschema2pojo.rules.RuleFactory;
+import com.sun.codemodel.JBlock;
+import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
+import com.sun.codemodel.JDefinedClass;
+import com.sun.codemodel.JExpr;
+import com.sun.codemodel.JFieldVar;
+import com.sun.codemodel.JInvocation;
+import com.sun.codemodel.JMethod;
+import com.sun.codemodel.JMod;
 import com.sun.codemodel.JPackage;
 import com.sun.codemodel.JType;
+import com.sun.codemodel.JVar;
 
 public class JavaClientGenerator {
 	private static final char[] propWordDelim = {'_', '-'};
@@ -214,63 +224,53 @@ public class JavaClientGenerator {
 			File moduleDir = new File(parentDir, module.getModuleName());
 			if (!moduleDir.exists())
 				moduleDir.mkdir();
-			File classFile = new File(moduleDir, "Client.java");
-			List<String> classLines = new ArrayList<String>(Arrays.asList(
-					"package " + packageParent + "." + module.getModuleName() + ";",
-					"",
-					"import java.net.*;",
-					"import java.util.*;",
-					"import org.codehaus.jackson.type.*;",
-					"",
-					"import us.kbase.rpc.Caller;",
-					"",
-					"public class Client {",
-					"    private Caller caller;",
-					"",
-					"    public Client(String url) throws MalformedURLException {",
-					"        caller = new Caller(url);",
-					"    }"
-					));
+			//File classFile = new File(moduleDir, "Client.java");
+			JCodeModel model = new JCodeModel();
+			JDefinedClass clientClass = model._package(packageParent + "." + module.getModuleName())._class("Client");
+			JType callerType = model.ref("us.kbase.rpc.Caller");
+			JFieldVar callerField = clientClass.field(JMod.PRIVATE, callerType, "caller");
+			JMethod constr = clientClass.constructor(JMod.PUBLIC);
+			JType stringType = model.ref("java.lang.String");
+			JVar urlVar = constr.param(stringType, "url");
+			constr._throws(model.ref("java.net.MalformedURLException"));
+			constr.body().assign(callerField, JExpr._new(callerType).arg(urlVar));
 			for (JavaFunc func : module.getFuncs()) {
 				JavaType retType = null;
-				if (func.getRetMultyType() == null) {
+				boolean uniqueRet = func.getRetMultyType() == null;
+				if (uniqueRet) {
 					if (func.getReturns().size() > 0) {
 						retType = func.getReturns().get(0).getType();
 					}
 				} else {
 					retType = func.getRetMultyType();
 				}
-				StringBuilder funcParams = new StringBuilder();
+				JType retJType = getJType(retType, packageParent, model);
+				JMethod method = clientClass.method(JMod.PUBLIC, retJType, func.getJavaName());
+				List<JVar> inputVars = new ArrayList<JVar>();
 				for (JavaFuncParam param : func.getParams()) {
-					if (funcParams.length() > 0)
-						funcParams.append(", ");
-					funcParams.append(getTypeName(param.getType(), packageParent, func.getModuleName()) + " " + param.getJavaName());
+					JType argType = getJType(param.getType(), packageParent, model);
+					JVar argVar = method.param(argType, param.getJavaName());
+					inputVars.add(argVar);
 				}
-				String retTypeName = getTypeName(retType, packageParent, module.getModuleName());
-				classLines.add("");
-				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
-				classLines.add("        List<Object> args = new ArrayList<Object>();");
-				for (JavaFuncParam param : func.getParams()) {
-					classLines.add("        args.add(" + param.getJavaName() + ");");
+				method._throws(model.ref("java.lang.Exception"));
+				JBlock block = method.body();
+				JVar arrayListVar = block.decl(model.ref(List.class).narrow(Object.class), "args", 
+						JExpr._new(model.ref(ArrayList.class).narrow(Object.class)));
+				for (JVar inputVar : inputVars) {
+					block.add(arrayListVar.invoke("add").arg(inputVar));
 				}
-				if (func.getRetMultyType() == null) {
-					classLines.addAll(Arrays.asList(
-							"        Object retType = new TypeReference<List<" + retTypeName + ">>() {};",
-							"        List<" + retTypeName + "> res = caller.jsonrpc_call(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType);",
-							"        return res.get(0);",
-							"    }"
-							));
-				} else {
-					classLines.addAll(Arrays.asList(
-							"        Object retType = " + retTypeName + ".class;",
-							"        " + retTypeName + " res = caller.jsonrpc_call(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType);",
-							"        return res;",
-							"    }"
-							));					
-				}
+				JClass typeReferenceType = model.ref(TypeReference.class);
+				JClass outerRetType = uniqueRet ? typeReferenceType.narrow(model.ref(List.class).narrow(retJType)) :
+					typeReferenceType.narrow(retJType);
+				JVar retTypeVar = block.decl(outerRetType, "retType");
+				block.directStatement("retType = new " + outerRetType.name() + "() {};");
+				//block.assign(retTypeVar, JExpr._new(model.anonymousClass(outerRetType)));
+				JType resType = uniqueRet ? model.ref(List.class).narrow(retJType) : retJType;
+				JInvocation rpcMethod = JExpr.invoke(callerField, "jsonrpc_call").arg(module.getOriginal().getModuleName() + "." + func.getOriginal().getName()).arg(arrayListVar).arg(retTypeVar);
+				JVar resVar = block.decl(resType, "res", rpcMethod);
+				block._return(uniqueRet ? JExpr.invoke(resVar, "get").arg(JExpr.lit(0)) : resVar);
 			}
-			classLines.add("}");
-			Utils.writeFileLines(classLines, classFile);
+			model.build(srcOutDir);
 		}
 	}
 
@@ -413,32 +413,29 @@ public class JavaClientGenerator {
 		}
 	}
 
-	private static String getTypeName(JavaType type, String packageParent, String currentModule) {
+	private static JClass getJType(JavaType type, String packageParent, JCodeModel codeModel) {
 		KbBasicType kbt = type.getMainType();
 		if (type.needClassGeneration()) {
-			return getPackagePrefix(packageParent, currentModule, type) + type.getJavaClassName();
+			return codeModel.ref(getPackagePrefix(packageParent, type) + type.getJavaClassName());
 		} else if (kbt instanceof KbScalar) {
-			return kbt.getJavaStyleName();
+			return codeModel.ref(((KbScalar)kbt).getJavaStyleName());
 		} else if (kbt instanceof KbList) {
-			return "List<" + getTypeName(type.getInternalTypes().get(0), packageParent, currentModule) + ">";
+			return codeModel.ref("java.util.List").narrow(getJType(type.getInternalTypes().get(0), packageParent, codeModel));
 		} else if (kbt instanceof KbMapping) {
-			return "Map<" + getTypeName(type.getInternalTypes().get(0), packageParent, currentModule) + "," + 
-					getTypeName(type.getInternalTypes().get(1), packageParent, currentModule) + ">";
+			return codeModel.ref("java.util.Map").narrow(getJType(type.getInternalTypes().get(0), packageParent, codeModel), 
+					getJType(type.getInternalTypes().get(1), packageParent, codeModel));
 		} else if (kbt instanceof KbTuple) {
 			int paramCount = type.getInternalTypes().size();
-			StringBuilder sb = new StringBuilder();
-			for (JavaType iType : type.getInternalTypes()) {
-				if (sb.length() > 0)
-					sb.append(',');
-				sb.append(getTypeName(iType, packageParent, currentModule));
-			}
-			return "Tuple" + paramCount + "<" + sb + ">";
+			List<JClass> paramTypes = new ArrayList<JClass>();
+			for (JavaType iType : type.getInternalTypes())
+				paramTypes.add(getJType(iType, packageParent, codeModel));
+			return codeModel.ref(getPackagePrefix(packageParent, type) + "Tuple" + paramCount).narrow(paramTypes);
 		} else {
 			throw new IllegalStateException("Unknown data type: " + kbt.getClass().getName());
 		}
 	}
 
-	private static String getPackagePrefix(String packageParent, String currentModule, JavaType type) {
-		return packageParent == null ? "" : (currentModule.equals(type.getModuleName()) ? "" : (packageParent + "." + type.getModuleName() + "."));
+	private static String getPackagePrefix(String packageParent, JavaType type) {
+		return packageParent + "." + type.getModuleName() + ".";
 	}
 }
