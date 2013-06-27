@@ -1,12 +1,9 @@
 package gov.doe.kbase.scripts;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +51,7 @@ public class JavaClientGenerator {
 		for (KbService service: services) {
 			for (KbModule module : service.getModules()) {
 				List<JavaFunc> funcs = new ArrayList<JavaFunc>();
+				Set<Integer> tupleTypes = new TreeSet<Integer>();
 				for (KbModuleComp comp : module.getModuleComponents()) {
 					if (comp instanceof KbFuncdef) {
 						String moduleName = module.getModuleName();
@@ -61,12 +59,12 @@ public class JavaClientGenerator {
 						String funcJavaName = Utils.inCamelCase(func.getName());
 						List<JavaFuncParam> params = new ArrayList<JavaFuncParam>();
 						for (KbParameter param : func.getParameters()) {
-							JavaType type = findBasic(param.getType(), module.getModuleName(), nonPrimitiveTypes);
+							JavaType type = findBasic(param.getType(), module.getModuleName(), nonPrimitiveTypes, tupleTypes);
 							params.add(new JavaFuncParam(param, Utils.inCamelCase(param.getName()), type));
 						}
 						List<JavaFuncParam> returns = new ArrayList<JavaFuncParam>();
 						for (KbParameter param : func.getReturnType()) {
-							JavaType type = findBasic(param.getType(), module.getModuleName(), nonPrimitiveTypes);
+							JavaType type = findBasic(param.getType(), module.getModuleName(), nonPrimitiveTypes, tupleTypes);
 							returns.add(new JavaFuncParam(param, param.getName() == null ? null : Utils.inCamelCase(param.getName()), type));
 						}
 						JavaType retMultiType = null;
@@ -78,12 +76,14 @@ public class JavaClientGenerator {
 							retMultiType = new JavaType(null, tuple, moduleName, new ArrayList<KbTypedef>());
 							for (JavaFuncParam retPar : returns)
 								retMultiType.addInternalType(retPar.getType());
-							nonPrimitiveTypes.add(retMultiType);
+							//nonPrimitiveTypes.add(retMultiType);
 						}
 						funcs.add(new JavaFunc(moduleName, func, funcJavaName, params, returns, retMultiType));
+					} else {
+						findBasic((KbTypedef)comp, module.getModuleName(), nonPrimitiveTypes, tupleTypes);
 					}
 				}
-				data.addModule(module, funcs);
+				data.addModule(module, funcs, tupleTypes);
 			}
 		}
 		data.setTypes(nonPrimitiveTypes);
@@ -94,14 +94,13 @@ public class JavaClientGenerator {
 		if (!srcOutDir.exists())
 			srcOutDir.mkdirs();
 		generatePojos(data, jsonOutDir, srcOutDir, packageParent);
-		generateSerializersForTuples(data,srcOutDir, packageParent);
+		generateTupleClasses(data,srcOutDir, packageParent);
 		generateClientClass(data, srcOutDir, packageParent);
-		checkCallerClass(srcOutDir);
+		checkUtilityClasses(srcOutDir);
 	}
 
 	private static void generatePojos(JavaData data, File jsonOutDir,
-			File srcOutDir, String packageParent) throws Exception,
-			MalformedURLException, IOException {
+			File srcOutDir, String packageParent) throws Exception {
 		JCodeModel codeModel = new JCodeModel();
 		DefaultGenerationConfig cfg = new DefaultGenerationConfig() {
 			@Override
@@ -131,103 +130,74 @@ public class JavaClientGenerator {
 		SchemaGenerator sg = new SchemaGenerator();
 		SchemaMapper sm = new SchemaMapper(rf, sg);
 		for (JavaType type : data.getTypes()) {
-			File f = writeJsonSchema(jsonOutDir, packageParent, type);
+			Set<Integer> tupleTypes = data.getModule(type.getModuleName()).getTupleTypes();
+			File f = writeJsonSchema(jsonOutDir, packageParent, type, tupleTypes);
 			URL source = f.toURI().toURL();
 			sm.generate(codeModel, type.getJavaClassName(), "", source);
 		}
 		codeModel.build(srcOutDir);
 	}
-
-	private static void generateSerializersForTuples(JavaData data, File srcOutDir, String packageParent) throws IOException {
+	
+	private static void generateTupleClasses(JavaData data, File srcOutDir, String packageParent) throws Exception {
 		File parentDir = getParentSourceDir(srcOutDir, packageParent);
-		for (JavaType type : data.getTypes()) {
-			if (!(type.getMainType() instanceof KbTuple))
-				continue;
-			File moduleDir = new File(parentDir, type.getModuleName());
-			File tupleClassFile = new File(moduleDir, type.getJavaClassName() + ".java");
-			if (!tupleClassFile.exists())
-				throw new IllegalStateException("Can't find " + tupleClassFile + " file");
-			List<String> lines = Utils.readFileLines(tupleClassFile);
-			int pos;
-			for (pos = 0; pos < lines.size(); pos++) {
-				String l = lines.get(pos);
-				if (l.startsWith("public class "))
-					break;
-				if (l.startsWith("@JsonSerialize"))
-					lines.set(pos, "//" + l);
-			}
-			lines.add(pos, "@JsonSerialize(using = " + type.getJavaClassName() + "Serializer.class)");
-			lines.add(pos + 1, "@JsonDeserialize(using = " + type.getJavaClassName() + "Deserializer.class)");
-			updateImports(lines, "org.codehaus.jackson.map.annotate.JsonSerialize", "org.codehaus.jackson.map.annotate.JsonDeserialize");
-			Utils.writeFileLines(lines, tupleClassFile);
-			String packageName = packageParent + "." + type.getModuleName();
-			List<String> serLines = new ArrayList<String>(Arrays.asList(
-					"package " + packageName + ";",
-					"",
-					"import java.io.*;",
-					"import java.util.*;",
-					"import org.codehaus.jackson.map.*;",
-					"import org.codehaus.jackson.map.annotate.*;",
-					"import org.codehaus.jackson.type.*;",
-					"import org.codehaus.jackson.*;",
-					"",
-					"",
-					"public class " + type.getJavaClassName() + "Serializer extends JsonSerializer<" + type.getJavaClassName() + "> {",
-					"    public void serialize(" + type.getJavaClassName() + " value, JsonGenerator jgen, SerializerProvider provider) throws IOException, JsonProcessingException {",
-					"        jgen.writeStartArray();"
-					));
-			for (String field : type.getInternalFields())
-				serLines.add(
-						"        jgen.writeObject(value.get" + Utils.capitalize(field) + "());"
-						);
-			serLines.addAll(Arrays.asList(
-					"        jgen.writeEndArray();",
-					"    }",
-					"}"
-					));
-			Utils.writeFileLines(serLines, new File(moduleDir, type.getJavaClassName() + "Serializer.java"));
-			List<String> deserLines = new ArrayList<String>(Arrays.asList(
-					"package " +  packageName + ";",
-					"",
-					"import java.io.*;",
-					"import java.util.*;",
-					"import org.codehaus.jackson.map.*;",
-					"import org.codehaus.jackson.map.annotate.*;",
-					"import org.codehaus.jackson.type.*;",
-					"import org.codehaus.jackson.*;",
-					"",
-					"",
-					"public class " + type.getJavaClassName() + "Deserializer extends JsonDeserializer<" + type.getJavaClassName() + "> {",
-					"    public " + type.getJavaClassName() + " deserialize(JsonParser p, DeserializationContext ctx) throws IOException, JsonProcessingException {",
-					"        " + type.getJavaClassName() + " res = new " + type.getJavaClassName() + "();",
-					"        if (!p.isExpectedStartArrayToken()) {",
-					"            System.out.println(\"Bad parse in " + type.getJavaClassName() + "Deserializer: \" + p.getCurrentToken());",
-					"            return null;",
-					"        }",
-					"        p.nextToken();"
-					));
-			for (int i = 0; i < type.getInternalFields().size(); i++) {
-				String field = type.getInternalFields().get(i);
-				JavaType iType = type.getInternalTypes().get(i);
-				String classRef = null;
-				if (iType.needClassGeneration()) {
-					classRef = packageName + "." + iType.getJavaClassName() + ".class";
-				} else if (iType.getMainType() instanceof KbScalar) {
-					classRef = iType.getMainType().getJavaStyleName() + ".class";
-				} else { // For List<...>
-					classRef = "new TypeReference<" + getTypeName(iType, packageParent, type.getModuleName()) + ">() {}";
+		for (JavaModule module : data.getModules()) {
+			File moduleDir = new File(parentDir, module.getModuleName());
+			Set<Integer> tupleTypes = module.getTupleTypes();
+			if (tupleTypes.size() > 0) {
+				if (!moduleDir.exists())
+					moduleDir.mkdir();
+				for (int tupleType : tupleTypes) {
+					if (tupleType < 1)
+						throw new IllegalStateException("Wrong tuple type: " + tupleType);
+					File tupleFile = new File(moduleDir, "Tuple" + tupleType + ".java");
+					StringBuilder sb = new StringBuilder();
+					for (int i = 0; i < tupleType; i++) {
+						if (sb.length() > 0)
+							sb.append(", ");
+						sb.append('T').append(i+1);
+					}
+					List<String> classLines = new ArrayList<String>(Arrays.asList(
+							"package " + packageParent + "." + module.getModuleName() + ";",
+							"",
+							"import java.util.HashMap;",
+							"import java.util.Map;",
+							"import org.codehaus.jackson.annotate.JsonAnyGetter;",
+							"import org.codehaus.jackson.annotate.JsonAnySetter;",
+							"",
+							"public class Tuple3 <" + sb + "> {"
+							));
+					for (int i = 0; i < tupleType; i++) {
+						classLines.add("    private T" + (i + 1) + " e" + (i + 1) + ";");
+					}
+					classLines.add("    private Map<String, Object> additionalProperties = new HashMap<String, Object>();");
+					for (int i = 0; i < tupleType; i++) {
+						classLines.addAll(Arrays.asList(
+								"",
+								"    public T" + (i + 1) + " getE" + (i + 1) + "() {",
+								"        return e" + (i + 1) + ";",
+								"    }",
+								"",
+								"    public void setE" + (i + 1) + "(T" + (i + 1) + " e" + (i + 1) + ") {",
+								"        this.e" + (i + 1) + " = e" + (i + 1) + ";",
+								"    }"
+								));
+					}
+					classLines.addAll(Arrays.asList(
+							"",
+							"    @JsonAnyGetter",
+							"    public Map<String, Object> getAdditionalProperties() {",
+							"        return this.additionalProperties;",
+							"    }",
+							"",
+							"    @JsonAnySetter",
+							"    public void setAdditionalProperties(String name, Object value) {",
+							"        this.additionalProperties.put(name, value);",
+							"    }",
+							"}"
+							));
+					Utils.writeFileLines(classLines, tupleFile);
 				}
-				deserLines.add(
-						"        res.set" + Utils.capitalize(field) + "(p.readValueAs(" + classRef + "));"
-						);
 			}
-			deserLines.addAll(Arrays.asList(
-					"        p.nextToken();",
-					"        return res;",
-					"    }",
-					"}"
-					));
-			Utils.writeFileLines(deserLines, new File(moduleDir, type.getJavaClassName() + "Deserializer.java"));			
 		}
 	}
 
@@ -249,12 +219,8 @@ public class JavaClientGenerator {
 					"package " + packageParent + "." + module.getModuleName() + ";",
 					"",
 					"import java.net.*;",
-					"import java.io.*;",
 					"import java.util.*;",
-					"import org.codehaus.jackson.map.*;",
-					"import org.codehaus.jackson.map.annotate.*;",
 					"import org.codehaus.jackson.type.*;",
-					"import org.codehaus.jackson.*;",
 					"",
 					"import us.kbase.rpc.Caller;",
 					"",
@@ -308,39 +274,22 @@ public class JavaClientGenerator {
 		}
 	}
 
-	private static void checkCallerClass(File srcOutDir) throws Exception {
-		File callerClassFile = new File(srcOutDir.getAbsolutePath() + "/us/kbase/rpc/Caller.java");
-		if (callerClassFile.exists())
-			return;
-		Utils.writeFileLines(Utils.readStreamLines(JavaClientGenerator.class.getResourceAsStream("Caller.java.properties")), callerClassFile);
-	}
-	
-	private static void updateImports(List<String> javaCodeLines, String... addNamesToimports) {
-		int insertPos = -1;
-		Set<String> usedImports = new HashSet<String>();
-		for (int pos = 0; ; pos++) {
-			String l = javaCodeLines.get(pos).trim();
-			boolean isImport = l.startsWith("import ");
-			boolean isPackage = l.startsWith("package ");
-			if (!(l.length() == 0 || isPackage || isImport))
-				break;
-			if (isPackage)
-				insertPos = pos + 2;
-			if (isImport) {
-				usedImports.add(l.substring(7, l.length() - 1).trim());
-				insertPos = pos + 1;
-			}
-			pos++;
-		}
-		for (String importName : addNamesToimports) {
-			if (usedImports.contains(importName))
-				continue;
-			javaCodeLines.add(insertPos, "import " + importName + ";");
-			insertPos++;
-		}
+	private static void checkUtilityClasses(File srcOutDir) throws Exception {
+		checkUtilityClass(srcOutDir, "Caller");
+		checkUtilityClass(srcOutDir, "JacksonTupleModule");
 	}
 
-	private static File writeJsonSchema(File parentOutDir, String packageParent, JavaType type) throws Exception {
+	private static void checkUtilityClass(File srcOutDir, String className) throws Exception {
+		File dir = new File(srcOutDir.getAbsolutePath() + "/us/kbase/rpc");
+		if (!dir.exists())
+			dir.mkdirs();
+		File dstClassFile = new File(dir, className + ".java");
+		if (dstClassFile.exists())
+			return;
+		Utils.writeFileLines(Utils.readStreamLines(JavaClientGenerator.class.getResourceAsStream(className + ".java.properties")), dstClassFile);
+	}
+	
+	private static File writeJsonSchema(File parentOutDir, String packageParent, JavaType type, Set<Integer> tupleTypes) throws Exception {
 		LinkedHashMap<String, Object> tree = new LinkedHashMap<String, Object>();
 		tree.put("$schema", "http://json-schema.org/draft-04/schema#");
 		tree.put("id", type.getModuleName() + "." + type.getJavaClassName());
@@ -352,14 +301,15 @@ public class JavaClientGenerator {
 				throw new IllegalStateException("Type [" + type.getInternalTypes().get(0).getOriginalTypeName() + "] " +
 						"can not be used as map key type");
 			JavaType subType = type.getInternalTypes().get(1);
-			LinkedHashMap<String, Object> typeTree = createJsonRefTypeTree(type.getModuleName(), subType, null, false);
+			LinkedHashMap<String, Object> typeTree = createJsonRefTypeTree(type.getModuleName(), subType, null, false, packageParent, tupleTypes);
 			tree.put("additionalProperties", typeTree);
+			throw new IllegalStateException();
 		} else {
 			LinkedHashMap<String, Object> props = new LinkedHashMap<String, Object>();
 			for (int itemPos = 0; itemPos < type.getInternalTypes().size(); itemPos++) {
 				JavaType iType = type.getInternalTypes().get(itemPos);
 				String field = type.getInternalFields().get(itemPos);
-				props.put(field, createJsonRefTypeTree(type.getModuleName(), iType, type.getInternalComment(itemPos), false));
+				props.put(field, createJsonRefTypeTree(type.getModuleName(), iType, type.getInternalComment(itemPos), false, packageParent, tupleTypes));
 			}
 			tree.put("properties", props);
 			tree.put("additionalProperties", true);
@@ -374,13 +324,18 @@ public class JavaClientGenerator {
 		return jsonFile;
 	}
 
-	private static LinkedHashMap<String, Object> createJsonRefTypeTree(String module, JavaType type, String comment, boolean insideTypeParam) {
+	private static LinkedHashMap<String, Object> createJsonRefTypeTree(String module, JavaType type, String comment, boolean insideTypeParam, String packageParent, Set<Integer> tupleTypes) {
 		LinkedHashMap<String, Object> typeTree = new LinkedHashMap<String, Object>();
 		if (comment != null && comment.trim().length() > 0)
 			typeTree.put("description", comment);
 		if (type.needClassGeneration()) {
-			String modulePrefix = type.getModuleName().equals(module) ? "" : ("../" + type.getModuleName() + "/");
-			typeTree.put("$ref", modulePrefix + type.getJavaClassName() + ".json");
+			if (insideTypeParam) {
+				typeTree.put("type", "object");
+				typeTree.put("javaType", packageParent + "." + type.getModuleName() + "." + type.getJavaClassName());
+			} else {
+				String modulePrefix = type.getModuleName().equals(module) ? "" : ("../" + type.getModuleName() + "/");
+				typeTree.put("$ref", modulePrefix + type.getJavaClassName() + ".json");
+			}
 		} else if (type.getMainType() instanceof KbScalar) {
 			if (insideTypeParam) {
 				typeTree.put("type", "object");
@@ -389,7 +344,7 @@ public class JavaClientGenerator {
 				typeTree.put("type", ((KbScalar)type.getMainType()).getJsonStyleName());
 			}
 		} else if (type.getMainType() instanceof KbList) {
-			LinkedHashMap<String, Object> subType = createJsonRefTypeTree(module, type.getInternalTypes().get(0), null, insideTypeParam);
+			LinkedHashMap<String, Object> subType = createJsonRefTypeTree(module, type.getInternalTypes().get(0), null, insideTypeParam, packageParent, tupleTypes);
 			if (insideTypeParam) {
 				typeTree.put("type", "object");
 				typeTree.put("javaType", "java.util.List");
@@ -403,7 +358,18 @@ public class JavaClientGenerator {
 			typeTree.put("javaType", "java.util.Map");
 			List<LinkedHashMap<String, Object>> subList = new ArrayList<LinkedHashMap<String, Object>>();
 			for (JavaType iType : type.getInternalTypes())
-				subList.add(createJsonRefTypeTree(module, iType, null, true));
+				subList.add(createJsonRefTypeTree(module, iType, null, true, packageParent, tupleTypes));
+			typeTree.put("javaTypeParams", subList);
+		} else if (type.getMainType() instanceof KbTuple) {
+			typeTree.put("type", "object");
+			int tupleType = type.getInternalTypes().size();
+			if (tupleType < 1)
+				throw new IllegalStateException("Wrong count of tuple parameters: " + tupleType);
+			typeTree.put("javaType", packageParent + "." + type.getModuleName() + ".Tuple" + tupleType);
+			tupleTypes.add(tupleType);
+			List<LinkedHashMap<String, Object>> subList = new ArrayList<LinkedHashMap<String, Object>>();
+			for (JavaType iType : type.getInternalTypes())
+				subList.add(createJsonRefTypeTree(module, iType, null, true, packageParent, tupleTypes));
 			typeTree.put("javaTypeParams", subList);
 		} else {
 			throw new IllegalStateException("Unknown type: " + type.getMainType().getClass().getName());
@@ -411,28 +377,29 @@ public class JavaClientGenerator {
 		return typeTree;
 	}
 
-	private static JavaType findBasic(KbType type, String moduleName, Set<JavaType> nonPrimitiveTypes) {
-		JavaType ret = findBasic(null, type, moduleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes);
+	private static JavaType findBasic(KbType type, String moduleName, Set<JavaType> nonPrimitiveTypes, Set<Integer> tupleTypes) {
+		JavaType ret = findBasic(null, type, moduleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes, tupleTypes);
 		return ret;
 	}
 
-	private static JavaType findBasic(String typeName, KbType type, String defaultModuleName, String typeModuleName, List<KbTypedef> aliases, Set<JavaType> nonPrimitiveTypes) {
+	private static JavaType findBasic(String typeName, KbType type, String defaultModuleName, String typeModuleName, List<KbTypedef> aliases, Set<JavaType> nonPrimitiveTypes, Set<Integer> tupleTypes) {
 		if (type instanceof KbBasicType) {
 			JavaType ret = new JavaType(typeName, (KbBasicType)type, typeModuleName == null ? defaultModuleName : typeModuleName, aliases);
 			if (!(type instanceof KbScalar))
 				if (type instanceof KbStruct) {
 					for (KbStructItem item : ((KbStruct)type).getItems()) {
-						ret.addInternalType(findBasic(null, item.getItemType(), defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes));
+						ret.addInternalType(findBasic(null, item.getItemType(), defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes, tupleTypes));
 						ret.addInternalField(item.getName(), "");
 					}
 				} else if (type instanceof KbList) {
-					ret.addInternalType(findBasic(null, ((KbList)type).getElementType(), defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes));
+					ret.addInternalType(findBasic(null, ((KbList)type).getElementType(), defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes, tupleTypes));
 				} else if (type instanceof KbMapping) {
-					ret.addInternalType(findBasic(null, ((KbMapping)type).getKeyType(), defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes));
-					ret.addInternalType(findBasic(null, ((KbMapping)type).getValueType(), defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes));
+					ret.addInternalType(findBasic(null, ((KbMapping)type).getKeyType(), defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes, tupleTypes));
+					ret.addInternalType(findBasic(null, ((KbMapping)type).getValueType(), defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes, tupleTypes));
 				} else if (type instanceof KbTuple) {
+					tupleTypes.add(((KbTuple)type).getElementTypes().size());
 					for (KbType iType : ((KbTuple)type).getElementTypes())
-						ret.addInternalType(findBasic(null, iType, defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes));
+						ret.addInternalType(findBasic(null, iType, defaultModuleName, null, new ArrayList<KbTypedef>(), nonPrimitiveTypes, tupleTypes));
 				} else {
 					throw new IllegalStateException("Unknown basic type: " + type.getClass().getSimpleName());
 				}
@@ -442,7 +409,7 @@ public class JavaClientGenerator {
 		} else {
 			KbTypedef typeRef = (KbTypedef)type;
 			aliases.add(typeRef);
-			return findBasic(typeRef.getName(), typeRef.getAliasType(), defaultModuleName, typeRef.getModule(), aliases, nonPrimitiveTypes);
+			return findBasic(typeRef.getName(), typeRef.getAliasType(), defaultModuleName, typeRef.getModule(), aliases, nonPrimitiveTypes, tupleTypes);
 		}
 	}
 
@@ -457,6 +424,15 @@ public class JavaClientGenerator {
 		} else if (kbt instanceof KbMapping) {
 			return "Map<" + getTypeName(type.getInternalTypes().get(0), packageParent, currentModule) + "," + 
 					getTypeName(type.getInternalTypes().get(1), packageParent, currentModule) + ">";
+		} else if (kbt instanceof KbTuple) {
+			int paramCount = type.getInternalTypes().size();
+			StringBuilder sb = new StringBuilder();
+			for (JavaType iType : type.getInternalTypes()) {
+				if (sb.length() > 0)
+					sb.append(',');
+				sb.append(getTypeName(iType, packageParent, currentModule));
+			}
+			return "Tuple" + paramCount + "<" + sb + ">";
 		} else {
 			throw new IllegalStateException("Unknown data type: " + kbt.getClass().getName());
 		}

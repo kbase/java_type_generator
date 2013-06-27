@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 public class JavaData {
@@ -14,8 +15,8 @@ public class JavaData {
 	public JavaData() {
 	}
 
-	public void addModule(KbModule original, List<JavaFunc> funcs) {
-		JavaModule jm = new JavaModule(original, funcs);
+	public void addModule(KbModule original, List<JavaFunc> funcs, Set<Integer> tupleTypes) {
+		JavaModule jm = new JavaModule(original, funcs, tupleTypes);
 		modules.put(jm.getModuleName(), jm);
 	}
 	

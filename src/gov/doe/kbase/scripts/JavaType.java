@@ -3,8 +3,6 @@ package gov.doe.kbase.scripts;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.StringTokenizer;
 
 public class JavaType implements Comparable<JavaType> {
 	private List<KbTypedef> aliasHistoryOuterToDeep;
@@ -25,7 +23,7 @@ public class JavaType implements Comparable<JavaType> {
 	}
 	
 	public boolean needClassGeneration() {
-		return !(mainType instanceof KbScalar || mainType instanceof KbList || mainType instanceof KbMapping);		
+		return mainType instanceof KbStruct;
 	}
 	
 	public void addInternalType(JavaType iType) {
@@ -72,17 +70,12 @@ public class JavaType implements Comparable<JavaType> {
 	
 	public String getJavaClassName() {
 		if (javaClassName == null) {
-			if (mainType instanceof KbMapping) {
-				javaClassName = "Map" + getTypeNameWithModuleIfNeed(internalTypes.get(0)) + 
-						"To" + getTypeNameWithModuleIfNeed(internalTypes.get(1));
-			} else {
-				StringBuilder sb = new StringBuilder(mainType.getJavaStyleName());
-				for (int typePos = 0; typePos < internalTypes.size(); typePos++) {
-					JavaType iType = internalTypes.get(typePos);
-					sb.append(getTypeNameWithModuleIfNeed(iType)).append(typePos + 1);
-				}
-				javaClassName = sb.toString();
+			StringBuilder sb = new StringBuilder(mainType.getJavaStyleName());
+			for (int typePos = 0; typePos < internalTypes.size(); typePos++) {
+				JavaType iType = internalTypes.get(typePos);
+				sb.append(getTypeNameWithModuleIfNeed(iType)).append(typePos + 1);
 			}
+			javaClassName = sb.toString();
 		}
 		return javaClassName;
 	}
