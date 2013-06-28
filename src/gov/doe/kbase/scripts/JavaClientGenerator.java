@@ -38,14 +38,33 @@ public class JavaClientGenerator {
 	private static final char[] propWordDelim = {'_', '-'};
 
 	public static void main(String[] args) throws Exception {
-		if (args.length != 4) {
-			System.out.println("Usage: <program> <json_parsing_file> <json_schema_out_dir> <src_out_dir> <java_package_without_model>");
+		if (args.length != 5) {
+			System.out.println("Usage: <program> <mode:json|spec> <json_parsing_file|spec_file> <json_schema_out_dir> <src_out_dir> <java_package_without_model>");
 			return;
 		}
-		File jsonParsingFile = new File(args[0]);
-		File jsonSchemaOutDir = new File(args[1]);
-		File srcOutDir = new File(args[2]);
-		String packageParent = args[3];
+		String mode = args[0];
+		File inputFile = new File(args[1]);
+		File jsonSchemaOutDir = new File(args[2]);
+		File srcOutDir = new File(args[3]);
+		String packageParent = args[4];
+		if (mode.equals("json")) {
+			processJson(inputFile, jsonSchemaOutDir, srcOutDir, packageParent);
+		} else if (mode.equals("spec")) {
+			processSpec(inputFile, jsonSchemaOutDir, srcOutDir, packageParent);
+		} else {
+			throw new IllegalStateException("Unsupported mode: " + mode);
+		}
+	}
+	
+	public static void processSpec(File specFile, File jsonSchemaOutDir, File srcOutDir, String packageParent) throws Exception {		
+		processJson(transformSpecToJson(specFile), jsonSchemaOutDir, srcOutDir, packageParent);
+	}
+	
+	public static File transformSpecToJson(File specFile) throws Exception {
+		throw new IllegalStateException("Mode 'spec' is not supported yet.");
+	}
+	
+	public static JavaData processJson(File jsonParsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent) throws Exception {		
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(Feature.INDENT_OUTPUT, true);
 		Map<?,?> map = mapper.readValue(jsonParsingFile, Map.class);
@@ -53,6 +72,7 @@ public class JavaClientGenerator {
 		List<KbService> srvList = KbService.loadFromMap(map, subst);
 		JavaData data = prepareDataStructures(srvList);
 		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent);
+		return data;
 	}
 
 	private static JavaData prepareDataStructures(List<KbService> services) {
@@ -87,6 +107,7 @@ public class JavaClientGenerator {
 							for (JavaFuncParam retPar : returns)
 								retMultiType.addInternalType(retPar.getType());
 							//nonPrimitiveTypes.add(retMultiType);
+							tupleTypes.add(returns.size());
 						}
 						funcs.add(new JavaFunc(moduleName, func, funcJavaName, params, returns, retMultiType));
 					} else {
@@ -111,6 +132,14 @@ public class JavaClientGenerator {
 
 	private static void generatePojos(JavaData data, File jsonOutDir,
 			File srcOutDir, String packageParent) throws Exception {
+		for (JavaType type : data.getTypes()) {
+			Set<Integer> tupleTypes = data.getModule(type.getModuleName()).getTupleTypes();
+			File dir = new File(jsonOutDir, type.getModuleName());
+			if (!dir.exists())
+				dir.mkdirs();
+			File jsonFile = new File(dir, type.getJavaClassName() + ".json"); 
+			writeJsonSchema(jsonFile, packageParent, type, tupleTypes);
+		}
 		JCodeModel codeModel = new JCodeModel();
 		DefaultGenerationConfig cfg = new DefaultGenerationConfig() {
 			@Override
@@ -140,9 +169,8 @@ public class JavaClientGenerator {
 		SchemaGenerator sg = new SchemaGenerator();
 		SchemaMapper sm = new SchemaMapper(rf, sg);
 		for (JavaType type : data.getTypes()) {
-			Set<Integer> tupleTypes = data.getModule(type.getModuleName()).getTupleTypes();
-			File f = writeJsonSchema(jsonOutDir, packageParent, type, tupleTypes);
-			URL source = f.toURI().toURL();
+			File jsonFile = new File(new File(jsonOutDir, type.getModuleName()), type.getJavaClassName() + ".json"); 
+			URL source = jsonFile.toURI().toURL();
 			sm.generate(codeModel, type.getJavaClassName(), "", source);
 		}
 		codeModel.build(srcOutDir);
@@ -174,7 +202,7 @@ public class JavaClientGenerator {
 							"import org.codehaus.jackson.annotate.JsonAnyGetter;",
 							"import org.codehaus.jackson.annotate.JsonAnySetter;",
 							"",
-							"public class Tuple3 <" + sb + "> {"
+							"public class Tuple" + tupleType + " <" + sb + "> {"
 							));
 					for (int i = 0; i < tupleType; i++) {
 						classLines.add("    private T" + (i + 1) + " e" + (i + 1) + ";");
@@ -289,7 +317,7 @@ public class JavaClientGenerator {
 		Utils.writeFileLines(Utils.readStreamLines(JavaClientGenerator.class.getResourceAsStream(className + ".java.properties")), dstClassFile);
 	}
 	
-	private static File writeJsonSchema(File parentOutDir, String packageParent, JavaType type, Set<Integer> tupleTypes) throws Exception {
+	private static void writeJsonSchema(File jsonFile, String packageParent, JavaType type, Set<Integer> tupleTypes) throws Exception {
 		LinkedHashMap<String, Object> tree = new LinkedHashMap<String, Object>();
 		tree.put("$schema", "http://json-schema.org/draft-04/schema#");
 		tree.put("id", type.getModuleName() + "." + type.getJavaClassName());
@@ -314,14 +342,9 @@ public class JavaClientGenerator {
 			tree.put("properties", props);
 			tree.put("additionalProperties", true);
 		}
-		File dir = new File(parentOutDir, type.getModuleName());
-		if (!dir.exists())
-			dir.mkdirs();
-		File jsonFile = new File(dir, type.getJavaClassName() + ".json"); 
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(Feature.INDENT_OUTPUT, true);
 		mapper.writeValue(jsonFile, tree);
-		return jsonFile;
 	}
 
 	private static LinkedHashMap<String, Object> createJsonRefTypeTree(String module, JavaType type, String comment, boolean insideTypeParam, String packageParent, Set<Integer> tupleTypes) {

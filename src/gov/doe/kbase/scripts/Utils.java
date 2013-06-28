@@ -123,8 +123,12 @@ public class Utils {
 	public static List<String> readFileLines(File f) throws IOException {
 		return readStreamLines(new FileInputStream(f));
 	}
-	
+
 	public static List<String> readStreamLines(InputStream is) throws IOException {
+		return readStreamLines(is, true);
+	}
+	
+	public static List<String> readStreamLines(InputStream is, boolean closeAfter) throws IOException {
 		List<String> ret = new ArrayList<String>();
 		BufferedReader br = new BufferedReader(new InputStreamReader(is));
 		while (true) {
@@ -133,7 +137,8 @@ public class Utils {
 				break;
 			ret.add(l);
 		}
-		br.close();
+		if (closeAfter)
+			br.close();
 		return ret;
 	}
 	
