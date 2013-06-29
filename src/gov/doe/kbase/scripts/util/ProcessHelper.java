@@ -14,33 +14,34 @@ public class ProcessHelper {
     private PrintWriter outPw = new PrintWriter(outWr);
     private StringWriter errWr = new StringWriter();
     private PrintWriter errPw = new PrintWriter(errWr);
+    private Process process;
     private int exitCode = -1;
     //
     public static enum OutType {
         SystemOut, SystemErr, StringOut, StringErr, Null
     }
 
-    public static ProcessHelper exec(String cmd, File workDir) throws IOException {
-        return exec(new CommandHolder(cmd), workDir);
+    public static ProcessHelper exec(String cmd, File workDir, boolean waitFor) throws IOException {
+        return exec(new CommandHolder(cmd), workDir, waitFor);
     }
 
-    public static ProcessHelper exec(CommandHolder cmd, File workDir) throws IOException {
-        return new ProcessHelper(cmd, workDir);
+    public static ProcessHelper exec(CommandHolder cmd, File workDir, boolean waitFor) throws IOException {
+        return new ProcessHelper(cmd, workDir, waitFor);
     }
 
-    public static ProcessHelper exec(String cmd, File workDir, File input, File output) throws IOException {
-        return exec(new CommandHolder(cmd), workDir, input, output);
+    public static ProcessHelper exec(String cmd, File workDir, File input, File output, boolean waitFor) throws IOException {
+        return exec(new CommandHolder(cmd), workDir, input, output, waitFor);
     }
 
-    public static ProcessHelper exec(CommandHolder cmd, File workDir, File input, File output) throws IOException {
-        return exec(cmd, workDir, input, output, null);
+    public static ProcessHelper exec(CommandHolder cmd, File workDir, File input, File output, boolean waitFor) throws IOException {
+        return exec(cmd, workDir, input, output, null, waitFor);
     }
 
-    public static ProcessHelper exec(CommandHolder cmd, File workDir, File input, File output, File error) throws IOException {
+    public static ProcessHelper exec(CommandHolder cmd, File workDir, File input, File output, File error, boolean waitFor) throws IOException {
         BufferedReader br = input == null ? null : new BufferedReader(new FileReader(input));
         PrintWriter pw = output == null ? null : new PrintWriter(output);
         PrintWriter epw = error == null ? null : new PrintWriter(error);
-        ProcessHelper ret = exec(cmd, workDir, br, pw, epw);
+        ProcessHelper ret = exec(cmd, workDir, br, pw, epw, waitFor);
         if (br != null)
             br.close();
         if (pw != null)
@@ -51,31 +52,31 @@ public class ProcessHelper {
     }
 
     public static ProcessHelper exec(String cmd, File workDir, BufferedReader input, PrintWriter output,
-                                     PrintWriter error) throws IOException {
-        return exec(new CommandHolder(cmd), workDir, input, output, error);
+                                     PrintWriter error, boolean waitFor) throws IOException {
+        return exec(new CommandHolder(cmd), workDir, input, output, error, waitFor);
     }
 
     public static ProcessHelper exec(CommandHolder cmd, File workDir, BufferedReader input, PrintWriter output,
-                                     PrintWriter error) throws IOException {
-        return new ProcessHelper(cmd, workDir, OutType.StringOut, OutType.SystemErr, input, output, error);
+                                     PrintWriter error, boolean waitFor) throws IOException {
+        return new ProcessHelper(cmd, workDir, OutType.StringOut, OutType.SystemErr, input, output, error, waitFor);
     }
 
-    public ProcessHelper(CommandHolder cmd, File workDir) throws IOException {
-        this(cmd, workDir, OutType.SystemOut, OutType.SystemErr, null, null, null);
+    public ProcessHelper(CommandHolder cmd, File workDir, boolean waitFor) throws IOException {
+        this(cmd, workDir, OutType.SystemOut, OutType.SystemErr, null, null, null, waitFor);
     }
 
     public ProcessHelper(CommandHolder cmd, File workDir, OutType outType, OutType errType,
-                         BufferedReader input, PrintWriter output, PrintWriter error) throws IOException {
+                         BufferedReader input, PrintWriter output, PrintWriter error, boolean waitFor) throws IOException {
         if (output != null)
             outPw = output;
         if (error != null)
             errPw = error;
-        Process pr = cmd.cmdLine != null ? Runtime.getRuntime().exec(cmd.cmdLine, null, workDir) :
+        process = cmd.cmdLine != null ? Runtime.getRuntime().exec(cmd.cmdLine, null, workDir) :
                 Runtime.getRuntime().exec(cmd.cmdParts, null, workDir);
-        Thread outTh = readInNewThread(pr.getInputStream(), outType);
-        Thread errTh = readInNewThread(pr.getErrorStream(), errType);
+        Thread outTh = readInNewThread(process.getInputStream(), outType);
+        Thread errTh = readInNewThread(process.getErrorStream(), errType);
         if (input != null) {
-            PrintWriter pw = new PrintWriter(new OutputStreamWriter(pr.getOutputStream()));
+            PrintWriter pw = new PrintWriter(new OutputStreamWriter(process.getOutputStream()));
             while (true) {
                 String line = input.readLine();
                 if (line == null)
@@ -95,12 +96,16 @@ public class ProcessHelper {
             e.printStackTrace();
         }
         try {
-            exitCode = pr.waitFor();
+            exitCode = process.waitFor();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
 
+    public Process getProcess() {
+		return process;
+	}
+    
     private Thread readInNewThread(final InputStream is, final OutType outType) {
         Thread ret = new Thread(new Runnable() {
             public void run() {
@@ -153,6 +158,7 @@ public class ProcessHelper {
     public static class CommandHolder {
         public String cmdLine;
         public String[] cmdParts;
+        public boolean waitFor = true;
 
         public CommandHolder(String cmdLine) {
             this.cmdLine = cmdLine;
@@ -177,24 +183,29 @@ public class ProcessHelper {
             return this;
         }
 
+        public CommandHolder dontWaitFor() {
+        	waitFor = false;
+        	return this;
+        }
+        
         public ProcessHelper exec(File workDir) throws IOException {
-            return ProcessHelper.exec(this, workDir);
+            return ProcessHelper.exec(this, workDir, waitFor);
         }
 
         public ProcessHelper exec(File workDir, File input, File output) throws IOException {
-            return ProcessHelper.exec(this, workDir, input, output);
+            return ProcessHelper.exec(this, workDir, input, output, waitFor);
         }
 
         public ProcessHelper exec(File workDir, File input, File output, File error) throws IOException {
-            return ProcessHelper.exec(this, workDir, input, output, error);
+            return ProcessHelper.exec(this, workDir, input, output, error, waitFor);
         }
 
         public ProcessHelper exec(File workDir, BufferedReader input, PrintWriter output) throws IOException {
-            return ProcessHelper.exec(this, workDir, input, output, null);
+            return ProcessHelper.exec(this, workDir, input, output, null, waitFor);
         }
 
         public ProcessHelper exec(File workDir, BufferedReader input, PrintWriter output, PrintWriter error) throws IOException {
-            return ProcessHelper.exec(this, workDir, input, output, error);
+            return ProcessHelper.exec(this, workDir, input, output, error, waitFor);
         }
     }
 }
