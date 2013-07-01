@@ -13,7 +13,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -58,6 +57,7 @@ public class MainTest extends Assert {
 				ZipInputStream zis = new ZipInputStream(MainTest.class.getResourceAsStream(zipFileName + ".properties"));
 				while (true) {
 					ZipEntry ze = zis.getNextEntry();
+					System.out.println("MainTest: zip_entry=" + ze);
 					if (ze == null)
 						break;
 					Utils.writeFileLines(Utils.readStreamLines(zis, false), new File(workDir, ze.getName()));
@@ -78,7 +78,7 @@ public class MainTest extends Assert {
 				"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
 				"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
 				"cd \"" + workDir.getAbsolutePath() + "\"",
-				"perl " + parsingScript + " --scripts " + serverOutDir.getName() + " --psgi service.psgi " + testFileName + " " + serverOutDir.getName()
+				"perl " + parsingScript + " --scripts " + serverOutDir.getName() + " --psgi service.psgi " + testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
 				), bashFile);
 		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 		File srcDir = new File(workDir, "src");
@@ -91,6 +91,7 @@ public class MainTest extends Assert {
 		StringBuilder classPath = new StringBuilder();
 		List<URL> cpUrls = new ArrayList<URL>();
 		addLib("jackson-all-1.9.11.jar", libDir, classPath, cpUrls);
+		addLib("junit-4.9.jar", libDir, classPath, cpUrls);
 		File binDir = new File(workDir, "bin");
 		binDir.mkdir();
         for (JavaModule module : parsingData.getModules()) {
@@ -110,7 +111,7 @@ public class MainTest extends Assert {
             List<String> serverLines = Utils.readFileLines(serverImpl);
             for (int pos = 0; pos < serverLines.size(); pos++) {
             	String line = serverLines.get(pos);
-            	if (line.startsWith("    #BEGIN")) {
+            	if (line.startsWith("    #BEGIN ")) {
             		String origFuncName = line.substring(line.lastIndexOf(' ') + 1);
             		if (origNameToFunc.containsKey(origFuncName)) {
             			KbFuncdef origFunc = origNameToFunc.get(origFuncName).getOriginal();
@@ -122,6 +123,7 @@ public class MainTest extends Assert {
             		}
             	}
             }
+            Utils.writeFileLines(serverLines, serverImpl);
         }
         File plackupFile = new File(serverOutDir, "start_server.sh");
         File pidFile = new File(serverOutDir, "pid.txt");
@@ -144,9 +146,7 @@ public class MainTest extends Assert {
 				Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + ".Client");
 				Object client = clientClass.getConstructor(String.class).newInstance("http://localhost:" + portNum);
 				Class<?> testClass = urlcl.loadClass(testPackage + ".Test" + testNum);
-				Object test = testClass.getConstructor(clientClass).newInstance(client);
-				//for (Method m : clientClass.getMethods())
-				//	System.out.println(m.getName());
+				testClass.getConstructor(clientClass).newInstance(client);
 			}
 		} finally {
 			if (pidFile.exists()) {
