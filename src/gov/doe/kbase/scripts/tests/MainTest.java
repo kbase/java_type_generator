@@ -30,10 +30,15 @@ public class MainTest extends Assert {
 	private static final String parsingScript = "compile_typespec.pl";
 	
 	@Test
-	public void test1() throws Exception {
+	public void testSimpleTypesAndStructures() throws Exception {
 		startTest(1);
 	}
-	
+
+	@Test
+	public void testIncludsAndMultiModules() throws Exception {
+		startTest(2);
+	}
+
 	private static void startTest(int testNum) throws Exception {
 		File tempDir = new File(".").getCanonicalFile();
 		for (File dir : tempDir.listFiles()) {
@@ -50,24 +55,26 @@ public class MainTest extends Assert {
 			workDir.mkdir();
 		String testFileName = "test" + testNum + ".spec";
 		try {
-			Utils.writeFileLines(Utils.readStreamLines(MainTest.class.getResourceAsStream(testFileName + ".properties")), new File(workDir, testFileName));
+			Utils.writeFileLines(Utils.readStreamLines(MainTest.class.getResourceAsStream(testFileName + ".properties")), 
+					new File(workDir, testFileName));
 		} catch (Exception ex) {
 			String zipFileName = "test" + testNum + ".zip";
 			try {
 				ZipInputStream zis = new ZipInputStream(MainTest.class.getResourceAsStream(zipFileName + ".properties"));
 				while (true) {
 					ZipEntry ze = zis.getNextEntry();
-					System.out.println("MainTest: zip_entry=" + ze);
 					if (ze == null)
 						break;
 					Utils.writeFileLines(Utils.readStreamLines(zis, false), new File(workDir, ze.getName()));
 				}
 				zis.close();
 			} catch (Exception e2) {
-				throw new IllegalStateException("Can not find neither " + testFileName + " resource nor " + zipFileName + " in resources having .properties suffix", ex);
+				throw new IllegalStateException("Can not find neither " + testFileName + " resource nor " + zipFileName + 
+						" in resources having .properties suffix", ex);
 			}
 		}
-		Utils.writeFileLines(Utils.readStreamLines(MainTest.class.getResourceAsStream(parsingScript + ".properties")), new File(workDir, parsingScript));
+		Utils.writeFileLines(Utils.readStreamLines(MainTest.class.getResourceAsStream(parsingScript + ".properties")), 
+				new File(workDir, parsingScript));
 		File bashFile = new File(workDir, "parse.sh");
 		File serverOutDir = new File(workDir, "out");
 		serverOutDir.mkdir();
@@ -78,14 +85,17 @@ public class MainTest extends Assert {
 				"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
 				"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
 				"cd \"" + workDir.getAbsolutePath() + "\"",
-				"perl " + parsingScript + " --scripts " + serverOutDir.getName() + " --psgi service.psgi " + testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
+				"perl " + parsingScript + " --path " + workDir.getAbsolutePath() +
+				" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
+				testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
 				), bashFile);
 		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 		File srcDir = new File(workDir, "src");
 		File jsonSchemaDir = new File(workDir, "tempJsonSchemas");
 		String rootPackageName = MainTest.class.getPackage().getName();
 		String testPackage = rootPackageName + ".test" + testNum;
-		JavaData parsingData = JavaClientGenerator.processJson(new File(workDir, "parsing_tree_for_java.json"), jsonSchemaDir, srcDir, testPackage);
+		JavaData parsingData = JavaClientGenerator.processJson(new File(workDir, "parsing_tree_for_java.json"), 
+				jsonSchemaDir, srcDir, testPackage);
 		File libDir = new File(workDir, "lib");
 		libDir.mkdir();
 		StringBuilder classPath = new StringBuilder();
@@ -95,11 +105,14 @@ public class MainTest extends Assert {
 		File binDir = new File(workDir, "bin");
 		binDir.mkdir();
         for (JavaModule module : parsingData.getModules()) {
-        	ProcessHelper.cmd("javac", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", classPath.toString(), "src/" + testPackage.replace('.', '/') + "/" + module.getModuleName() + "/Client.java").exec(workDir);
+        	ProcessHelper.cmd("javac", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", 
+        			classPath.toString(), "src/" + testPackage.replace('.', '/') + "/" + module.getModuleName() + "/" + 
+        					getClientClassName(module) + ".java").exec(workDir);
         }
         File testJavaFile = new File(workDir, "src/" + testPackage.replace('.', '/') + "/Test" + testNum + ".java");
         copyStreams(MainTest.class.getResourceAsStream("Test" + testNum + ".java.properties"), new FileOutputStream(testJavaFile));
-    	ProcessHelper.cmd("javac", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", classPath.toString(), "src/" + testPackage.replace('.', '/') + "/Test" + testNum + ".java").exec(workDir);
+    	ProcessHelper.cmd("javac", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", 
+    			classPath.toString(), "src/" + testPackage.replace('.', '/') + "/Test" + testNum + ".java").exec(workDir);
         cpUrls.add(binDir.toURI().toURL());
         URLClassLoader urlcl = URLClassLoader.newInstance(cpUrls.toArray(new URL[cpUrls.size()]));
         for (JavaModule module : parsingData.getModules()) {
@@ -118,7 +131,8 @@ public class MainTest extends Assert {
             			int paramCount = origFunc.getParameters().size();
             			for (int paramPos = 0; paramPos < paramCount; paramPos++) {
             				pos++;
-            				serverLines.add(pos, "    $return" + (paramCount > 1 ? ("_" + (paramPos + 1)) : "") + " = $" + origFunc.getParameters().get(paramPos).getName() + ";");
+            				serverLines.add(pos, "    $return" + (paramCount > 1 ? ("_" + (paramPos + 1)) : "") + " = $" + 
+            						origFunc.getParameters().get(paramPos).getName() + ";");
             			}
             		}
             	}
@@ -127,6 +141,7 @@ public class MainTest extends Assert {
         }
         File plackupFile = new File(serverOutDir, "start_server.sh");
         File pidFile = new File(serverOutDir, "pid.txt");
+		int portNum = 9990 + testNum;
 		Utils.writeFileLines(Arrays.asList(
 				"#!/bin/bash",
 				"export KB_TOP=/kb/deployment:$KB_TOP",
@@ -135,15 +150,15 @@ public class MainTest extends Assert {
 				"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
 				"echo $PERL5LIB",
 				"cd \"" + serverOutDir.getAbsolutePath() + "\"",
-				"plackup --listen :9999 service.psgi >server.out 2>server.err & pid=$!",
+				"plackup --listen :" + portNum + " service.psgi >server.out 2>server.err & pid=$!",
 				"echo $pid > " + pidFile.getName()
 				), plackupFile);
-		int portNum = 9999;
 		try {
 			ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
 			Thread.sleep(1000);
 			for (JavaModule module : parsingData.getModules()) {
-				Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + ".Client");
+				String clientClassName = getClientClassName(module);
+				Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + "." + clientClassName);
 				Object client = clientClass.getConstructor(String.class).newInstance("http://localhost:" + portNum);
 				Class<?> testClass = urlcl.loadClass(testPackage + ".Test" + testNum);
 				testClass.getConstructor(clientClass).newInstance(client);
@@ -154,7 +169,12 @@ public class MainTest extends Assert {
 				ProcessHelper.cmd("kill", pid).exec(workDir);
 				System.out.println("Plackup process was finally killed: " + pid);
 			}
+			System.out.println();
 		}
+	}
+
+	private static String getClientClassName(JavaModule module) {
+		return Utils.capitalize(module.getModuleName()) + "Client";
 	}
 
 	private static void addLib(String libName, File libDir, StringBuilder classPath, List<URL> libUrls) throws Exception {

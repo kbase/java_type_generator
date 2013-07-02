@@ -7,16 +7,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 public class JavaData {
 	private List<JavaType> types = new ArrayList<JavaType>();
 	private Map<String, JavaModule> modules = new TreeMap<String, JavaModule>();
-	
+	private Set<Integer> tupleTypes = new TreeSet<Integer>();
+
 	public JavaData() {
 	}
 
-	public void addModule(KbModule original, List<JavaFunc> funcs, Set<Integer> tupleTypes) {
-		JavaModule jm = new JavaModule(original, funcs, tupleTypes);
+	public void addModule(KbModule original, List<JavaFunc> funcs) {
+		JavaModule jm = new JavaModule(original, funcs);
 		modules.put(jm.getModuleName(), jm);
 	}
 	
@@ -26,7 +28,7 @@ public class JavaData {
 			throw new IllegalStateException("Can't find module with name: " + name);
 		return ret;
 	}
-	
+		
 	public List<JavaModule> getModules() {
 		return new ArrayList<JavaModule>(modules.values());
 	}
@@ -38,5 +40,9 @@ public class JavaData {
 	
 	public List<JavaType> getTypes() {
 		return types;
+	}
+	
+	public Set<Integer> getTupleTypes() {
+		return tupleTypes;
 	}
 }
