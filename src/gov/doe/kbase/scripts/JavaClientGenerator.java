@@ -1,6 +1,9 @@
 package gov.doe.kbase.scripts;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,7 +15,6 @@ import java.util.TreeSet;
 
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.SerializationConfig.Feature;
-import org.codehaus.jackson.type.TypeReference;
 
 import com.googlecode.jsonschema2pojo.DefaultGenerationConfig;
 import com.googlecode.jsonschema2pojo.Jackson1Annotator;
@@ -21,26 +23,18 @@ import com.googlecode.jsonschema2pojo.SchemaMapper;
 import com.googlecode.jsonschema2pojo.SchemaStore;
 import com.googlecode.jsonschema2pojo.rules.Rule;
 import com.googlecode.jsonschema2pojo.rules.RuleFactory;
-import com.sun.codemodel.JBlock;
-import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
-import com.sun.codemodel.JDefinedClass;
-import com.sun.codemodel.JExpr;
-import com.sun.codemodel.JFieldVar;
-import com.sun.codemodel.JInvocation;
-import com.sun.codemodel.JMethod;
-import com.sun.codemodel.JMod;
 import com.sun.codemodel.JPackage;
 import com.sun.codemodel.JType;
-import com.sun.codemodel.JVar;
 
 public class JavaClientGenerator {
 	private static final char[] propWordDelim = {'_', '-'};
 	private static final String utilPackage = "us.kbase.rpc";
 	
 	public static void main(String[] args) throws Exception {
-		if (args.length != 5) {
-			System.out.println("Usage: <program> <mode:json|spec> <json_parsing_file|spec_file> <json_schema_out_dir> <src_out_dir> <java_package_without_model>");
+		if (args.length != 5 && args.length != 6) {
+			System.out.println("Usage: <program> <mode:json|jsonsrv|spec|specsrv> <json_parsing_file|spec_file> <json_schema_out_dir> " +
+					"<src_out_dir> <java_package_without_model> [<lib_out_dir>]");
 			return;
 		}
 		String mode = args[0];
@@ -48,31 +42,33 @@ public class JavaClientGenerator {
 		File jsonSchemaOutDir = new File(args[2]);
 		File srcOutDir = new File(args[3]);
 		String packageParent = args[4];
-		if (mode.equals("json")) {
-			processJson(inputFile, jsonSchemaOutDir, srcOutDir, packageParent);
-		} else if (mode.equals("spec")) {
-			processSpec(inputFile, jsonSchemaOutDir, srcOutDir, packageParent);
+		File libDir = args.length == 6 ? new File(args[5]) : null;
+		boolean createServer = mode.endsWith("srv");
+		if (mode.startsWith("json")) {
+			processJson(inputFile, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libDir);
+		} else if (mode.startsWith("spec")) {
+			processSpec(inputFile, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libDir);
 		} else {
 			throw new IllegalStateException("Unsupported mode: " + mode);
 		}
 	}
 	
-	public static void processSpec(File specFile, File jsonSchemaOutDir, File srcOutDir, String packageParent) throws Exception {		
-		processJson(transformSpecToJson(specFile), jsonSchemaOutDir, srcOutDir, packageParent);
+	public static void processSpec(File specFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, boolean createServer, File libOutDir) throws Exception {		
+		processJson(transformSpecToJson(specFile), jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir);
 	}
 	
 	public static File transformSpecToJson(File specFile) throws Exception {
 		throw new IllegalStateException("Mode 'spec' is not supported yet.");
 	}
 	
-	public static JavaData processJson(File jsonParsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent) throws Exception {		
+	public static JavaData processJson(File jsonParsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, boolean createServer, File libOutDir) throws Exception {		
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(Feature.INDENT_OUTPUT, true);
 		Map<?,?> map = mapper.readValue(jsonParsingFile, Map.class);
 		JSyncProcessor subst = new JSyncProcessor(map);
 		List<KbService> srvList = KbService.loadFromMap(map, subst);
 		JavaData data = prepareDataStructures(srvList);
-		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent);
+		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir);
 		return data;
 	}
 
@@ -122,13 +118,16 @@ public class JavaClientGenerator {
 		return data;
 	}
 
-	private static void outputData(JavaData data, File jsonOutDir, File srcOutDir, String packageParent) throws Exception {
+	private static void outputData(JavaData data, File jsonOutDir, File srcOutDir, String packageParent, boolean createServers, File libOutDir) throws Exception {
 		if (!srcOutDir.exists())
 			srcOutDir.mkdirs();
 		generatePojos(data, jsonOutDir, srcOutDir, packageParent);
 		generateTupleClasses(data,srcOutDir, packageParent);
 		generateClientClass(data, srcOutDir, packageParent);
-		checkUtilityClasses(srcOutDir);
+		if (createServers)
+			generateServerClass(data, srcOutDir, packageParent);
+		checkUtilityClasses(srcOutDir, createServers);
+		checkLibs(libOutDir, createServers);
 	}
 
 	private static void generatePojos(JavaData data, File jsonOutDir,
@@ -324,9 +323,88 @@ public class JavaClientGenerator {
 		}
 	}
 
-	private static void checkUtilityClasses(File srcOutDir) throws Exception {
+	private static void generateServerClass(JavaData data, File srcOutDir, String packageParent) throws Exception {
+		File parentDir = getParentSourceDir(srcOutDir, packageParent);
+		for (JavaModule module : data.getModules()) {
+			File moduleDir = new File(parentDir, module.getModuleName());
+			if (!moduleDir.exists())
+				moduleDir.mkdir();
+			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModuleName());
+			String serverClassName = Utils.capitalize(module.getModuleName()) + "Server";
+			File classFile = new File(moduleDir, serverClassName + ".java");
+			List<String> classLines = new ArrayList<String>(Arrays.asList(
+					"public class " + serverClassName + " extends " + model.ref("us.kbase.rpc.JsonServerServlet") + " {",
+					"    private static final long serialVersionUID = 1L;",
+					"",
+					"    public static void main(String[] args) throws Exception {",
+					"        if (args.length != 1) {",
+					"            System.out.println(\"Usage: <program> <server_port>\");",
+					"            return;",
+					"        }",
+					"        new " + serverClassName + "().startupServer(Integer.parseInt(args[0]));",
+					"    }"
+					));
+			for (JavaFunc func : module.getFuncs()) {
+				JavaType retType = null;
+				if (func.getRetMultyType() == null) {
+					if (func.getReturns().size() > 0) {
+						retType = func.getReturns().get(0).getType();
+					}
+				} else {
+					retType = func.getRetMultyType();
+				}
+				StringBuilder funcParams = new StringBuilder();
+				for (JavaFuncParam param : func.getParams()) {
+					if (funcParams.length() > 0)
+						funcParams.append(", ");
+					funcParams.append(getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
+				}
+				String retTypeName = getJType(retType, packageParent, model);
+				classLines.add("");
+				classLines.add("    @" + model.ref("us.kbase.rpc.JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
+						(func.getRetMultyType() == null ? "" : ", tuple = true") + ")");
+				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
+				if (func.getRetMultyType() == null) {
+					classLines.addAll(Arrays.asList(
+							"        " + retTypeName + " ret = null;",
+							"        //BEGIN " + func.getOriginal().getName(),
+							"        //END " + func.getOriginal().getName(),
+							"        return ret;",
+							"    }"
+							));
+				} else {
+					for (int retPos = 0; retPos < func.getReturns().size(); retPos++) {
+						String retInnerType = getJType(func.getReturns().get(retPos).getType(), packageParent, model);
+						classLines.add("        " + retInnerType + " ret" + (retPos + 1) + " = null;");
+					}
+					classLines.add("        //BEGIN " + func.getOriginal().getName());
+					classLines.add("        //END " + func.getOriginal().getName());
+					classLines.add("        " + retTypeName + " ret = new " + retTypeName + "();");
+					for (int retPos = 0; retPos < func.getReturns().size(); retPos++) {
+						classLines.add("        ret.setE" + (retPos + 1) + "(ret" + (retPos + 1) + ");");
+					}					
+					classLines.add("        return ret;");
+					classLines.add("    }");					
+				}
+			}
+			classLines.add("}");
+			List<String> headerLines = new ArrayList<>(Arrays.asList(
+					"package " + packageParent + "." + module.getModuleName() + ";",
+					""
+					));
+			headerLines.addAll(model.generateImports());
+			headerLines.add("");
+			classLines.addAll(0, headerLines);
+			Utils.writeFileLines(classLines, classFile);
+		}
+	}
+	private static void checkUtilityClasses(File srcOutDir, boolean createServers) throws Exception {
 		checkUtilityClass(srcOutDir, "Caller");
 		checkUtilityClass(srcOutDir, "JacksonTupleModule");
+		if (createServers) {
+			checkUtilityClass(srcOutDir, "JsonServerMethod");
+			checkUtilityClass(srcOutDir, "JsonServerServlet");
+		}
 	}
 
 	private static void checkUtilityClass(File srcOutDir, String className) throws Exception {
@@ -338,6 +416,25 @@ public class JavaClientGenerator {
 			return;
 		Utils.writeFileLines(Utils.readStreamLines(JavaClientGenerator.class.getResourceAsStream(
 				className + ".java.properties")), dstClassFile);
+	}
+	
+	private static void checkLibs(File libOutDir, boolean createServers) throws Exception {
+		if (libOutDir == null)
+			return;
+		if (!libOutDir.exists())
+			libOutDir.mkdirs();
+		checkLib(libOutDir, "jackson-all-1.9.11");
+		if (createServers) {
+			checkLib(libOutDir, "servlet-api-2.5");
+			checkLib(libOutDir, "jetty-all-7.0.0");
+		}
+	}
+	
+	private static void checkLib(File libDir, String libName) throws Exception {
+		String libFileName = libName + ".jar";
+		InputStream is = JavaClientGenerator.class.getResourceAsStream(libFileName + ".properties");
+		OutputStream os = new FileOutputStream(new File(libDir, libFileName));
+		Utils.copyStreams(is, os);
 	}
 	
 	private static void writeJsonSchema(File jsonFile, String packageParent, JavaType type, 
