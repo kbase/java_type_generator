@@ -29,7 +29,7 @@ import com.sun.codemodel.JType;
 
 public class JavaClientGenerator {
 	private static final char[] propWordDelim = {'_', '-'};
-	private static final String utilPackage = "us.kbase.rpc";
+	private static final String utilPackage = "gov.doe.kbase";
 	
 	public static void main(String[] args) throws Exception {
 		if (args.length != 5 && args.length != 6) {
@@ -261,7 +261,7 @@ public class JavaClientGenerator {
 			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModuleName());
 			String clientClassName = Utils.capitalize(module.getModuleName()) + "Client";
 			File classFile = new File(moduleDir, clientClassName + ".java");
-			String callerClass = model.ref("us.kbase.rpc.Caller");
+			String callerClass = model.ref(utilPackage + ".JsonClientCaller");
 			List<String> classLines = new ArrayList<String>(Arrays.asList(
 					"public class " + clientClassName + " {",
 					"    private " + callerClass + " caller;",
@@ -333,7 +333,7 @@ public class JavaClientGenerator {
 			String serverClassName = Utils.capitalize(module.getModuleName()) + "Server";
 			File classFile = new File(moduleDir, serverClassName + ".java");
 			List<String> classLines = new ArrayList<String>(Arrays.asList(
-					"public class " + serverClassName + " extends " + model.ref("us.kbase.rpc.JsonServerServlet") + " {",
+					"public class " + serverClassName + " extends " + model.ref(utilPackage + ".JsonServerServlet") + " {",
 					"    private static final long serialVersionUID = 1L;",
 					"",
 					"    public static void main(String[] args) throws Exception {",
@@ -361,7 +361,7 @@ public class JavaClientGenerator {
 				}
 				String retTypeName = getJType(retType, packageParent, model);
 				classLines.add("");
-				classLines.add("    @" + model.ref("us.kbase.rpc.JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
+				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
 						(func.getRetMultyType() == null ? "" : ", tuple = true") + ")");
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
 				if (func.getRetMultyType() == null) {
@@ -399,7 +399,7 @@ public class JavaClientGenerator {
 		}
 	}
 	private static void checkUtilityClasses(File srcOutDir, boolean createServers) throws Exception {
-		checkUtilityClass(srcOutDir, "Caller");
+		checkUtilityClass(srcOutDir, "JsonClientCaller");
 		checkUtilityClass(srcOutDir, "JacksonTupleModule");
 		if (createServers) {
 			checkUtilityClass(srcOutDir, "JsonServerMethod");
@@ -408,7 +408,7 @@ public class JavaClientGenerator {
 	}
 
 	private static void checkUtilityClass(File srcOutDir, String className) throws Exception {
-		File dir = new File(srcOutDir.getAbsolutePath() + "/us/kbase/rpc");
+		File dir = new File(srcOutDir.getAbsolutePath() + "/" + utilPackage.replace('.', '/'));
 		if (!dir.exists())
 			dir.mkdirs();
 		File dstClassFile = new File(dir, className + ".java");

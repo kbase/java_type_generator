@@ -75,7 +75,7 @@ public class MainTest extends Assert {
 		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 		File srcDir = new File(workDir, "src");
 		File jsonSchemaDir = new File(workDir, "tempJsonSchemas");
-		String rootPackageName = MainTest.class.getPackage().getName();
+		String rootPackageName = "gov.doe.kbase";
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
 		JavaData parsingData = JavaClientGenerator.processJson(new File(workDir, "parsing_tree_for_java.json"), 
