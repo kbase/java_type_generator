@@ -1,5 +1,7 @@
 package gov.doe.kbase.scripts;
 
+import gov.doe.kbase.scripts.util.ProcessHelper;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -7,6 +9,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +18,10 @@ import java.util.TreeSet;
 
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.SerializationConfig.Feature;
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
 import com.googlecode.jsonschema2pojo.DefaultGenerationConfig;
 import com.googlecode.jsonschema2pojo.Jackson1Annotator;
@@ -27,38 +34,112 @@ import com.sun.codemodel.JCodeModel;
 import com.sun.codemodel.JPackage;
 import com.sun.codemodel.JType;
 
-public class JavaClientGenerator {
+public class JavaTypeGenerator {
 	private static final char[] propWordDelim = {'_', '-'};
 	private static final String utilPackage = "gov.doe.kbase";
 	
 	public static void main(String[] args) throws Exception {
-		if (args.length != 5 && args.length != 6) {
-			System.out.println("Usage: <program> <mode:json|jsonsrv|spec|specsrv> <json_parsing_file|spec_file> <json_schema_out_dir> " +
-					"<src_out_dir> <java_package_without_model> [<lib_out_dir>]");
-			return;
+		Args parsedArgs = new Args();
+		CmdLineParser parser = new CmdLineParser(parsedArgs);
+		parser.setUsageWidth(85);
+		try {
+            parser.parseArgument(args);
+        } catch( CmdLineException e ) {
+        	String message = e.getMessage();
+            showUsage(parser, message);
+            return;
+        }
+		File inputFile = parsedArgs.specFile;
+		File tempDir = parsedArgs.tempDir == null ? inputFile.getAbsoluteFile().getParentFile() : new File(parsedArgs.tempDir);
+		boolean deleteTempDir = false;
+		if (!tempDir.exists()) {
+			tempDir.mkdir();
+			deleteTempDir = true;
 		}
-		String mode = args[0];
-		File inputFile = new File(args[1]);
-		File jsonSchemaOutDir = new File(args[2]);
-		File srcOutDir = new File(args[3]);
-		String packageParent = args[4];
-		File libDir = args.length == 6 ? new File(args[5]) : null;
-		boolean createServer = mode.endsWith("srv");
-		if (mode.startsWith("json")) {
-			processJson(inputFile, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libDir);
-		} else if (mode.startsWith("spec")) {
-			processSpec(inputFile, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libDir);
+		File srcOutDir = null;
+		String packageParent = parsedArgs.packageParent;
+		File libDir = null;
+		if (parsedArgs.outputDir == null) {
+			if (parsedArgs.srcDir == null) {
+	            showUsage(parser, "Either -o or -s parameter should be defined");
+	            return;
+			}
+			srcOutDir = new File(parsedArgs.srcDir);
+			libDir = parsedArgs.libDir == null ? null : new File(parsedArgs.libDir);
 		} else {
-			throw new IllegalStateException("Unsupported mode: " + mode);
+			srcOutDir = new File(parsedArgs.outputDir, "src");
+			libDir = new File(parsedArgs.outputDir, "lib");
 		}
+		boolean createServer = parsedArgs.createServerSide;
+		processSpec(inputFile, tempDir, srcOutDir, packageParent, createServer, libDir);
+		if (deleteTempDir)
+			tempDir.delete();
+	}
+
+	private static void showUsage(CmdLineParser parser, String message) {
+		System.err.println(message);
+		System.err.println("Usage: <program> [options...] <spec-file>");
+		parser.printUsage(System.err);
 	}
 	
-	public static void processSpec(File specFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, boolean createServer, File libOutDir) throws Exception {		
-		processJson(transformSpecToJson(specFile), jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir);
+	public static JavaData processSpec(File specFile, File tempDir, File srcOutDir, String packageParent, boolean createServer, File libOutDir) throws Exception {		
+		return processJson(transformSpecToJson(specFile, tempDir), new File(tempDir, "json-schemas"), srcOutDir, packageParent, createServer, libOutDir);
 	}
 	
-	public static File transformSpecToJson(File specFile) throws Exception {
-		throw new IllegalStateException("Mode 'spec' is not supported yet.");
+	public static File transformSpecToJson(File specFile, File tempDir) throws Exception {
+		File bashFile = new File(tempDir, "comp_server.sh");
+		File serverOutDir = new File(tempDir, "server_out");
+		serverOutDir.mkdir();
+		File specDir = specFile.getAbsoluteFile().getParentFile();
+		File retFile = new File(tempDir, "jsync_parsing_file.json");
+		File outFile = new File(tempDir, "comp.out");
+		File errFile = new File(tempDir, "comp.err");
+		List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+		checkEnvVar("KB_TOP", lines, "/kb/deployment");
+		checkEnvVar("KB_RUNTIME", lines, "/kb/runtime");
+		checkEnvVar("PATH", lines, "/kb/runtime/bin", "/kb/deployment/bin");
+		checkEnvVar("PERL5LIB", lines, "/kb/deployment/lib");
+		lines.add("perl /kb/deployment/plbin/compile_typespec.pl --path \"" + specDir.getAbsolutePath() + "\"" +
+				" --jsync " + retFile.getName() + " \"" + specFile.getAbsolutePath() + "\" " + 
+				serverOutDir.getName() + " >" + outFile.getName() + " 2>" + errFile.getName()
+				);
+		Utils.writeFileLines(lines, bashFile);
+		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(tempDir);
+		File jsyncFile = new File(serverOutDir, retFile.getName());
+		if (jsyncFile.exists()) {
+			Utils.writeFileLines(Utils.readFileLines(jsyncFile), retFile);
+		} else {
+			List<String> errLines = Utils.readFileLines(errFile);
+			if (errLines.size() > 1 || (errLines.size() == 1 && errLines.get(0).trim().length() > 0)) {
+				for (String errLine : errLines)
+					System.err.println(errLine);
+			}
+		}
+		bashFile.delete();
+		Utils.deleteRecursively(serverOutDir);
+		outFile.delete();
+		errFile.delete();
+		if (!retFile.exists()) {
+			throw new IllegalStateException("Wrong process state, jsync file wasn't created");
+		}
+		return retFile;
+	}
+	
+	private static void checkEnvVar(String varName, List<String> shellLines, String... partPath) {
+		String value = System.getenv(varName);
+		Set<String> paths = new HashSet<String>();
+		if (value != null) {
+			String[] parts = value.split(":");
+			for (String part : parts)
+				if (part.trim().length() > 0)
+					paths.add(part.trim());
+		}
+		StringBuilder newValue = new StringBuilder();
+		for (String path : partPath)
+			if (!paths.contains(path))
+				newValue.append(path).append(":");
+		if (newValue.length() > 0)
+			shellLines.add("export " + varName + "=" + newValue.append("$").append(varName));
 	}
 	
 	public static JavaData processJson(File jsonParsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, boolean createServer, File libOutDir) throws Exception {		
@@ -68,6 +149,7 @@ public class JavaClientGenerator {
 		JSyncProcessor subst = new JSyncProcessor(map);
 		List<KbService> srvList = KbService.loadFromMap(map, subst);
 		JavaData data = prepareDataStructures(srvList);
+		jsonParsingFile.delete();
 		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir);
 		return data;
 	}
@@ -178,6 +260,7 @@ public class JavaClientGenerator {
 			sm.generate(codeModel, type.getJavaClassName(), "", source);
 		}
 		codeModel.build(srcOutDir);
+		Utils.deleteRecursively(jsonOutDir);
 	}
 	
 	private static void generateTupleClasses(JavaData data, File srcOutDir, String packageParent) throws Exception {
@@ -414,7 +497,7 @@ public class JavaClientGenerator {
 		File dstClassFile = new File(dir, className + ".java");
 		if (dstClassFile.exists())
 			return;
-		Utils.writeFileLines(Utils.readStreamLines(JavaClientGenerator.class.getResourceAsStream(
+		Utils.writeFileLines(Utils.readStreamLines(JavaTypeGenerator.class.getResourceAsStream(
 				className + ".java.properties")), dstClassFile);
 	}
 	
@@ -432,7 +515,7 @@ public class JavaClientGenerator {
 	
 	private static void checkLib(File libDir, String libName) throws Exception {
 		String libFileName = libName + ".jar";
-		InputStream is = JavaClientGenerator.class.getResourceAsStream(libFileName + ".properties");
+		InputStream is = JavaTypeGenerator.class.getResourceAsStream(libFileName + ".properties");
 		OutputStream os = new FileOutputStream(new File(libDir, libFileName));
 		Utils.copyStreams(is, os);
 	}
@@ -597,5 +680,28 @@ public class JavaClientGenerator {
 
 	private static String getPackagePrefix(String packageParent, JavaType type) {
 		return packageParent + "." + type.getModuleName() + ".";
+	}
+	
+	public static class Args {
+		@Option(name="-o",usage="Output folder (src and lib subfolders will be created), use -s and possibly -l instead of -o for more detailed settings", metaVar="<out-dir>")
+		String outputDir;
+
+		@Option(name="-s",usage="Source output folder (exclusive with -o)", metaVar="<src-dir>")
+		String srcDir;
+
+		@Option(name="-l",usage="Library output folder (exclusive with -o, not required when using -s)", metaVar="<lib-dir>")
+		String libDir;
+
+		@Option(name="-p",usage="Java package parent (module subpackages are created in this package), default value is gov.doe.kbase", metaVar="<package>")		
+		String packageParent = "gov.doe.kbase";
+
+		@Option(name="-t", usage="Temporary folder, default value is parent folder of <spec-file>", metaVar="<tmp-dir>")
+		String tempDir;
+		
+		@Option(name="-S", usage="Defines whether or not java code for server side should be created, default value is false", metaVar="<boolean>")
+		boolean createServerSide = false;
+		
+		@Argument(metaVar="<spec-file>",required=true,usage="File *.spec for compilation into java classes")
+		File specFile;
 	}
 }

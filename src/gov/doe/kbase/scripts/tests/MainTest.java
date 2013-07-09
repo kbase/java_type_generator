@@ -1,6 +1,6 @@
 package gov.doe.kbase.scripts.tests;
 
-import gov.doe.kbase.scripts.JavaClientGenerator;
+import gov.doe.kbase.scripts.JavaTypeGenerator;
 import gov.doe.kbase.scripts.JavaData;
 import gov.doe.kbase.scripts.JavaFunc;
 import gov.doe.kbase.scripts.JavaModule;
@@ -40,12 +40,17 @@ public class MainTest extends Assert {
 		startTest(2);
 	}
 
+	@Test
+	public void testTuples() throws Exception {
+		startTest(3);
+	}
+
 	private static void startTest(int testNum) throws Exception {
 		File tempDir = new File(".").getCanonicalFile();
 		for (File dir : tempDir.listFiles()) {
 			if (dir.isDirectory() && dir.getName().startsWith("test" + testNum))
 				try {
-					deleteDirRecursively(dir);
+					Utils.deleteRecursively(dir);
 				} catch (Exception e) {
 					System.out.println("Can not delete directory [" + dir.getName() + "]: " + e.getMessage());
 				}
@@ -56,11 +61,14 @@ public class MainTest extends Assert {
 			workDir.mkdir();
 		String testFileName = "test" + testNum + ".spec";
 		extractSpecFiles(testNum, workDir, testFileName);
-		Utils.writeFileLines(Utils.readStreamLines(MainTest.class.getResourceAsStream(parsingScript + ".properties")), 
-				new File(workDir, parsingScript));
-		File bashFile = new File(workDir, "parse.sh");
 		File serverOutDir = new File(workDir, "out");
 		serverOutDir.mkdir();
+		File srcDir = new File(workDir, "src");
+		String rootPackageName = "gov.doe.kbase";
+		String testPackage = rootPackageName + ".test" + testNum;
+		File libDir = new File(workDir, "lib");
+		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
+		File bashFile = new File(workDir, "parse.sh");
 		Utils.writeFileLines(Arrays.asList(
 				"#!/bin/bash",
 				"export KB_TOP=/kb/deployment:$KB_TOP",
@@ -68,18 +76,12 @@ public class MainTest extends Assert {
 				"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
 				"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
 				"cd \"" + workDir.getAbsolutePath() + "\"",
-				"perl " + parsingScript + " --path " + workDir.getAbsolutePath() +
+				"perl /kb/deployment/plbin/compile_typespec.pl --path " + workDir.getAbsolutePath() +
 				" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
 				testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
 				), bashFile);
 		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
-		File srcDir = new File(workDir, "src");
-		File jsonSchemaDir = new File(workDir, "tempJsonSchemas");
-		String rootPackageName = "gov.doe.kbase";
-		String testPackage = rootPackageName + ".test" + testNum;
-		File libDir = new File(workDir, "lib");
-		JavaData parsingData = JavaClientGenerator.processJson(new File(workDir, "parsing_tree_for_java.json"), 
-				jsonSchemaDir, srcDir, testPackage, true, libDir);
+		//showCompErrors(workDir);
 		javaServerCorrection(srcDir, testPackage, parsingData);
 		StringBuilder classPath = new StringBuilder();
 		List<URL> cpUrls = new ArrayList<URL>();
@@ -97,7 +99,11 @@ public class MainTest extends Assert {
         	runJavac(workDir, srcDir, classPath, binDir, clientFilePath, serverFilePath);
         }
         File testJavaFile = new File(workDir, "src/" + testPackage.replace('.', '/') + "/Test" + testNum + ".java");
-        Utils.copyStreams(MainTest.class.getResourceAsStream("Test" + testNum + ".java.properties"), new FileOutputStream(testJavaFile));
+        InputStream testClassIS = MainTest.class.getResourceAsStream("Test" + testNum + ".java.properties");
+        if (testClassIS == null) {
+        	Assert.fail("Java test class resource was not found: ");
+        }
+        Utils.copyStreams(testClassIS, new FileOutputStream(testJavaFile));
     	String testFilePath = "src/" + testPackage.replace('.', '/') + "/Test" + testNum + ".java";
     	runJavac(workDir, srcDir, classPath, binDir, testFilePath);
         cpUrls.add(binDir.toURI().toURL());
@@ -150,6 +156,15 @@ public class MainTest extends Assert {
 			}
 			System.out.println();
 		}
+	}
+
+	private static void showCompErrors(File workDir) throws IOException {
+		List<String> errLines = Utils.readFileLines(new File(workDir, "comp.err"));
+		if (errLines.size() > 1 || (errLines.size() == 1 && errLines.get(0).trim().length() > 0)) {
+			for (String errLine : errLines)
+				System.err.println(errLine);
+		}
+		Assert.fail("Spec-files compilation problem");
 	}
 
 	private static void runClientTest(int testNum, String testPackage,
@@ -271,12 +286,5 @@ public class MainTest extends Assert {
         	classPath.append(':');
         classPath.append("lib/").append(libFileName);
         libUrls.add(libFile.toURI().toURL());
-	}
-	
-	private static void deleteDirRecursively(File dir) {
-		if (dir.isDirectory())
-			for (File f : dir.listFiles()) 
-				deleteDirRecursively(f);
-		dir.delete();
 	}
 }

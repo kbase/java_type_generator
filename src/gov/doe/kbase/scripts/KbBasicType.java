@@ -20,6 +20,8 @@ public abstract class KbBasicType implements KbType {
 			return new KbTuple().loadFromMap(data, subst);
 		} else if (typeName.equals("Mapping")) {
 			return new KbMapping().loadFromMap(data, subst);
+		} else if (typeName.equals("UnspecifiedObject")) {
+			return new KbMapping();
 		}
 		throw new IllegalStateException("Unsupported type: " + typeName);
 	}

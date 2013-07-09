@@ -160,4 +160,10 @@ public class Utils {
         os.close();
 	}
 
+	public static void deleteRecursively(File fileOrDir) {
+		if (fileOrDir.isDirectory())
+			for (File f : fileOrDir.listFiles()) 
+				deleteRecursively(f);
+		fileOrDir.delete();
+	}
 }
