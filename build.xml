@@ -66,9 +66,6 @@
 java -cp ${lib.classpath}:${jar.absolute.path} org.junit.runner.JUnitCore gov.doe.kbase.scripts.tests.MainTest
     </echo>
     <chmod file="${test}/${test.file}" perm="a+x"/>
-    <exec executable="bash" dir="${test}">
-      <arg value="${test.file}"/>
-    </exec>
   </target>
 
   <target name="dist" depends="compile" description="generate the distribution" >

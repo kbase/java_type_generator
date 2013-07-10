@@ -11,6 +11,7 @@ test: test-client-server
 
 test-client-server:
 	$(SETUP_ANT) test
+	cd test; bash ./test_gen_java_types.sh
 
 deploy: all
 
