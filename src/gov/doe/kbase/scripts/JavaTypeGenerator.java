@@ -185,7 +185,6 @@ public class JavaTypeGenerator {
 							retMultiType = new JavaType(null, tuple, moduleName, new ArrayList<KbTypedef>());
 							for (JavaFuncParam retPar : returns)
 								retMultiType.addInternalType(retPar.getType());
-							//nonPrimitiveTypes.add(retMultiType);
 							tupleTypes.add(returns.size());
 						}
 						funcs.add(new JavaFunc(moduleName, func, funcJavaName, params, returns, retMultiType));
@@ -395,7 +394,7 @@ public class JavaTypeGenerator {
 				}
 			}
 			classLines.add("}");
-			List<String> headerLines = new ArrayList<>(Arrays.asList(
+			List<String> headerLines = new ArrayList<String>(Arrays.asList(
 					"package " + packageParent + "." + module.getModuleName() + ";",
 					""
 					));
@@ -471,7 +470,7 @@ public class JavaTypeGenerator {
 				}
 			}
 			classLines.add("}");
-			List<String> headerLines = new ArrayList<>(Arrays.asList(
+			List<String> headerLines = new ArrayList<String>(Arrays.asList(
 					"package " + packageParent + "." + module.getModuleName() + ";",
 					""
 					));
@@ -484,6 +483,7 @@ public class JavaTypeGenerator {
 	private static void checkUtilityClasses(File srcOutDir, boolean createServers) throws Exception {
 		checkUtilityClass(srcOutDir, "JsonClientCaller");
 		checkUtilityClass(srcOutDir, "JacksonTupleModule");
+		checkUtilityClass(srcOutDir, "UObject");
 		if (createServers) {
 			checkUtilityClass(srcOutDir, "JsonServerMethod");
 			checkUtilityClass(srcOutDir, "JsonServerServlet");
@@ -603,6 +603,9 @@ public class JavaTypeGenerator {
 			for (JavaType iType : type.getInternalTypes())
 				subList.add(createJsonRefTypeTree(module, iType, null, true, packageParent, tupleTypes));
 			typeTree.put("javaTypeParams", subList);
+		} else if (type.getMainType() instanceof KbUnspecifiedObject) {
+			typeTree.put("type", "object");
+			typeTree.put("javaType", "java.lang.Object");
 		} else {
 			throw new IllegalStateException("Unknown type: " + type.getMainType().getClass().getName());
 		}
@@ -619,7 +622,7 @@ public class JavaTypeGenerator {
 		if (type instanceof KbBasicType) {
 			JavaType ret = new JavaType(typeName, (KbBasicType)type, 
 					typeModuleName == null ? defaultModuleName : typeModuleName, aliases);
-			if (!(type instanceof KbScalar))
+			if (!(type instanceof KbScalar || type instanceof KbUnspecifiedObject))
 				if (type instanceof KbStruct) {
 					for (KbStructItem item : ((KbStruct)type).getItems()) {
 						ret.addInternalType(findBasic(null, item.getItemType(), defaultModuleName, null, 
@@ -673,7 +676,9 @@ public class JavaTypeGenerator {
 				narrowParams.append(getJType(iType, packageParent, codeModel));
 			}
 			return codeModel.ref(utilPackage + "." + "Tuple" + paramCount) + "<" + narrowParams + ">";
-		} else {
+		} else if (kbt instanceof KbUnspecifiedObject) {
+			return codeModel.ref("java.lang.Object");
+	    } else {
 			throw new IllegalStateException("Unknown data type: " + kbt.getClass().getName());
 		}
 	}

@@ -3,7 +3,7 @@ package gov.doe.kbase.scripts;
 import java.util.Map;
 
 /**
- * Unnamed standard type. This could be one of {KbScalar, KbStruct, KbList, KbTuple or KbMapping}.
+ * Unnamed standard type. This could be one of {KbScalar, KbStruct, KbList, KbTuple, KbMapping or KbUnspecifiedObject}.
  * @author rsutormin
  */
 public abstract class KbBasicType implements KbType {
@@ -21,7 +21,7 @@ public abstract class KbBasicType implements KbType {
 		} else if (typeName.equals("Mapping")) {
 			return new KbMapping().loadFromMap(data, subst);
 		} else if (typeName.equals("UnspecifiedObject")) {
-			return new KbMapping();
+			return new KbUnspecifiedObject();
 		}
 		throw new IllegalStateException("Unsupported type: " + typeName);
 	}

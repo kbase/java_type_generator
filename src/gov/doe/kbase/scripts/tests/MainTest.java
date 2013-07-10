@@ -28,8 +28,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class MainTest extends Assert {
-	private static final String parsingScript = "compile_typespec.pl";
-	
+
 	@Test
 	public void testSimpleTypesAndStructures() throws Exception {
 		startTest(1);
@@ -45,6 +44,11 @@ public class MainTest extends Assert {
 		startTest(3);
 	}
 
+	@Test
+	public void testBoolAndObject() throws Exception {
+		startTest(4);
+	}
+	
 	private static void startTest(int testNum) throws Exception {
 		File tempDir = new File(".").getCanonicalFile();
 		for (File dir : tempDir.listFiles()) {
@@ -56,7 +60,8 @@ public class MainTest extends Assert {
 				}
 		}
 		File workDir = new File(tempDir, "test" + testNum + "_" + System.currentTimeMillis());
-		System.out.println("Test is staring in directory: " + workDir.getName());
+		System.out.println();
+		System.out.println("Test " + testNum + " is staring in directory: " + workDir.getName());
 		if (!workDir.exists())
 			workDir.mkdir();
 		String testFileName = "test" + testNum + ".spec";
@@ -98,13 +103,15 @@ public class MainTest extends Assert {
 					getServerClassName(module) + ".java";
         	runJavac(workDir, srcDir, classPath, binDir, clientFilePath, serverFilePath);
         }
-        File testJavaFile = new File(workDir, "src/" + testPackage.replace('.', '/') + "/Test" + testNum + ".java");
-        InputStream testClassIS = MainTest.class.getResourceAsStream("Test" + testNum + ".java.properties");
+        String testJavaFileName = "Test" + testNum + ".java";
+    	String testFilePath = "src/" + testPackage.replace('.', '/') + "/" + testJavaFileName;
+        File testJavaFile = new File(workDir, testFilePath);
+        String testJavaResource = testJavaFileName + ".properties";
+        InputStream testClassIS = MainTest.class.getResourceAsStream(testJavaResource);
         if (testClassIS == null) {
-        	Assert.fail("Java test class resource was not found: ");
+        	Assert.fail("Java test class resource was not found: " + testJavaResource);
         }
         Utils.copyStreams(testClassIS, new FileOutputStream(testJavaFile));
-    	String testFilePath = "src/" + testPackage.replace('.', '/') + "/Test" + testNum + ".java";
     	runJavac(workDir, srcDir, classPath, binDir, testFilePath);
         cpUrls.add(binDir.toURI().toURL());
         URLClassLoader urlcl = URLClassLoader.newInstance(cpUrls.toArray(new URL[cpUrls.size()]));
@@ -119,7 +126,6 @@ public class MainTest extends Assert {
 					"export KB_RUNTIME=/kb/runtime:$KB_RUNTIME",
 					"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
 					"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
-					"echo $PERL5LIB",
 					"cd \"" + serverOutDir.getAbsolutePath() + "\"",
 					"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
 					"echo $pid > " + perlPidFile.getAbsolutePath()

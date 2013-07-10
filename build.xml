@@ -1,0 +1,111 @@
+<project name="Java Type Generator" default="dist" basedir=".">
+
+  <description>
+      Build file for the Java Type Generator
+  </description>
+
+  <!-- set global properties that typically overwritten by Makefile -->
+  <property name="DEPLOY_RUNTIME" location="/kb/runtime"/>
+  <property name="TARGET"	location="/kb/deployment"/>
+
+  <!-- set global properties for this build -->
+  <property name="src"	location="src"/>
+  <property name="lib"	location="lib"/>
+  <property name="out.lib"	location="${DEPLOY_RUNTIME}/lib/gen_java_types"/>
+  <property name="dist"	location="dist"/>
+  <property name="out.bin"	location="${TARGET}/bin"/>
+  <property name="out.jar"	location="${TARGET}/lib"/>
+  <property name="classes"	location="classes"/>
+  <property name="test"	location="test"/>
+  <property name="jar.file"	value="GenJavaTypes.jar"/>
+  <property name="sh.file"	value="gen_java_types"/>
+  <property name="test.file"	value="test_gen_java_types.sh"/>
+
+  <target name="init">
+    <!-- Create the output directory structure-->
+    <mkdir dir="${classes}"/>
+    <mkdir dir="${dist}"/>
+    <mkdir dir="${test}"/>
+    <mkdir dir="${out.lib}"/>
+  </target>
+	
+  <target name="compile" depends="init" description="compile the source">
+    <!-- Compile class files-->
+    <javac destdir="${classes}" srcdir="${src}" includeantruntime="false" debug="false" classpathref="compile.classpath" />
+    <!-- Copy resource files-->
+    <copy todir="${classes}">
+      <fileset dir="${src}">
+        <patternset>
+          <include name="**/*.properties"/>
+        </patternset>
+      </fileset>
+    </copy>
+    <!-- Make main jar file-->
+    <jar destfile="${dist}/${jar.file}" basedir="${classes}">
+      <manifest>
+        <attribute name="Main-Class" value="gov.doe.kbase.scripts.JavaTypeGenerator"/>
+      </manifest>
+    </jar>
+    <!-- Remove uncompressed class files-->
+    <delete dir="${classes}"/>
+  </target>
+
+  <path id="compile.classpath">
+    <fileset dir="${lib}/">
+      <include name="*.jar"/>
+    </fileset>
+  </path>
+
+  <target name="test" depends="compile" description="create test script">
+    <!-- Define absolute path to main jar file-->
+    <property name="jar.absolute.path" location="${dist}/${jar.file}"/>
+    <!-- Define classpath string with : delimiter from list of lib-jar files-->
+    <pathconvert targetos="unix" property="lib.classpath" refid="compile.classpath"/>
+    <!-- Create testing shell script-->
+    <echo file="${test}/${test.file}">#!/bin/sh
+java -cp ${lib.classpath}:${jar.absolute.path} org.junit.runner.JUnitCore gov.doe.kbase.scripts.tests.MainTest
+    </echo>
+    <chmod file="${test}/${test.file}" perm="a+x"/>
+    <exec executable="bash" dir="${test}">
+      <arg value="${test.file}"/>
+    </exec>
+  </target>
+
+  <target name="dist" depends="compile" description="generate the distribution" >
+    <!-- Copy necessary lib-jars into runtime lib subfolder-->
+    <copy todir="${out.lib}" flatten="true">
+      <fileset dir="${lib}">
+        <include name="*.jar"/>
+      </fileset>
+    </copy>
+    <!-- Copy main jar file into deployment lib folder-->
+    <copy todir="${out.jar}" flatten="true">
+      <fileset file="${dist}/${jar.file}"/>
+    </copy>
+    <!-- Define list of lib-jar files-->
+    <!-- Define absolute path to main jar file-->
+    <property name="jar.absolute.path" location="${out.jar}/${jar.file}"/>
+    <!-- Define classpath string with : delimiter from list of lib-jar files-->
+    <pathconvert targetos="unix" property="lib.classpath" refid="compile.classpath">
+      <map from="${lib}" to="${out.lib}"/>
+    </pathconvert>
+    <!-- Create main shell script-->
+    <echo file="${dist}/${sh.file}">#!/bin/sh
+java -cp ${lib.classpath}:${jar.absolute.path} gov.doe.kbase.scripts.JavaTypeGenerator $@
+    </echo>
+    <chmod file="${dist}/${sh.file}" perm="a+x"/>
+    <!-- Copy main shell script into deployment bin folder-->
+    <copy todir="${out.bin}" flatten="true">
+      <fileset file="${dist}/${sh.file}"/>
+    </copy>
+    <chmod file="${out.bin}/${sh.file}" perm="a+x"/>
+  </target>
+
+  <target name="clean" description="clean up" >
+    <!-- Clean up internal temporary files and folders-->
+    <delete dir="${classes}"/>
+    <delete dir="${dist}"/>
+    <delete dir="${test}"/>
+  </target>
+</project>
+
