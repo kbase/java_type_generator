@@ -45,10 +45,15 @@ public class MainTest extends Assert {
 	}
 
 	@Test
-	public void testBoolAndObject() throws Exception {
+	public void testObject() throws Exception {
 		startTest(4);
 	}
-	
+
+	@Test
+	public void testBool() throws Exception {
+		startTest(5);
+	}
+
 	private static void startTest(int testNum) throws Exception {
 		File tempDir = new File(".").getCanonicalFile();
 		for (File dir : tempDir.listFiles()) {
