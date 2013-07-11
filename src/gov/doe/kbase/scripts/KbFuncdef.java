@@ -26,7 +26,7 @@ public class KbFuncdef implements KbModuleComp {
 	private static List<KbParameter> loadParameters(List<?> inputList, JSyncProcessor subst, boolean isReturn) {
 		List<KbParameter> ret = new ArrayList<KbParameter>();
 		for (Map<?,?> data : Utils.repareTypingMap(inputList, subst)) {
-			ret.add(new KbParameter().loadFromMap(data, subst, isReturn));
+			ret.add(new KbParameter().loadFromMap(data, subst, isReturn, ret.size() + 1));
 		}
 		return Collections.unmodifiableList(ret);
 	}
