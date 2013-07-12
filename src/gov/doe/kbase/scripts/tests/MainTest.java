@@ -59,6 +59,11 @@ public class MainTest extends Assert {
 		startTest(6);
 	}
 
+	@Test
+	public void testEmptyArgsAndReturns() throws Exception {
+		startTest(7);
+	}
+	
 	private static void startTest(int testNum) throws Exception {
 		File tempDir = new File(".").getCanonicalFile();
 		for (File dir : tempDir.listFiles()) {
@@ -278,7 +283,7 @@ public class MainTest extends Assert {
 
 	private static void runJavac(File workDir, File srcDir, StringBuilder classPath, File binDir, 
 			String... sourceFilePaths) throws IOException {
-		ProcessHelper.cmd("javac", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", 
+		ProcessHelper.cmd("javac", "-g:source,lines", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", 
 				classPath.toString()).add(sourceFilePaths).exec(workDir);
 	}
 

@@ -387,7 +387,7 @@ public class JavaTypeGenerator {
 						funcParams.append(", ");
 					funcParams.append(getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
 				}
-				String retTypeName = getJType(retType, packageParent, model);
+				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				String listClass = model.ref("java.util.List");
 				String arrayListClass = model.ref("java.util.ArrayList");
 				classLines.add("");
@@ -398,19 +398,29 @@ public class JavaTypeGenerator {
 				}
 				String typeReferenceClass = model.ref("org.codehaus.jackson.type.TypeReference");
 				boolean authRequired = func.isAuthRequired();
+				boolean needRet = retType != null;
 				if (func.getRetMultyType() == null) {
-					String trFull = typeReferenceClass + "<" + listClass + "<" + retTypeName + ">>";
-					classLines.addAll(Arrays.asList(
-							"        " + trFull + " retType = new " + trFull + "() {};",
-							"        " + listClass + "<" + retTypeName + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + authRequired + ");",
-							"        return res.get(0);",
-							"    }"
-							));
+					if (retType == null) {
+						String trFull = typeReferenceClass + "<Object>";
+						classLines.addAll(Arrays.asList(
+								"        " + trFull + " retType = new " + trFull + "() {};",
+								"        caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
+								"    }"
+								));
+					} else {
+						String trFull = typeReferenceClass + "<" + listClass + "<" + retTypeName + ">>";
+						classLines.addAll(Arrays.asList(
+								"        " + trFull + " retType = new " + trFull + "() {};",
+								"        " + listClass + "<" + retTypeName + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
+								"        return res.get(0);",
+								"    }"
+								));
+					}
 				} else {
 					String trFull = typeReferenceClass + "<" + retTypeName + ">";
 					classLines.addAll(Arrays.asList(
 							"        " + trFull + " retType = new " + trFull + "() {};",
-							"        " + retTypeName + " res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + authRequired + ");",
+							"        " + retTypeName + " res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
 							"        return res;",
 							"    }"
 							));					
@@ -464,19 +474,27 @@ public class JavaTypeGenerator {
 						funcParams.append(", ");
 					funcParams.append(getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
 				}
-				String retTypeName = getJType(retType, packageParent, model);
+				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
 				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
 						(func.getRetMultyType() == null ? "" : ", tuple = true") + ")");
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
 				if (func.getRetMultyType() == null) {
-					classLines.addAll(Arrays.asList(
-							"        " + retTypeName + " ret = null;",
-							"        //BEGIN " + func.getOriginal().getName(),
-							"        //END " + func.getOriginal().getName(),
-							"        return ret;",
-							"    }"
-							));
+					if (retType == null) {
+						classLines.addAll(Arrays.asList(
+								"        //BEGIN " + func.getOriginal().getName(),
+								"        //END " + func.getOriginal().getName(),
+								"    }"
+								));
+					} else {
+						classLines.addAll(Arrays.asList(
+								"        " + retTypeName + " ret = null;",
+								"        //BEGIN " + func.getOriginal().getName(),
+								"        //END " + func.getOriginal().getName(),
+								"        return ret;",
+								"    }"
+								));
+					}
 				} else {
 					for (int retPos = 0; retPos < func.getReturns().size(); retPos++) {
 						String retInnerType = getJType(func.getReturns().get(retPos).getType(), packageParent, model);
