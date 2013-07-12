@@ -1,4 +1,4 @@
-<project name="Java Type Generator" default="dist" basedir=".">
+<project name="Java Type Generator" default="compile_and_bin" basedir=".">
 
   <description>
       Build file for the Java Type Generator
@@ -55,6 +55,24 @@
       <include name="*.jar"/>
     </fileset>
   </path>
+
+  <target name="compile_and_bin" depends="compile" description="compile and create shell file in dev_container/bin" >
+    <!-- Define list of lib-jar files-->
+    <!-- Define absolute path to main jar file-->
+    <property name="jar.absolute.path" location="${dist}/${jar.file}"/>
+    <!-- Define classpath string with : delimiter from list of lib-jar files-->
+    <pathconvert targetos="unix" property="lib.classpath" refid="compile.classpath"/>
+    <!-- Create main shell script-->
+    <echo file="${dist}/${sh.file}">#!/bin/sh
+java -cp ${lib.classpath}:${jar.absolute.path} gov.doe.kbase.scripts.JavaTypeGenerator $@
+    </echo>
+    <chmod file="${dist}/${sh.file}" perm="a+x"/>
+    <!-- Copy main shell script into dev_container bin folder-->
+    <copy todir="${out.bin}" flatten="true">
+      <fileset file="${dist}/${sh.file}"/>
+    </copy>
+    <chmod file="${out.bin}/${sh.file}" perm="a+x"/>
+  </target>
 
   <target name="test" depends="compile" description="create test script">
     <!-- Define absolute path to main jar file-->
