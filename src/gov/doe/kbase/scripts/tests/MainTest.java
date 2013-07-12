@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.net.ConnectException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -146,7 +147,6 @@ public class MainTest extends Assert {
 					"echo $pid > " + perlPidFile.getAbsolutePath()
 					), plackupFile);
 			ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
-			Thread.sleep(1000);
 			runClientTest(testNum, testPackage, parsingData, urlcl, portNum);
 		} finally {
 			if (perlPidFile.exists()) {
@@ -167,7 +167,6 @@ public class MainTest extends Assert {
 					"echo $pid > " + javaPidFile.getAbsolutePath()
 					), jettyFile);
 			ProcessHelper.cmd("bash", jettyFile.getCanonicalPath()).exec(serverOutDir);
-			Thread.sleep(1000);
 			runClientTest(testNum, testPackage, parsingData, urlcl, portNum);
 		} finally {
 			if (javaPidFile.exists()) {
@@ -189,17 +188,32 @@ public class MainTest extends Assert {
 	}*/
 
 	private static void runClientTest(int testNum, String testPackage,
-			JavaData parsingData, URLClassLoader urlcl, int portNum)
-			throws ClassNotFoundException, InstantiationException,
-			IllegalAccessException, InvocationTargetException,
-			NoSuchMethodException {
-		for (JavaModule module : parsingData.getModules()) {
-			String clientClassName = getClientClassName(module);
-			Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + "." + clientClassName);
-			Object client = clientClass.getConstructor(String.class).newInstance("http://localhost:" + portNum);
-			Class<?> testClass = urlcl.loadClass(testPackage + ".Test" + testNum);
-			testClass.getConstructor(clientClass).newInstance(client);
+			JavaData parsingData, URLClassLoader urlcl, int portNum) throws Exception {
+		ConnectException error = null;
+		for (int n = 0; n < 5; n++) {
+			Thread.sleep(100);
+			try {
+				for (JavaModule module : parsingData.getModules()) {
+					String clientClassName = getClientClassName(module);
+					Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + "." + clientClassName);
+					Object client = clientClass.getConstructor(String.class).newInstance("http://localhost:" + portNum);
+					Class<?> testClass = urlcl.loadClass(testPackage + ".Test" + testNum);
+					testClass.getConstructor(clientClass).newInstance(client);
+				}
+				error = null;
+				System.out.println("Timeout before server response: " + (n * 100));
+				break;
+			} catch (InvocationTargetException ex) {
+				Throwable t = ex.getCause();
+				if (t != null && t instanceof ConnectException) {
+					error = (ConnectException)t;
+				} else {
+					throw ex;
+				}
+			}
 		}
+		if (error != null)
+			throw error;
 	}
 
 	private static void extractSpecFiles(int testNum, File workDir,
