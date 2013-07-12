@@ -43,4 +43,8 @@ public class JavaFunc {
 	public JavaType getRetMultyType() {
 		return retMultyType;
 	}
+	
+	public boolean isAuthRequired() {
+		return "required".equals(original.getAuthentication());
+	}
 }

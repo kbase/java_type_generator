@@ -54,6 +54,11 @@ public class MainTest extends Assert {
 		startTest(5);
 	}
 
+	@Test
+	public void testAuth() throws Exception {
+		startTest(6);
+	}
+
 	private static void startTest(int testNum) throws Exception {
 		File tempDir = new File(".").getCanonicalFile();
 		for (File dir : tempDir.listFiles()) {
@@ -169,14 +174,14 @@ public class MainTest extends Assert {
 		}
 	}
 
-	private static void showCompErrors(File workDir) throws IOException {
+	/*private static void showCompErrors(File workDir) throws IOException {
 		List<String> errLines = Utils.readFileLines(new File(workDir, "comp.err"));
 		if (errLines.size() > 1 || (errLines.size() == 1 && errLines.get(0).trim().length() > 0)) {
 			for (String errLine : errLines)
 				System.err.println(errLine);
 		}
 		Assert.fail("Spec-files compilation problem");
-	}
+	}*/
 
 	private static void runClientTest(int testNum, String testPackage,
 			JavaData parsingData, URLClassLoader urlcl, int portNum)
@@ -274,7 +279,7 @@ public class MainTest extends Assert {
 	private static void runJavac(File workDir, File srcDir, StringBuilder classPath, File binDir, 
 			String... sourceFilePaths) throws IOException {
 		ProcessHelper.cmd("javac", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", 
-				classPath.toString(), "-source", "1.6").add(sourceFilePaths).exec(workDir);
+				classPath.toString()).add(sourceFilePaths).exec(workDir);
 	}
 
 	private static String getClientClassName(JavaModule module) {

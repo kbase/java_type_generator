@@ -344,14 +344,34 @@ public class JavaTypeGenerator {
 			String clientClassName = Utils.capitalize(module.getModuleName()) + "Client";
 			File classFile = new File(moduleDir, clientClassName + ".java");
 			String callerClass = model.ref(utilPackage + ".JsonClientCaller");
+			boolean anyAuth = false;
+			for (JavaFunc func : module.getFuncs()) {
+				if (func.isAuthRequired()) {
+					anyAuth = true;
+					break;
+				}
+			}
 			List<String> classLines = new ArrayList<String>(Arrays.asList(
 					"public class " + clientClassName + " {",
 					"    private " + callerClass + " caller;",
 					"",
 					"    public " + clientClassName + "(String url) throws " + model.ref("java.net.MalformedURLException") + " {",
 					"        caller = new " + callerClass + "(url);",
-					"    }"
+					"    }",
+					""
 					));
+			if (anyAuth) {
+				classLines.addAll(Arrays.asList(
+						"    public " + clientClassName + "(String url, String token) throws " + model.ref("java.net.MalformedURLException") + " {",
+						"        caller = new " + callerClass + "(url, token);",
+						"    }",
+						"",
+						"    public " + clientClassName + "(String url, String user, String password) throws " + model.ref("java.net.MalformedURLException") + " {",
+						"        caller = new " + callerClass + "(url, user, password);",
+						"    }",
+						""
+						));
+			}
 			for (JavaFunc func : module.getFuncs()) {
 				JavaType retType = null;
 				if (func.getRetMultyType() == null) {
@@ -377,17 +397,20 @@ public class JavaTypeGenerator {
 					classLines.add("        args.add(" + param.getJavaName() + ");");
 				}
 				String typeReferenceClass = model.ref("org.codehaus.jackson.type.TypeReference");
+				boolean authRequired = func.isAuthRequired();
 				if (func.getRetMultyType() == null) {
+					String trFull = typeReferenceClass + "<" + listClass + "<" + retTypeName + ">>";
 					classLines.addAll(Arrays.asList(
-							"        Object retType = new " + typeReferenceClass + "<" + listClass + "<" + retTypeName + ">>() {};",
-							"        " + listClass + "<" + retTypeName + "> res = caller.jsonrpc_call(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType);",
+							"        " + trFull + " retType = new " + trFull + "() {};",
+							"        " + listClass + "<" + retTypeName + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + authRequired + ");",
 							"        return res.get(0);",
 							"    }"
 							));
 				} else {
+					String trFull = typeReferenceClass + "<" + retTypeName + ">";
 					classLines.addAll(Arrays.asList(
-							"        Object retType = new " + typeReferenceClass + "<" + retTypeName + ">() {};",
-							"        " + retTypeName + " res = caller.jsonrpc_call(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType);",
+							"        " + trFull + " retType = new " + trFull + "() {};",
+							"        " + retTypeName + " res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + authRequired + ");",
 							"        return res;",
 							"    }"
 							));					
