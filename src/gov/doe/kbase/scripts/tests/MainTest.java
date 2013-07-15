@@ -110,6 +110,9 @@ public class MainTest extends Assert {
 		addLib("servlet-api-2.5", libDir, classPath, cpUrls);
 		addLib("jetty-all-7.0.0", libDir, classPath, cpUrls);
 		addLib("junit-4.9", libDir, classPath, cpUrls);
+		addLib("kbase-auth", libDir, classPath, cpUrls);
+		addLib("bcpkix-jdk15on-147", libDir, classPath, cpUrls);
+		addLib("bcprov-ext-jdk15on-147", libDir, classPath, cpUrls);
 		File binDir = new File(workDir, "bin");
 		binDir.mkdir();
         for (JavaModule module : parsingData.getModules()) {

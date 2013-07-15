@@ -4,6 +4,7 @@ import gov.doe.kbase.scripts.util.ProcessHelper;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
@@ -357,19 +358,30 @@ public class JavaTypeGenerator {
 					"",
 					"    public " + clientClassName + "(String url) throws " + model.ref("java.net.MalformedURLException") + " {",
 					"        caller = new " + callerClass + "(url);",
-					"    }",
-					""
+					"    }"
 					));
 			if (anyAuth) {
 				classLines.addAll(Arrays.asList(
-						"    public " + clientClassName + "(String url, String token) throws " + model.ref("java.net.MalformedURLException") + " {",
+						"",
+						"    public " + clientClassName + "(String url, String token) throws " + model.ref("java.net.MalformedURLException") + ", " + model.ref("java.io.IOException") + " {",
 						"        caller = new " + callerClass + "(url, token);",
 						"    }",
 						"",
 						"    public " + clientClassName + "(String url, String user, String password) throws " + model.ref("java.net.MalformedURLException") + " {",
 						"        caller = new " + callerClass + "(url, user, password);",
+						"    }"
+						));
+			}
+			if (anyAuth) {
+				classLines.addAll(Arrays.asList(
+						"",
+						"    public boolean isAuthAllowedForHttp() {",
+						"        return caller.isAuthAllowedForHttp();",
 						"    }",
-						""
+						"",	
+						"    public void setAuthAllowedForHttp(boolean isAuthAllowedForHttp) {",
+						"        caller.setAuthAllowedForHttp(isAuthAllowedForHttp);",
+						"    }"
 						));
 			}
 			for (JavaFunc func : module.getFuncs()) {
@@ -474,6 +486,11 @@ public class JavaTypeGenerator {
 						funcParams.append(", ");
 					funcParams.append(getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
 				}
+				if (func.isAuthRequired()) {
+					if (funcParams.length() > 0)
+						funcParams.append(", ");
+					funcParams.append(model.ref("gov.doe.kbase.auth.AuthUser")).append(" authPart");;					
+				}
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
 				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
@@ -548,6 +565,9 @@ public class JavaTypeGenerator {
 		if (!libOutDir.exists())
 			libOutDir.mkdirs();
 		checkLib(libOutDir, "jackson-all-1.9.11");
+		checkLib(libOutDir, "kbase-auth");
+		checkLib(libOutDir, "bcpkix-jdk15on-147");
+		checkLib(libOutDir, "bcprov-ext-jdk15on-147");
 		if (createServers) {
 			checkLib(libOutDir, "servlet-api-2.5");
 			checkLib(libOutDir, "jetty-all-7.0.0");
