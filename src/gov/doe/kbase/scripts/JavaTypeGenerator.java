@@ -4,17 +4,25 @@ import gov.doe.kbase.scripts.util.ProcessHelper;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.text.MessageFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.SerializationConfig.Feature;
@@ -22,6 +30,9 @@ import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 
 import com.googlecode.jsonschema2pojo.DefaultGenerationConfig;
 import com.googlecode.jsonschema2pojo.Jackson1Annotator;
@@ -437,6 +448,70 @@ public class JavaTypeGenerator {
 			Utils.writeFileLines(classLines, classFile);
 		}
 	}
+	
+	private static String backupExtension() {
+		String ret = ".bak-";
+		Calendar now = Calendar.getInstance();
+		ret += now.get(Calendar.YEAR) + "-";
+		ret += String.format("%02d", now.get(Calendar.MONTH) + 1) + "-";
+		ret += String.format("%02d", now.get(Calendar.DAY_OF_MONTH)) + "-";
+		ret += String.format("%02d", now.get(Calendar.HOUR)) + "-";
+		ret += String.format("%02d", now.get(Calendar.MINUTE)) + "-";
+		ret += String.format("%02d", now.get(Calendar.SECOND));
+		return ret;
+	}
+	
+	private static final String HEADER = "HEADER";
+	private static final String CLSHEADER = "CLASS_HEADER";
+	private static final String CONSTRUCTOR = "CONSTRUCTOR";
+	private static final String METHOD = "METHOD_";
+	
+	private static final Pattern PAT_HEADER = Pattern.compile(
+			".*//BEGIN_HEADER\n(.+)//END_HEADER.*", Pattern.DOTALL);
+	private static final Pattern PAT_CLASS_HEADER = Pattern.compile(
+			".*//BEGIN_CLASS_HEADER\n(.+)    //END_CLASS_HEADER.*", Pattern.DOTALL);
+	private static final Pattern PAT_CONSTRUCTOR = Pattern.compile(
+			".*//BEGIN_CONSTRUCTOR\n(.+)        //END_CONSTRUCTOR.*", Pattern.DOTALL);
+	
+	private static void checkMatch(HashMap<String, String> code, Pattern matcher,
+			String oldserver, String codekey, String errortype, boolean exceptOnFail) 
+			throws ParseException {
+		Matcher m = matcher.matcher(oldserver);
+		if (!m.matches()) {
+			if (exceptOnFail) {
+				throw new ParseException("Missing " + errortype + 
+						" in original file", 0);
+			} else {
+				return;
+			}
+		}
+		code.put(codekey, m.group(1));
+	}
+	
+	private static HashMap<String, String> parsePrevCode(File classFile, List<JavaFunc> funcs)
+		throws IOException, ParseException {
+		
+		HashMap<String, String> code = new HashMap<String, String>();
+		if (!classFile.exists()) {
+			return code;
+		}
+		
+		File backup = new File(classFile.getAbsoluteFile() + backupExtension());
+		FileUtils.copyFile(classFile, backup);
+		String oldserver = IOUtils.toString(new FileReader(classFile));
+		checkMatch(code, PAT_HEADER, oldserver, HEADER, "header", true);
+		checkMatch(code, PAT_CLASS_HEADER, oldserver, CLSHEADER, "class header", true);
+		checkMatch(code, PAT_CONSTRUCTOR, oldserver, CONSTRUCTOR, "constructor", true);
+		for (JavaFunc func: funcs) {
+			String name = func.getOriginal().getName();
+			Pattern p = Pattern.compile(MessageFormat.format(
+					".*//BEGIN {0}\n(.+)        //END {0}.*", name), Pattern.DOTALL);
+			checkMatch(code, p, oldserver, METHOD + name, "method " + name, false);
+		}
+		return code;
+		
+		
+	}
 
 	private static void generateServerClass(JavaData data, File srcOutDir, String packageParent) throws Exception {
 		File parentDir = getParentSourceDir(srcOutDir, packageParent);
@@ -447,6 +522,10 @@ public class JavaTypeGenerator {
 			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModuleName());
 			String serverClassName = Utils.capitalize(module.getModuleName()) + "Server";
 			File classFile = new File(moduleDir, serverClassName + ".java");
+			HashMap<String, String> originalCode = parsePrevCode(classFile, module.getFuncs());
+//			System.out.println(originalCode);
+//			System.exit(0);
+			
 			List<String> classLines = new ArrayList<String>(Arrays.asList(
 					"public class " + serverClassName + " extends " + model.ref(utilPackage + ".JsonServerServlet") + " {",
 					"    private static final long serialVersionUID = 1L;",
