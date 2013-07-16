@@ -43,7 +43,7 @@
     <!-- Make main jar file-->
     <jar destfile="${dist}/${jar.file}" basedir="${classes}">
       <manifest>
-        <attribute name="Main-Class" value="gov.doe.kbase.scripts.JavaTypeGenerator"/>
+        <attribute name="Main-Class" value="us.kbase.scripts.JavaTypeGenerator"/>
       </manifest>
     </jar>
     <!-- Remove uncompressed class files-->
@@ -64,7 +64,7 @@
     <pathconvert targetos="unix" property="lib.classpath" refid="compile.classpath"/>
     <!-- Create main shell script-->
     <echo file="${dist}/${sh.file}">#!/bin/sh
-java -cp ${lib.classpath}:${jar.absolute.path} gov.doe.kbase.scripts.JavaTypeGenerator $@
+java -cp ${lib.classpath}:${jar.absolute.path} us.kbase.scripts.JavaTypeGenerator $@
     </echo>
     <chmod file="${dist}/${sh.file}" perm="a+x"/>
     <!-- Copy main shell script into dev_container bin folder-->
@@ -81,7 +81,7 @@ java -cp ${lib.classpath}:${jar.absolute.path} gov.doe.kbase.scripts.JavaTypeGen
     <pathconvert targetos="unix" property="lib.classpath" refid="compile.classpath"/>
     <!-- Create testing shell script-->
     <echo file="${test}/${test.file}">#!/bin/sh
-java -cp ${lib.classpath}:${jar.absolute.path} org.junit.runner.JUnitCore gov.doe.kbase.scripts.tests.MainTest
+java -cp ${lib.classpath}:${jar.absolute.path} org.junit.runner.JUnitCore us.kbase.scripts.tests.MainTest
     </echo>
     <chmod file="${test}/${test.file}" perm="a+x"/>
   </target>
@@ -106,7 +106,7 @@ java -cp ${lib.classpath}:${jar.absolute.path} org.junit.runner.JUnitCore gov.do
     </pathconvert>
     <!-- Create main shell script-->
     <echo file="${dist}/${sh.file}">#!/bin/sh
-java -cp ${lib.classpath}:${jar.absolute.path} gov.doe.kbase.scripts.JavaTypeGenerator $@
+java -cp ${lib.classpath}:${jar.absolute.path} us.kbase.scripts.JavaTypeGenerator $@
     </echo>
     <chmod file="${dist}/${sh.file}" perm="a+x"/>
     <!-- Copy main shell script into deployment bin folder-->
