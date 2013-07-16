@@ -468,11 +468,11 @@ public class JavaTypeGenerator {
 	private static final String METHOD = "METHOD_";
 	
 	private static final Pattern PAT_HEADER = Pattern.compile(
-			".*//BEGIN_HEADER\n(.+)//END_HEADER.*", Pattern.DOTALL);
+			".*//BEGIN_HEADER\n(.*)//END_HEADER.*", Pattern.DOTALL);
 	private static final Pattern PAT_CLASS_HEADER = Pattern.compile(
-			".*//BEGIN_CLASS_HEADER\n(.+)    //END_CLASS_HEADER.*", Pattern.DOTALL);
+			".*//BEGIN_CLASS_HEADER\n(.*)    //END_CLASS_HEADER.*", Pattern.DOTALL);
 	private static final Pattern PAT_CONSTRUCTOR = Pattern.compile(
-			".*//BEGIN_CONSTRUCTOR\n(.+)        //END_CONSTRUCTOR.*", Pattern.DOTALL);
+			".*//BEGIN_CONSTRUCTOR\n(.*)        //END_CONSTRUCTOR.*", Pattern.DOTALL);
 	
 	private static void checkMatch(HashMap<String, String> code, Pattern matcher,
 			String oldserver, String codekey, String errortype, boolean exceptOnFail) 
@@ -506,14 +506,20 @@ public class JavaTypeGenerator {
 		for (JavaFunc func: funcs) {
 			String name = func.getOriginal().getName();
 			Pattern p = Pattern.compile(MessageFormat.format(
-					".*//BEGIN {0}\n(.+)        //END {0}.*", name), Pattern.DOTALL);
+					".*//BEGIN {0}\n(.*)        //END {0}.*", name), Pattern.DOTALL);
 			checkMatch(code, p, oldserver, METHOD + name, "method " + name, false);
 		}
 		return code;
-		
-		
 	}
 
+	private static List<String> splitCodeLines(String code) {
+		LinkedList<String> l = new LinkedList<String>();
+		if (code.length() == 0) { //returns empty string otherwise
+			return l;
+		}
+		return Arrays.asList(code.split("\n"));
+	}
+	
 	private static void generateServerClass(JavaData data, File srcOutDir, String packageParent) throws Exception {
 		File parentDir = getParentSourceDir(srcOutDir, packageParent);
 		for (JavaModule module : data.getModules()) {
@@ -539,13 +545,13 @@ public class JavaTypeGenerator {
 					""
 					));
 			classLines.add("    //BEGIN_CLASS_HEADER");
-			List<String> classHeader = Arrays.asList(originalCode.get(CLSHEADER).split("\n"));
+			List<String> classHeader = splitCodeLines(originalCode.get(CLSHEADER));
 			classLines.addAll(classHeader);
 			classLines.add("    //END_CLASS_HEADER");
 			classLines.add("");
 			classLines.add("    public " + serverClassName + "() throws Exception {");
 			classLines.add("        //BEGIN_CONSTRUCTOR");
-			List<String> constructor = Arrays.asList(originalCode.get(CONSTRUCTOR).split("\n"));
+			List<String> constructor = splitCodeLines(originalCode.get(CONSTRUCTOR));
 			classLines.addAll(constructor);
 			classLines.addAll(Arrays.asList(
 					"        //END_CONSTRUCTOR",
@@ -575,7 +581,7 @@ public class JavaTypeGenerator {
 				List<String> funcLines = new LinkedList<String>();
 				String name = func.getOriginal().getName();
 				if (originalCode.containsKey(METHOD + name)) {
-					funcLines.addAll(Arrays.asList(originalCode.get(METHOD + name).split("\n")));
+					funcLines.addAll(splitCodeLines(originalCode.get(METHOD + name)));
 					
 				}
 				funcLines.add(0, "        //BEGIN " + name);
@@ -615,7 +621,7 @@ public class JavaTypeGenerator {
 			headerLines.addAll(model.generateImports());
 			headerLines.add("");
 			headerLines.add("//BEGIN_HEADER");
-			List<String> customheader = Arrays.asList(originalCode.get(HEADER).split("\n"));
+			List<String> customheader = splitCodeLines(originalCode.get(HEADER));
 			headerLines.addAll(customheader);
 			headerLines.add("//END_HEADER");
 			headerLines.add("");
