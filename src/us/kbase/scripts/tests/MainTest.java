@@ -32,6 +32,10 @@ import us.kbase.scripts.util.ProcessHelper;
 public class MainTest extends Assert {
 	public static final String rootPackageName = "us.kbase";
 	
+	public static void main(String[] args) throws Exception{
+		startTest(new Integer(args[0]).intValue());
+	}
+	
 	@Test
 	public void testSimpleTypesAndStructures() throws Exception {
 		startTest(1);
