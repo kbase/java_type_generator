@@ -17,6 +17,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -536,6 +537,22 @@ public class JavaTypeGenerator {
 					"            return;",
 					"        }",
 					"        new " + serverClassName + "().startupServer(Integer.parseInt(args[0]));",
+					"    }",
+					""
+					));
+			classLines.add("    //BEGIN_CLASS_HEADER");
+			List<String> classHeader = Arrays.asList(originalCode.get(CLSHEADER).split("\n"));
+//			System.out.println(classHeader);
+			classLines.addAll(classHeader);
+			classLines.add("    //END_CLASS_HEADER");
+			classLines.add("");
+			classLines.add("    public " + serverClassName + "() throws Exception {");
+			classLines.add("        //BEGIN_CONSTRUCTOR");
+			List<String> constructor = Arrays.asList(originalCode.get(CONSTRUCTOR).split("\n"));
+//			System.out.println(constructor);
+			classLines.addAll(constructor);
+			classLines.addAll(Arrays.asList(
+					"        //END_CONSTRUCTOR",
 					"    }"
 					));
 			for (JavaFunc func : module.getFuncs()) {
@@ -558,18 +575,34 @@ public class JavaTypeGenerator {
 				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
 						(func.getRetMultyType() == null ? "" : ", tuple = true") + ")");
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
+				
+				List<String> funcLines = new LinkedList<String>();
+				String name = func.getOriginal().getName();
+				if (originalCode.containsKey(METHOD + name)) {
+					funcLines.addAll(Arrays.asList(originalCode.get(METHOD + name).split("\n")));
+//					System.out.println(name);
+//					System.out.println(funcLines);
+					
+				}
+				funcLines.add(0, "        //BEGIN " + name);
+				funcLines.add("        //END " + name);
+				
 				if (func.getRetMultyType() == null) {
 					if (retType == null) {
-						classLines.addAll(Arrays.asList(
-								"        //BEGIN " + func.getOriginal().getName(),
-								"        //END " + func.getOriginal().getName(),
-								"    }"
-								));
+						classLines.addAll(funcLines);
+						classLines.add("    }");
+//						classLines.addAll(Arrays.asList(
+//								"        //BEGIN " + func.getOriginal().getName(),
+//								"        //END " + func.getOriginal().getName(),
+//								"    }"
+//								));
 					} else {
+						classLines.add("        " + retTypeName + " ret = null;");
+						classLines.addAll(funcLines);
 						classLines.addAll(Arrays.asList(
-								"        " + retTypeName + " ret = null;",
-								"        //BEGIN " + func.getOriginal().getName(),
-								"        //END " + func.getOriginal().getName(),
+//								"        " + retTypeName + " ret = null;",
+//								"        //BEGIN " + func.getOriginal().getName(),
+//								"        //END " + func.getOriginal().getName(),
 								"        return ret;",
 								"    }"
 								));
@@ -579,8 +612,9 @@ public class JavaTypeGenerator {
 						String retInnerType = getJType(func.getReturns().get(retPos).getType(), packageParent, model);
 						classLines.add("        " + retInnerType + " ret" + (retPos + 1) + " = null;");
 					}
-					classLines.add("        //BEGIN " + func.getOriginal().getName());
-					classLines.add("        //END " + func.getOriginal().getName());
+//					classLines.add("        //BEGIN " + func.getOriginal().getName());
+//					classLines.add("        //END " + func.getOriginal().getName());
+					classLines.addAll(funcLines);
 					classLines.add("        " + retTypeName + " ret = new " + retTypeName + "();");
 					for (int retPos = 0; retPos < func.getReturns().size(); retPos++) {
 						classLines.add("        ret.setE" + (retPos + 1) + "(ret" + (retPos + 1) + ");");
@@ -596,7 +630,16 @@ public class JavaTypeGenerator {
 					));
 			headerLines.addAll(model.generateImports());
 			headerLines.add("");
+			headerLines.add("//BEGIN_HEADER");
+			List<String> customheader = Arrays.asList(originalCode.get(HEADER).split("\n"));
+//			System.out.println(customheader);
+			headerLines.addAll(customheader);
+			headerLines.add("//END_HEADER");
+			headerLines.add("");
 			classLines.addAll(0, headerLines);
+//			System.out.println();
+//			System.out.println(classLines);
+//			System.exit(0);
 			Utils.writeFileLines(classLines, classFile);
 		}
 	}
