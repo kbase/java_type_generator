@@ -505,6 +505,9 @@ public class JavaTypeGenerator {
 		
 		HashMap<String, String> code = new HashMap<String, String>();
 		if (!classFile.exists()) {
+			code.put(HEADER, "");
+			code.put(CLSHEADER, "");
+			code.put(CONSTRUCTOR, "");
 			return code;
 		}
 		
