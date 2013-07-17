@@ -1,6 +1,7 @@
 package us.kbase.scripts;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
@@ -125,6 +126,10 @@ public class Utils {
 		return readStreamLines(new FileInputStream(f));
 	}
 
+	public static String readFileText(File f) throws IOException {
+		return readStreamText(new FileInputStream(f));
+	}
+
 	public static List<String> readStreamLines(InputStream is) throws IOException {
 		return readStreamLines(is, true);
 	}
@@ -158,6 +163,12 @@ public class Utils {
         }
         is.close();
         os.close();
+	}
+
+	public static String readStreamText(InputStream is) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		copyStreams(is, baos);
+		return new String(baos.toByteArray());
 	}
 
 	public static void deleteRecursively(File fileOrDir) {

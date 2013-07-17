@@ -74,6 +74,48 @@ public class MainTest extends Assert {
 	public void testEmptyArgsAndReturns() throws Exception {
 		startTest(7);
 	}
+
+	@Test
+	public void testServerCodeStoring() throws Exception {
+		int testNum = 8;
+		File workDir = prepareWorkDir(testNum);
+		System.out.println();
+		System.out.println("Test " + testNum + " is staring in directory: " + workDir.getName());
+		String testFileName = "test" + testNum + ".spec";
+		extractSpecFiles(testNum, workDir, testFileName);
+		File srcDir = new File(workDir, "src");
+		String testPackage = rootPackageName + ".test" + testNum;
+    	String serverFilePath = "src/" + testPackage.replace('.', '/') + "/storing/StoringServer.java";
+        File serverJavaFile = new File(workDir, serverFilePath);
+        serverJavaFile.getParentFile().mkdirs();
+        serverJavaFile.createNewFile();
+		File libDir = new File(workDir, "lib");
+        // Test for empty server file
+		try {
+			JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
+		} catch (Exception ex) {
+			Assert.assertTrue(ex.getMessage().contains("Missing header in original file"));
+		}
+        String testJavaResource = "Test" + testNum + ".java.properties";
+        InputStream testClassIS = MainTest.class.getResourceAsStream(testJavaResource);
+        if (testClassIS == null) {
+        	Assert.fail("Java test class resource was not found: " + testJavaResource);
+        }
+        Utils.copyStreams(testClassIS, new FileOutputStream(serverJavaFile));
+        // Test for full server file
+		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
+		List<URL> cpUrls = new ArrayList<URL>();
+		String classPath = prepareClassPath(libDir, cpUrls);
+		File binDir = new File(workDir, "bin");
+        cpUrls.add(binDir.toURI().toURL());
+		compileModulesIntoBin(workDir, srcDir, testPackage, parsingData, classPath, binDir);
+		String text = Utils.readFileText(serverJavaFile);
+		Assert.assertTrue(text.contains("* Header comment."));
+		Assert.assertTrue(text.contains("private int myValue = -1;"));
+		Assert.assertTrue(text.contains("myValue = 0;"));
+		Assert.assertTrue(text.contains("myValue = 1;"));
+		Assert.assertTrue(text.contains("myValue = 2;"));
+	}
 	
 	private static void startTest(int testNum) throws Exception {
 		File workDir = prepareWorkDir(testNum);

@@ -543,14 +543,6 @@ public class JavaTypeGenerator {
 			List<String> classLines = new ArrayList<String>(Arrays.asList(
 					"public class " + serverClassName + " extends " + model.ref(utilPackage + ".JsonServerServlet") + " {",
 					"    private static final long serialVersionUID = 1L;",
-					"",
-					"    public static void main(String[] args) throws Exception {",
-					"        if (args.length != 1) {",
-					"            System.out.println(\"Usage: <program> <server_port>\");",
-					"            return;",
-					"        }",
-					"        new " + serverClassName + "().startupServer(Integer.parseInt(args[0]));",
-					"    }",
 					""
 					));
 			classLines.add("    //BEGIN_CLASS_HEADER");
@@ -627,7 +619,16 @@ public class JavaTypeGenerator {
 					classLines.add("    }");					
 				}
 			}
-			classLines.add("}");
+			classLines.addAll(Arrays.asList(
+					"",
+					"    public static void main(String[] args) throws Exception {",
+					"        if (args.length != 1) {",
+					"            System.out.println(\"Usage: <program> <server_port>\");",
+					"            return;",
+					"        }",
+					"        new " + serverClassName + "().startupServer(Integer.parseInt(args[0]));",
+					"    }",
+					"}"));
 			List<String> headerLines = new ArrayList<String>(Arrays.asList(
 					"package " + packageParent + "." + module.getModuleName() + ";",
 					""
