@@ -677,6 +677,7 @@ public class JavaTypeGenerator {
 		if (createServers) {
 			checkLib(libOutDir, "servlet-api-2.5");
 			checkLib(libOutDir, "jetty-all-7.0.0");
+			checkLib(libOutDir, "ini4j-0.5.2");
 		}
 	}
 	
