@@ -371,7 +371,7 @@ public class JavaTypeGenerator {
 			String callerClass = model.ref(utilPackage + ".JsonClientCaller");
 			boolean anyAuth = false;
 			for (JavaFunc func : module.getFuncs()) {
-				if (func.isAuthRequired()) {
+				if (func.isAuthCouldBeUsed()) {
 					anyAuth = true;
 					break;
 				}
@@ -581,7 +581,7 @@ public class JavaTypeGenerator {
 						funcParams.append(", ");
 					funcParams.append(getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
 				}
-				if (func.isAuthRequired()) {
+				if (func.isAuthCouldBeUsed()) {
 					if (funcParams.length() > 0)
 						funcParams.append(", ");
 					funcParams.append(model.ref(utilPackage + ".auth.AuthUser")).append(" authPart");;					
@@ -589,7 +589,7 @@ public class JavaTypeGenerator {
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
 				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
-						(func.getRetMultyType() == null ? "" : ", tuple = true") + ")");
+						(func.getRetMultyType() == null ? "" : ", tuple = true") + (func.isAuthOptional() ? ", authOptional=true" : "") + ")");
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
 				
 				List<String> funcLines = new LinkedList<String>();
