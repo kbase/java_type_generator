@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -18,6 +19,9 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -95,24 +99,11 @@ public class MainTest extends Assert {
 		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 		//showCompErrors(workDir);
 		javaServerCorrection(srcDir, testPackage, parsingData);
-		StringBuilder classPath = new StringBuilder();
 		List<URL> cpUrls = new ArrayList<URL>();
-		addLib("jackson-all-1.9.11", libDir, classPath, cpUrls);
-		addLib("servlet-api-2.5", libDir, classPath, cpUrls);
-		addLib("jetty-all-7.0.0", libDir, classPath, cpUrls);
-		addLib("junit-4.9", libDir, classPath, cpUrls);
-		addLib("kbase-auth", libDir, classPath, cpUrls);
-		addLib("bcpkix-jdk15on-147", libDir, classPath, cpUrls);
-		addLib("bcprov-ext-jdk15on-147", libDir, classPath, cpUrls);
+		String classPath = prepareClassPath(libDir, cpUrls);
 		File binDir = new File(workDir, "bin");
-		binDir.mkdir();
-        for (JavaModule module : parsingData.getModules()) {
-        	String clientFilePath = "src/" + testPackage.replace('.', '/') + "/" + module.getModuleName() + "/" + 
-					getClientClassName(module) + ".java";
-        	String serverFilePath = "src/" + testPackage.replace('.', '/') + "/" + module.getModuleName() + "/" + 
-					getServerClassName(module) + ".java";
-        	runJavac(workDir, srcDir, classPath, binDir, clientFilePath, serverFilePath);
-        }
+        cpUrls.add(binDir.toURI().toURL());
+		compileModulesIntoBin(workDir, srcDir, testPackage, parsingData, classPath, binDir);
         String testJavaFileName = "Test" + testNum + ".java";
     	String testFilePath = "src/" + testPackage.replace('.', '/') + "/" + testJavaFileName;
         File testJavaFile = new File(workDir, testFilePath);
@@ -123,8 +114,6 @@ public class MainTest extends Assert {
         }
         Utils.copyStreams(testClassIS, new FileOutputStream(testJavaFile));
     	runJavac(workDir, srcDir, classPath, binDir, testFilePath);
-        cpUrls.add(binDir.toURI().toURL());
-        URLClassLoader urlcl = URLClassLoader.newInstance(cpUrls.toArray(new URL[cpUrls.size()]));
         perlServerCorrection(serverOutDir, parsingData);
         File perlPidFile = new File(serverOutDir, "pid.txt");
 		int portNum = 9990 + testNum;
@@ -141,7 +130,7 @@ public class MainTest extends Assert {
 					"echo $pid > " + perlPidFile.getAbsolutePath()
 					), plackupFile);
 			ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
-			runClientTest(testNum, testPackage, parsingData, urlcl, portNum);
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum);
 		} finally {
 			if (perlPidFile.exists()) {
 				String pid = Utils.readFileLines(perlPidFile).get(0).trim();
@@ -149,42 +138,70 @@ public class MainTest extends Assert {
 				System.out.println("Plackup process was finally killed: " + pid);
 			}
 		}
-        File javaPidFile = new File(workDir, "pid.txt");
+		Server javaServer = null;
 		try {
-	        File jettyFile = new File(workDir, "start_java_server.sh");
 	        JavaModule mainModule = parsingData.getModules().get(0);
-			Utils.writeFileLines(Arrays.asList(
-					"#!/bin/bash",
-					"cd \"" + workDir.getAbsolutePath() + "\"",
-					"java -cp ./bin:" + classPath + " " + testPackage + "." + mainModule.getModuleName() + "." + 
-					getServerClassName(mainModule) + " " + portNum + " >java_server.out 2>java_server.err & pid=$!",
-					"echo $pid > " + javaPidFile.getAbsolutePath()
-					), jettyFile);
-			ProcessHelper.cmd("bash", jettyFile.getCanonicalPath()).exec(serverOutDir);
-			runClientTest(testNum, testPackage, parsingData, urlcl, portNum);
+	        long time = System.currentTimeMillis();
+	        javaServer = startupJavaServer(mainModule, libDir, binDir, testPackage, portNum);
+	        System.out.println("Java server startup time: " + (System.currentTimeMillis() - time) + " ms.");
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum);
 		} finally {
-			if (javaPidFile.exists()) {
-				String pid = Utils.readFileLines(javaPidFile).get(0).trim();
-				ProcessHelper.cmd("kill", pid).exec(workDir);
-				System.out.println("Jetty process was finally killed: " + pid);
+			if (javaServer != null) {
+				javaServer.stop();
+				System.out.println("Jetty process was finally stopped");
 			}
 			System.out.println();
 		}
 	}
 
-	/*public void commonJavaServerTest() throws Exception {
-		File workDir = prepareWorkDir(0);
-		System.out.println();
-		System.out.println("Test 0 is staring in directory: " + workDir.getName());
-		for (int testNum = 1; testNum <= 7; testNum++) {
-			String testFileName = "test" + testNum + ".spec";
-			extractSpecFiles(testNum, workDir, testFileName);
-			File srcDir = new File(workDir, "src");
-			String testPackage = rootPackageName + ".test" + testNum;
-			File libDir = new File(workDir, "lib");
-			JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
-		}
-	}*/
+	private static void compileModulesIntoBin(File workDir, File srcDir, String testPackage, 
+			JavaData parsingData, String classPath, File binDir) throws IOException, MalformedURLException {
+		if (!binDir.exists())
+			binDir.mkdir();
+        for (JavaModule module : parsingData.getModules()) {
+        	String clientFilePath = "src/" + testPackage.replace('.', '/') + "/" + module.getModuleName() + "/" + 
+					getClientClassName(module) + ".java";
+        	String serverFilePath = "src/" + testPackage.replace('.', '/') + "/" + module.getModuleName() + "/" + 
+					getServerClassName(module) + ".java";
+        	runJavac(workDir, srcDir, classPath, binDir, clientFilePath, serverFilePath);
+        }
+	}
+
+	private static String prepareClassPath(File libDir, List<URL> cpUrls)
+			throws Exception {
+		StringBuilder classPathSB = new StringBuilder();
+		addLib("jackson-all-1.9.11", libDir, classPathSB, cpUrls);
+		addLib("servlet-api-2.5", libDir, classPathSB, cpUrls);
+		addLib("jetty-all-7.0.0", libDir, classPathSB, cpUrls);
+		addLib("junit-4.9", libDir, classPathSB, cpUrls);
+		addLib("kbase-auth", libDir, classPathSB, cpUrls);
+		addLib("bcpkix-jdk15on-147", libDir, classPathSB, cpUrls);
+		addLib("bcprov-ext-jdk15on-147", libDir, classPathSB, cpUrls);
+		return classPathSB.toString();
+	}
+
+	private static Server startupJavaServer(JavaModule module, File libDir, File binDir, 
+			String testPackage, int port) throws Exception {
+		Server server = new Server(port);
+		ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/");
+        server.setHandler(context);
+        URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
+        String serverClassName = testPackage + "." + module.getModuleName() + "." + getServerClassName(module);
+        Class<?> serverClass = urlcl.loadClass(serverClassName);
+        context.addServlet(new ServletHolder(serverClass), "/*");
+        server.start();
+        return server;
+	}
+
+	private static URLClassLoader prepareUrlClassLoader(File libDir, File binDir)
+			throws Exception, MalformedURLException {
+		List<URL> cpUrls = new ArrayList<URL>();
+        prepareClassPath(libDir, cpUrls);
+        cpUrls.add(binDir.toURI().toURL());
+        URLClassLoader urlcl = URLClassLoader.newInstance(cpUrls.toArray(new URL[cpUrls.size()]));
+		return urlcl;
+	}
 	
 	private static File prepareWorkDir(int testNum) throws IOException {
 		File tempDir = new File(".").getCanonicalFile();
@@ -203,7 +220,8 @@ public class MainTest extends Assert {
 	}
 
 	private static void runClientTest(int testNum, String testPackage,
-			JavaData parsingData, URLClassLoader urlcl, int portNum) throws Exception {
+			JavaData parsingData, File libDir, File binDir, int portNum) throws Exception {
+        URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
 		ConnectException error = null;
 		for (int n = 0; n < 50; n++) {
 			Thread.sleep(100);
@@ -314,10 +332,10 @@ public class MainTest extends Assert {
         }
 	}
 
-	private static void runJavac(File workDir, File srcDir, StringBuilder classPath, File binDir, 
+	private static void runJavac(File workDir, File srcDir, String classPath, File binDir, 
 			String... sourceFilePaths) throws IOException {
 		ProcessHelper.cmd("javac", "-g:source,lines", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", 
-				classPath.toString()).add(sourceFilePaths).exec(workDir);
+				classPath).add(sourceFilePaths).exec(workDir);
 	}
 
 	private static String getClientClassName(JavaModule module) {
