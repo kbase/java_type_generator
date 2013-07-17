@@ -85,7 +85,8 @@ public class MainTest extends Assert {
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
 		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
-
+		javaServerCorrection(srcDir, testPackage, parsingData);
+		parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
 		File bashFile = new File(workDir, "parse.sh");
 		File serverOutDir = new File(workDir, "out");
 		serverOutDir.mkdir();
@@ -102,7 +103,6 @@ public class MainTest extends Assert {
 				), bashFile);
 		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 		//showCompErrors(workDir);
-		javaServerCorrection(srcDir, testPackage, parsingData);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
 		File binDir = new File(workDir, "bin");

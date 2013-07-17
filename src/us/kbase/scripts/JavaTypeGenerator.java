@@ -1,6 +1,5 @@
 package us.kbase.scripts;
 
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -10,9 +9,10 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -476,14 +476,8 @@ public class JavaTypeGenerator {
 	
 	private static String backupExtension() {
 		String ret = ".bak-";
-		Calendar now = Calendar.getInstance();
-		ret += now.get(Calendar.YEAR) + "-";
-		ret += String.format("%02d", now.get(Calendar.MONTH) + 1) + "-";
-		ret += String.format("%02d", now.get(Calendar.DAY_OF_MONTH)) + "-";
-		ret += String.format("%02d", now.get(Calendar.HOUR)) + "-";
-		ret += String.format("%02d", now.get(Calendar.MINUTE)) + "-";
-		ret += String.format("%02d", now.get(Calendar.SECOND));
-		return ret;
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
+		return ret + sdf.format(new Date());
 	}
 		
 	private static void checkMatch(HashMap<String, String> code, Pattern matcher,
