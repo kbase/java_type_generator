@@ -181,6 +181,7 @@ public class MainTest extends Assert {
 		addLib("kbase-auth", libDir, classPathSB, cpUrls);
 		addLib("bcpkix-jdk15on-147", libDir, classPathSB, cpUrls);
 		addLib("bcprov-ext-jdk15on-147", libDir, classPathSB, cpUrls);
+		addLib("ini4j-0.5.2", libDir, classPathSB, cpUrls);
 		return classPathSB.toString();
 	}
 
