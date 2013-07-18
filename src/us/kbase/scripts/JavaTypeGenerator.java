@@ -96,7 +96,7 @@ public class JavaTypeGenerator {
 			libDir = new File(parsedArgs.outputDir, "lib");
 		}
 		boolean createServer = parsedArgs.createServerSide;
-		processSpec(inputFile, tempDir, srcOutDir, packageParent, createServer, libDir);
+		processSpec(inputFile, tempDir, srcOutDir, packageParent, createServer, libDir, parsedArgs.gwtPackage);
 		if (deleteTempDir)
 			tempDir.delete();
 	}
@@ -107,8 +107,10 @@ public class JavaTypeGenerator {
 		parser.printUsage(System.err);
 	}
 	
-	public static JavaData processSpec(File specFile, File tempDir, File srcOutDir, String packageParent, boolean createServer, File libOutDir) throws Exception {		
-		return processJson(transformSpecToJson(specFile, tempDir), new File(tempDir, "json-schemas"), srcOutDir, packageParent, createServer, libOutDir);
+	public static JavaData processSpec(File specFile, File tempDir, File srcOutDir, String packageParent, 
+			boolean createServer, File libOutDir, String gwtPackage) throws Exception {		
+		return processJson(transformSpecToJson(specFile, tempDir), new File(tempDir, "json-schemas"), 
+				srcOutDir, packageParent, createServer, libOutDir, gwtPackage);
 	}
 	
 	public static File transformSpecToJson(File specFile, File tempDir) throws Exception {
@@ -167,7 +169,8 @@ public class JavaTypeGenerator {
 			shellLines.add("export " + varName + "=" + newValue.append("$").append(varName));
 	}
 	
-	public static JavaData processJson(File jsonParsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, boolean createServer, File libOutDir) throws Exception {		
+	public static JavaData processJson(File jsonParsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, 
+			boolean createServer, File libOutDir, String gwtPackage) throws Exception {		
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(Feature.INDENT_OUTPUT, true);
 		Map<?,?> map = mapper.readValue(jsonParsingFile, Map.class);
@@ -175,7 +178,7 @@ public class JavaTypeGenerator {
 		List<KbService> srvList = KbService.loadFromMap(map, subst);
 		JavaData data = prepareDataStructures(srvList);
 		jsonParsingFile.delete();
-		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir);
+		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir, gwtPackage);
 		return data;
 	}
 
@@ -224,7 +227,8 @@ public class JavaTypeGenerator {
 		return data;
 	}
 
-	private static void outputData(JavaData data, File jsonOutDir, File srcOutDir, String packageParent, boolean createServers, File libOutDir) throws Exception {
+	private static void outputData(JavaData data, File jsonOutDir, File srcOutDir, String packageParent, 
+			boolean createServers, File libOutDir, String gwtPackage) throws Exception {
 		if (!srcOutDir.exists())
 			srcOutDir.mkdirs();
 		generatePojos(data, jsonOutDir, srcOutDir, packageParent);
@@ -234,6 +238,10 @@ public class JavaTypeGenerator {
 			generateServerClass(data, srcOutDir, packageParent);
 		checkUtilityClasses(srcOutDir, createServers);
 		checkLibs(libOutDir, createServers);
+		if (gwtPackage != null) {
+			GwtGenerator.generate(data, srcOutDir, gwtPackage);
+			checkUtilityClass(srcOutDir, "GwtTransformer");
+		}
 	}
 
 	private static void generatePojos(JavaData data, File jsonOutDir,
@@ -873,7 +881,10 @@ public class JavaTypeGenerator {
 		
 		@Option(name="-S", usage="Defines whether or not java code for server side should be created, default value is false", metaVar="<boolean>")
 		boolean createServerSide = false;
-		
+
+		@Option(name="-g",usage="Gwt client java package (define it in case you need copies of generated classes for GWT client)", metaVar="<gwtpckg>")		
+		String gwtPackage = null;
+
 		@Argument(metaVar="<spec-file>",required=true,usage="File *.spec for compilation into java classes")
 		File specFile;
 	}

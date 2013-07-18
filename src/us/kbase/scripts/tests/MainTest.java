@@ -35,6 +35,7 @@ import us.kbase.scripts.util.ProcessHelper;
 
 public class MainTest extends Assert {
 	public static final String rootPackageName = "us.kbase";
+	public static final String gwtPackageName = "us.kbase.gwt";
 	
 	public static void main(String[] args) throws Exception{
 		startTest(new Integer(args[0]).intValue());
@@ -92,7 +93,7 @@ public class MainTest extends Assert {
 		File libDir = new File(workDir, "lib");
         // Test for empty server file
 		try {
-			JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
+			JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
 		} catch (Exception ex) {
 			Assert.assertTrue(ex.getMessage().contains("Missing header in original file"));
 		}
@@ -103,7 +104,7 @@ public class MainTest extends Assert {
         }
         Utils.copyStreams(testClassIS, new FileOutputStream(serverJavaFile));
         // Test for full server file
-		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
+		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
 		File binDir = new File(workDir, "bin");
@@ -116,8 +117,17 @@ public class MainTest extends Assert {
 		Assert.assertTrue(text.contains("myValue = 1;"));
 		Assert.assertTrue(text.contains("myValue = 2;"));
 	}
-	
+
+	@Test
+	public void testGwtTransform() throws Exception {
+		startTest(9, false);
+	}
+
 	private static void startTest(int testNum) throws Exception {
+		startTest(testNum, true);
+	}
+	
+	private static void startTest(int testNum, boolean needClientServer) throws Exception {
 		File workDir = prepareWorkDir(testNum);
 		System.out.println();
 		System.out.println("Test " + testNum + " is staring in directory: " + workDir.getName());
@@ -126,25 +136,9 @@ public class MainTest extends Assert {
 		File srcDir = new File(workDir, "src");
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
-		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
+		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
 		javaServerCorrection(srcDir, testPackage, parsingData);
-		parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir);
-		File bashFile = new File(workDir, "parse.sh");
-		File serverOutDir = new File(workDir, "out");
-		serverOutDir.mkdir();
-		Utils.writeFileLines(Arrays.asList(
-				"#!/bin/bash",
-				"export KB_TOP=/kb/deployment:$KB_TOP",
-				"export KB_RUNTIME=/kb/runtime:$KB_RUNTIME",
-				"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
-				"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
-				"cd \"" + workDir.getAbsolutePath() + "\"",
-				"perl /kb/deployment/plbin/compile_typespec.pl --path " + workDir.getAbsolutePath() +
-				" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
-				testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
-				), bashFile);
-		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
-		//showCompErrors(workDir);
+		parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
 		File binDir = new File(workDir, "bin");
@@ -160,43 +154,62 @@ public class MainTest extends Assert {
         }
         Utils.copyStreams(testClassIS, new FileOutputStream(testJavaFile));
     	runJavac(workDir, srcDir, classPath, binDir, testFilePath);
-        perlServerCorrection(serverOutDir, parsingData);
-        File perlPidFile = new File(serverOutDir, "pid.txt");
-		int portNum = 9990 + testNum;
-		try {
-	        File plackupFile = new File(serverOutDir, "start_perl_server.sh");
+		if (needClientServer) {
+			File bashFile = new File(workDir, "parse.sh");
+			File serverOutDir = new File(workDir, "out");
+			serverOutDir.mkdir();
 			Utils.writeFileLines(Arrays.asList(
 					"#!/bin/bash",
 					"export KB_TOP=/kb/deployment:$KB_TOP",
 					"export KB_RUNTIME=/kb/runtime:$KB_RUNTIME",
 					"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
 					"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
-					"cd \"" + serverOutDir.getAbsolutePath() + "\"",
-					"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
-					"echo $pid > " + perlPidFile.getAbsolutePath()
-					), plackupFile);
-			ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
-			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum);
-		} finally {
-			if (perlPidFile.exists()) {
-				String pid = Utils.readFileLines(perlPidFile).get(0).trim();
-				ProcessHelper.cmd("kill", pid).exec(workDir);
-				System.out.println("Plackup process was finally killed: " + pid);
+					"cd \"" + workDir.getAbsolutePath() + "\"",
+					"perl /kb/deployment/plbin/compile_typespec.pl --path " + workDir.getAbsolutePath() +
+					" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
+					testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
+					), bashFile);
+			ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
+			perlServerCorrection(serverOutDir, parsingData);
+			File perlPidFile = new File(serverOutDir, "pid.txt");
+			int portNum = 9990 + testNum;
+			try {
+				File plackupFile = new File(serverOutDir, "start_perl_server.sh");
+				Utils.writeFileLines(Arrays.asList(
+						"#!/bin/bash",
+						"export KB_TOP=/kb/deployment:$KB_TOP",
+						"export KB_RUNTIME=/kb/runtime:$KB_RUNTIME",
+						"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
+						"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
+						"cd \"" + serverOutDir.getAbsolutePath() + "\"",
+						"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
+						"echo $pid > " + perlPidFile.getAbsolutePath()
+						), plackupFile);
+				ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
+				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
+			} finally {
+				if (perlPidFile.exists()) {
+					String pid = Utils.readFileLines(perlPidFile).get(0).trim();
+					ProcessHelper.cmd("kill", pid).exec(workDir);
+					System.out.println("Plackup process was finally killed: " + pid);
+				}
 			}
-		}
-		Server javaServer = null;
-		try {
-	        JavaModule mainModule = parsingData.getModules().get(0);
-	        long time = System.currentTimeMillis();
-	        javaServer = startupJavaServer(mainModule, libDir, binDir, testPackage, portNum);
-	        System.out.println("Java server startup time: " + (System.currentTimeMillis() - time) + " ms.");
-			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum);
-		} finally {
-			if (javaServer != null) {
-				javaServer.stop();
-				System.out.println("Jetty process was finally stopped");
+			Server javaServer = null;
+			try {
+				JavaModule mainModule = parsingData.getModules().get(0);
+				long time = System.currentTimeMillis();
+				javaServer = startupJavaServer(mainModule, libDir, binDir, testPackage, portNum);
+				System.out.println("Java server startup time: " + (System.currentTimeMillis() - time) + " ms.");
+				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
+			} finally {
+				if (javaServer != null) {
+					javaServer.stop();
+					System.out.println("Jetty process was finally stopped");
+				}
+				System.out.println();
 			}
-			System.out.println();
+		} else {
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, -1, needClientServer);
 		}
 	}
 
@@ -266,19 +279,23 @@ public class MainTest extends Assert {
 		return workDir;
 	}
 
-	private static void runClientTest(int testNum, String testPackage,
-			JavaData parsingData, File libDir, File binDir, int portNum) throws Exception {
+	private static void runClientTest(int testNum, String testPackage, JavaData parsingData, 
+			File libDir, File binDir, int portNum, boolean needClientServer) throws Exception {
         URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
 		ConnectException error = null;
 		for (int n = 0; n < 50; n++) {
 			Thread.sleep(100);
 			try {
 				for (JavaModule module : parsingData.getModules()) {
-					String clientClassName = getClientClassName(module);
-					Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + "." + clientClassName);
-					Object client = clientClass.getConstructor(String.class).newInstance("http://localhost:" + portNum);
 					Class<?> testClass = urlcl.loadClass(testPackage + ".Test" + testNum);
-					testClass.getConstructor(clientClass).newInstance(client);
+					if (needClientServer) {
+						String clientClassName = getClientClassName(module);
+						Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + "." + clientClassName);
+						Object client = clientClass.getConstructor(String.class).newInstance("http://localhost:" + portNum);
+						testClass.getConstructor(clientClass).newInstance(client);
+					} else {
+						testClass.getConstructor().newInstance();
+					}
 				}
 				error = null;
 				System.out.println("Timeout before server response: " + (n * 100) + " ms.");
