@@ -38,7 +38,14 @@ public class MainTest extends Assert {
 	public static final String gwtPackageName = "us.kbase.gwt";
 	
 	public static void main(String[] args) throws Exception{
-		startTest(new Integer(args[0]).intValue());
+		int testNum = Integer.parseInt(args[0]);
+		if (testNum == 8) {
+			new MainTest().testServerCodeStoring();
+		} else if (testNum == 9) {
+			startTest(testNum, false);
+		} else {
+			startTest(testNum);
+		}
 	}
 	
 	@Test
