@@ -57,11 +57,11 @@ public class JavaTypeGenerator {
 	private static final String METHOD = "METHOD_";
 	
 	private static final Pattern PAT_HEADER = Pattern.compile(
-			".*//BEGIN_HEADER\n(.*)//END_HEADER.*", Pattern.DOTALL);
+			".*//BEGIN_HEADER\n(.*)//END_HEADER\n.*", Pattern.DOTALL);
 	private static final Pattern PAT_CLASS_HEADER = Pattern.compile(
-			".*//BEGIN_CLASS_HEADER\n(.*)    //END_CLASS_HEADER.*", Pattern.DOTALL);
+			".*//BEGIN_CLASS_HEADER\n(.*)    //END_CLASS_HEADER\n.*", Pattern.DOTALL);
 	private static final Pattern PAT_CONSTRUCTOR = Pattern.compile(
-			".*//BEGIN_CONSTRUCTOR\n(.*)        //END_CONSTRUCTOR.*", Pattern.DOTALL);
+			".*//BEGIN_CONSTRUCTOR\n(.*)        //END_CONSTRUCTOR\n.*", Pattern.DOTALL);
 
 	public static void main(String[] args) throws Exception {
 		Args parsedArgs = new Args();
@@ -523,7 +523,7 @@ public class JavaTypeGenerator {
 		for (JavaFunc func: funcs) {
 			String name = func.getOriginal().getName();
 			Pattern p = Pattern.compile(MessageFormat.format(
-					".*//BEGIN {0}\n(.*)        //END {0}.*", name), Pattern.DOTALL);
+					".*//BEGIN {0}\n(.*)        //END {0}\n.*", name), Pattern.DOTALL);
 			checkMatch(code, p, oldserver, METHOD + name, "method " + name, false);
 		}
 		return code;
@@ -554,14 +554,12 @@ public class JavaTypeGenerator {
 					""
 					));
 			classLines.add("    //BEGIN_CLASS_HEADER");
-			List<String> classHeader = splitCodeLines(originalCode.get(CLSHEADER));
-			classLines.addAll(classHeader);
+			classLines.addAll(splitCodeLines(originalCode.get(CLSHEADER)));
 			classLines.add("    //END_CLASS_HEADER");
 			classLines.add("");
 			classLines.add("    public " + serverClassName + "() throws Exception {");
 			classLines.add("        //BEGIN_CONSTRUCTOR");
-			List<String> constructor = splitCodeLines(originalCode.get(CONSTRUCTOR));
-			classLines.addAll(constructor);
+			classLines.addAll(splitCodeLines(originalCode.get(CONSTRUCTOR)));
 			classLines.addAll(Arrays.asList(
 					"        //END_CONSTRUCTOR",
 					"    }"
@@ -644,8 +642,7 @@ public class JavaTypeGenerator {
 			headerLines.addAll(model.generateImports());
 			headerLines.add("");
 			headerLines.add("//BEGIN_HEADER");
-			List<String> customheader = splitCodeLines(originalCode.get(HEADER));
-			headerLines.addAll(customheader);
+			headerLines.addAll(splitCodeLines(originalCode.get(HEADER)));
 			headerLines.add("//END_HEADER");
 			headerLines.add("");
 			classLines.addAll(0, headerLines);
