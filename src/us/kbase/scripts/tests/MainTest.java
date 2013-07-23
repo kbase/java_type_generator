@@ -117,6 +117,8 @@ public class MainTest extends Assert {
 		File binDir = new File(workDir, "bin");
         cpUrls.add(binDir.toURI().toURL());
 		compileModulesIntoBin(workDir, srcDir, testPackage, parsingData, classPath, binDir);
+		for (JavaModule module : parsingData.getModules())
+        	createServerServletInstance(module, libDir, binDir, testPackage);
 		String text = Utils.readFileText(serverJavaFile);
 		Assert.assertTrue(text.contains("* Header comment."));
 		Assert.assertTrue(text.contains("private int myValue = -1;"));
@@ -253,12 +255,19 @@ public class MainTest extends Assert {
 		ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         server.setHandler(context);
-        URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
-        String serverClassName = testPackage + "." + module.getModuleName() + "." + getServerClassName(module);
-        Class<?> serverClass = urlcl.loadClass(serverClassName);
+        Class<?> serverClass = createServerServletInstance(module, libDir, binDir, testPackage);
         context.addServlet(new ServletHolder(serverClass), "/*");
         server.start();
         return server;
+	}
+
+	private static Class<?> createServerServletInstance(JavaModule module,
+			File libDir, File binDir, String testPackage) throws Exception,
+			MalformedURLException, ClassNotFoundException {
+		URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
+        String serverClassName = testPackage + "." + module.getModuleName() + "." + getServerClassName(module);
+        Class<?> serverClass = urlcl.loadClass(serverClassName);
+		return serverClass;
 	}
 
 	private static URLClassLoader prepareUrlClassLoader(File libDir, File binDir)
