@@ -1,7 +1,9 @@
-KB_RUNTIME ?= /kb/runtime
 KB_TOP ?= /kb/dev_container
+KB_RUNTIME ?= /kb/runtime
+DEPLOY_RUNTIME ?= $(KB_RUNTIME)
+TARGET ?= $(KB_TOP)
 ANT = ant
-SETUP_ANT = $(ANT) -DDEPLOY_RUNTIME=$(KB_RUNTIME) -DTARGET=$(KB_TOP)
+SETUP_ANT = $(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(TARGET)
 
 default: compile
 
