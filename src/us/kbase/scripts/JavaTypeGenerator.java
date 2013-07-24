@@ -876,7 +876,7 @@ public class JavaTypeGenerator {
 		@Option(name="-t", usage="Temporary folder, default value is parent folder of <spec-file>", metaVar="<tmp-dir>")
 		String tempDir;
 		
-		@Option(name="-S", usage="Defines whether or not java code for server side should be created, default value is false", metaVar="<boolean>")
+		@Option(name="-S", usage="Defines whether or not java code for server side should be created, default value is false, use -S for true")
 		boolean createServerSide = false;
 
 		@Option(name="-g",usage="Gwt client java package (define it in case you need copies of generated classes for GWT client)", metaVar="<gwtpckg>")		
