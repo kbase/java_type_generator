@@ -147,7 +147,7 @@ public class JavaTypeGenerator {
 		outFile.delete();
 		errFile.delete();
 		if (!retFile.exists()) {
-			throw new IllegalStateException("Wrong process state, jsync file wasn't created");
+			throw new IllegalStateException("Parsing file wasn't created, see error lines above for detailes");
 		}
 		return retFile;
 	}
