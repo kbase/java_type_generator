@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
@@ -180,8 +181,8 @@ public class MainTest extends Assert {
 					), bashFile);
 			ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 			perlServerCorrection(serverOutDir, parsingData);
-			File perlPidFile = new File(serverOutDir, "pid.txt");
-			int portNum = 9990 + testNum;
+			File pidFile = new File(serverOutDir, "pid.txt");
+			int portNum = 10000 + testNum;
 			try {
 				File plackupFile = new File(serverOutDir, "start_perl_server.sh");
 				Utils.writeFileLines(Arrays.asList(
@@ -192,17 +193,18 @@ public class MainTest extends Assert {
 						"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
 						"cd \"" + serverOutDir.getAbsolutePath() + "\"",
 						"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
-						"echo $pid > " + perlPidFile.getAbsolutePath()
+						"echo $pid > " + pidFile.getAbsolutePath()
 						), plackupFile);
 				ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
 				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
 			} finally {
-				if (perlPidFile.exists()) {
-					String pid = Utils.readFileLines(perlPidFile).get(0).trim();
+				if (pidFile.exists()) {
+					String pid = Utils.readFileLines(pidFile).get(0).trim();
 					ProcessHelper.cmd("kill", pid).exec(workDir);
-					System.out.println("Plackup process was finally killed: " + pid);
+					System.out.println("Perl server process was finally killed: " + pid);
 				}
 			}
+			portNum += 100;
 			Server javaServer = null;
 			try {
 				JavaModule mainModule = parsingData.getModules().get(0);
@@ -213,15 +215,48 @@ public class MainTest extends Assert {
 			} finally {
 				if (javaServer != null) {
 					javaServer.stop();
-					System.out.println("Jetty process was finally stopped");
+					System.out.println("Java server thread was finally stopped");
 				}
 				System.out.println();
+			}
+			portNum += 100;
+			pythonServerCorrection(serverOutDir, parsingData);
+			try {
+				File serverFile = findPythonServerScript(serverOutDir);
+				File uwsgiFile = new File(serverOutDir, "start_py_server.sh");
+				Utils.writeFileLines(Arrays.asList(
+						"#!/bin/bash",
+						"export KB_TOP=/kb/deployment:$KB_TOP",
+						"export KB_RUNTIME=/kb/runtime:$KB_RUNTIME",
+						"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
+						"export PYTHONPATH=/kb/deployment/lib:$PYTHONPATH",
+						"python " + serverFile.getAbsolutePath() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
+						"echo $pid > " + pidFile.getAbsolutePath()
+						), uwsgiFile);
+				ProcessHelper.cmd("bash", uwsgiFile.getCanonicalPath()).exec(serverOutDir);
+				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
+			} finally {
+				if (pidFile.exists()) {
+					//ProcessHelper.cmd("uwsgi", "--stop", pidFile.getAbsolutePath()).exec(workDir);
+					//System.out.println("UWSGI process was finally stopped");
+					String pid = Utils.readFileLines(pidFile).get(0).trim();
+					ProcessHelper.cmd("kill", pid).exec(workDir);
+					System.out.println("Python server process was finally killed: " + pid);
+				}
 			}
 		} else {
 			runClientTest(testNum, testPackage, parsingData, libDir, binDir, -1, needClientServer);
 		}
 	}
 
+	private static File findPythonServerScript(File dir) {
+		for (File f : dir.listFiles()) {
+			if (f.getName().endsWith("Server.py"))
+				return f;
+		}
+		throw new IllegalStateException("Can not find python server script");
+	}
+	
 	private static void compileModulesIntoBin(File workDir, File srcDir, String testPackage, 
 			JavaData parsingData, String classPath, File binDir) throws IOException, MalformedURLException {
 		if (!binDir.exists())
@@ -297,6 +332,7 @@ public class MainTest extends Assert {
 
 	private static void runClientTest(int testNum, String testPackage, JavaData parsingData, 
 			File libDir, File binDir, int portNum, boolean needClientServer) throws Exception {
+		System.out.println("Port: " + portNum);
         URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
 		ConnectException error = null;
 		for (int n = 0; n < 50; n++) {
@@ -308,7 +344,11 @@ public class MainTest extends Assert {
 						String clientClassName = getClientClassName(module);
 						Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + "." + clientClassName);
 						Object client = clientClass.getConstructor(String.class).newInstance("http://localhost:" + portNum);
-						testClass.getConstructor(clientClass).newInstance(client);
+						try {
+							testClass.getConstructor(clientClass).newInstance(client);
+						} catch (NoSuchMethodException e) {
+							testClass.getConstructor(clientClass, Integer.class).newInstance(client, portNum);							
+						}
 					} else {
 						testClass.getConstructor().newInstance();
 					}
@@ -409,6 +449,37 @@ public class MainTest extends Assert {
             	}
             }
             Utils.writeFileLines(perlServerLines, perlServerImpl);
+        }
+	}
+
+	private static void pythonServerCorrection(File serverOutDir, JavaData parsingData) throws IOException {
+		for (JavaModule module : parsingData.getModules()) {
+            Map<String, JavaFunc> origNameToFunc = new HashMap<String, JavaFunc>();
+            for (JavaFunc func : module.getFuncs()) {
+            	origNameToFunc.put(func.getOriginal().getName(), func);
+            }
+            File pyServerImpl = new File(serverOutDir, module.getOriginal().getModuleName() + "Impl.py");
+            List<String> pyServerLines = Utils.readFileLines(pyServerImpl);
+            for (int pos = 0; pos < pyServerLines.size(); pos++) {
+            	String line = pyServerLines.get(pos);
+            	if (line.startsWith("        #BEGIN ")) {
+            		String origFuncName = line.substring(line.lastIndexOf(' ') + 1);
+            		if (origNameToFunc.containsKey(origFuncName)) {
+            			KbFuncdef origFunc = origNameToFunc.get(origFuncName).getOriginal();
+            			int paramCount = origFunc.getParameters().size();
+            			for (int paramPos = 0; paramPos < paramCount; paramPos++) {
+            				pos++;
+            				pyServerLines.add(pos, "        return" + (paramCount > 1 ? ("_" + (paramPos + 1)) : "Val") + " = " + 
+            						origFunc.getParameters().get(paramPos).getName());
+            			}
+            			if (paramCount == 0) {
+            				pos++;
+            				pyServerLines.add(pos, "        pass");
+            			}
+            		}
+            	}
+            }
+            Utils.writeFileLines(pyServerLines, pyServerImpl);
         }
 	}
 
