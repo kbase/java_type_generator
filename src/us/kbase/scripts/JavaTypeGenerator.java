@@ -20,6 +20,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -384,7 +385,10 @@ public class JavaTypeGenerator {
 					break;
 				}
 			}
-			List<String> classLines = new ArrayList<String>(Arrays.asList(
+			List<String> classLines = new ArrayList<String>();
+			List<String> classCommentLines = parseCommentLines(module.getOriginal().getComment());
+			printCommentLines("", classCommentLines, classLines);
+			classLines.addAll(Arrays.asList(
 					"public class " + clientClassName + " {",
 					"    private " + callerClass + " caller;",
 					"",
@@ -435,6 +439,8 @@ public class JavaTypeGenerator {
 				String listClass = model.ref("java.util.List");
 				String arrayListClass = model.ref("java.util.ArrayList");
 				classLines.add("");
+				List<String> funcCommentLines = parseCommentLines(func.getOriginal().getComment());
+				printCommentLines("    ", funcCommentLines, classLines);
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
 				classLines.add("        " + listClass + "<Object> args = new " + arrayListClass + "<Object>();");
 				for (JavaFuncParam param : func.getParams()) {
@@ -547,8 +553,10 @@ public class JavaTypeGenerator {
 			String serverClassName = Utils.capitalize(module.getModuleName()) + "Server";
 			File classFile = new File(moduleDir, serverClassName + ".java");
 			HashMap<String, String> originalCode = parsePrevCode(classFile, module.getFuncs());
-			
-			List<String> classLines = new ArrayList<String>(Arrays.asList(
+			List<String> classLines = new ArrayList<String>();
+			List<String> classCommentLines = parseCommentLines(module.getOriginal().getComment());
+			printCommentLines("", classCommentLines, classLines);
+			classLines.addAll(Arrays.asList(
 					"public class " + serverClassName + " extends " + model.ref(utilPackage + ".JsonServerServlet") + " {",
 					"    private static final long serialVersionUID = 1L;",
 					""
@@ -586,6 +594,8 @@ public class JavaTypeGenerator {
 				}
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
+				List<String> funcCommentLines = parseCommentLines(func.getOriginal().getComment());
+				printCommentLines("    ", funcCommentLines, classLines);
 				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
 						(func.getRetMultyType() == null ? "" : ", tuple = true") + (func.isAuthOptional() ? ", authOptional=true" : "") + ")");
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
@@ -594,7 +604,6 @@ public class JavaTypeGenerator {
 				String name = func.getOriginal().getName();
 				if (originalCode.containsKey(METHOD + name)) {
 					funcLines.addAll(splitCodeLines(originalCode.get(METHOD + name)));
-					
 				}
 				funcLines.add(0, "        //BEGIN " + name);
 				funcLines.add("        //END " + name);
@@ -604,24 +613,24 @@ public class JavaTypeGenerator {
 						classLines.addAll(funcLines);
 						classLines.add("    }");
 					} else {
-						classLines.add("        " + retTypeName + " ret = null;");
+						classLines.add("        " + retTypeName + " returnVal = null;");
 						classLines.addAll(funcLines);
 						classLines.addAll(Arrays.asList(
-								"        return ret;",
+								"        return returnVal;",
 								"    }"
 								));
 					}
 				} else {
 					for (int retPos = 0; retPos < func.getReturns().size(); retPos++) {
 						String retInnerType = getJType(func.getReturns().get(retPos).getType(), packageParent, model);
-						classLines.add("        " + retInnerType + " ret" + (retPos + 1) + " = null;");
+						classLines.add("        " + retInnerType + " return" + (retPos + 1) + " = null;");
 					}
 					classLines.addAll(funcLines);
-					classLines.add("        " + retTypeName + " ret = new " + retTypeName + "();");
+					classLines.add("        " + retTypeName + " returnVal = new " + retTypeName + "();");
 					for (int retPos = 0; retPos < func.getReturns().size(); retPos++) {
-						classLines.add("        ret.setE" + (retPos + 1) + "(ret" + (retPos + 1) + ");");
+						classLines.add("        returnVal.setE" + (retPos + 1) + "(return" + (retPos + 1) + ");");
 					}					
-					classLines.add("        return ret;");
+					classLines.add("        return returnVal;");
 					classLines.add("    }");					
 				}
 			}
@@ -649,6 +658,36 @@ public class JavaTypeGenerator {
 			Utils.writeFileLines(classLines, classFile);
 		}
 	}
+
+	private static void printCommentLines(String intend, List<String> commentLines, List<String> classLines) {
+		if (commentLines.size() > 0) {
+			classLines.add(intend + "/**");
+			for (String commentLine : commentLines) {
+				classLines.add(intend + " * " + commentLine);
+			}
+			classLines.add(intend + " */");
+		}
+	}
+
+	private static List<String> parseCommentLines(String comment) {
+		List<String> commentLines = new ArrayList<String>();
+		if (comment != null && comment.trim().length() > 0) {
+			StringTokenizer st = new StringTokenizer(comment, "\r\n");
+			while (st.hasMoreTokens()) {
+				commentLines.add(st.nextToken());
+			}
+			removeEmptyLinesOnSides(commentLines);
+		}
+		return commentLines;
+	}
+	
+	private static void removeEmptyLinesOnSides(List<String> lines) {
+		while (lines.size() > 0 && lines.get(0).trim().length() == 0)
+			lines.remove(0);
+		while (lines.size() > 0 && lines.get(lines.size() - 1).trim().length() == 0)
+			lines.remove(lines.size() - 1);
+	}
+	
 	private static void checkUtilityClasses(File srcOutDir, boolean createServers) throws Exception {
 		checkUtilityClass(srcOutDir, "JsonClientCaller");
 		checkUtilityClass(srcOutDir, "JacksonTupleModule");
