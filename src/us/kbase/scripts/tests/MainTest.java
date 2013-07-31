@@ -133,6 +133,11 @@ public class MainTest extends Assert {
 		startTest(9, false);
 	}
 
+	@Test
+	public void testComments() throws Exception {
+		startTest(10, false);
+	}
+	
 	private static void startTest(int testNum) throws Exception {
 		startTest(testNum, true);
 	}
@@ -237,8 +242,6 @@ public class MainTest extends Assert {
 				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
 			} finally {
 				if (pidFile.exists()) {
-					//ProcessHelper.cmd("uwsgi", "--stop", pidFile.getAbsolutePath()).exec(workDir);
-					//System.out.println("UWSGI process was finally stopped");
 					String pid = Utils.readFileLines(pidFile).get(0).trim();
 					ProcessHelper.cmd("kill", pid).exec(workDir);
 					System.out.println("Python server process was finally killed: " + pid);
@@ -317,7 +320,7 @@ public class MainTest extends Assert {
 	private static File prepareWorkDir(int testNum) throws IOException {
 		File tempDir = new File(".").getCanonicalFile();
 		for (File dir : tempDir.listFiles()) {
-			if (dir.isDirectory() && dir.getName().startsWith("test" + testNum))
+			if (dir.isDirectory() && dir.getName().startsWith("test" + testNum + "_"))
 				try {
 					Utils.deleteRecursively(dir);
 				} catch (Exception e) {
@@ -442,7 +445,7 @@ public class MainTest extends Assert {
             			int paramCount = func.getParams().size();
             			for (int paramPos = 0; paramPos < paramCount; paramPos++) {
             				pos++;
-            				perlServerLines.add(pos, "        ret" + (paramCount > 1 ? ("" + (paramPos + 1)) : "") + " = " + 
+            				perlServerLines.add(pos, "        return" + (paramCount > 1 ? ("" + (paramPos + 1)) : "Val") + " = " + 
             						func.getParams().get(paramPos).getJavaName() + ";");
             			}
             		}
