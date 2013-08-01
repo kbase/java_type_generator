@@ -123,11 +123,8 @@ public class JavaTypeGenerator {
 		File outFile = new File(tempDir, "comp.out");
 		File errFile = new File(tempDir, "comp.err");
 		List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-		checkEnvVar("KB_TOP", lines, "/kb/deployment");
-		checkEnvVar("KB_RUNTIME", lines, "/kb/runtime");
-		checkEnvVar("PATH", lines, "/kb/runtime/bin", "/kb/deployment/bin");
-		checkEnvVar("PERL5LIB", lines, "/kb/deployment/lib");
-		lines.add("perl /kb/deployment/plbin/compile_typespec.pl --path \"" + specDir.getAbsolutePath() + "\"" +
+		checkEnvVars(lines, "PERL5LIB");
+		lines.add("perl $KB_TOP/plbin/compile_typespec.pl --path \"" + specDir.getAbsolutePath() + "\"" +
 				" --jsync " + retFile.getName() + " \"" + specFile.getAbsolutePath() + "\" " + 
 				serverOutDir.getName() + " >" + outFile.getName() + " 2>" + errFile.getName()
 				);
@@ -152,8 +149,16 @@ public class JavaTypeGenerator {
 		}
 		return retFile;
 	}
+
+	public static List<String> checkEnvVars(List<String> lines, String libVar) {
+		String deplPath = checkEnvVarIsSet("KB_TOP", lines, "/kb/deployment");
+		String rtPath = checkEnvVarIsSet("KB_RUNTIME", lines, "/kb/runtime");
+		checkEnvVarIncludes("PATH", lines, rtPath + "/bin", deplPath + "/bin");
+		checkEnvVarIncludes(libVar, lines, deplPath + "/lib");
+		return lines;
+	}
 	
-	private static void checkEnvVar(String varName, List<String> shellLines, String... partPath) {
+	private static void checkEnvVarIncludes(String varName, List<String> shellLines, String... partPath) {
 		String value = System.getenv(varName);
 		Set<String> paths = new HashSet<String>();
 		if (value != null) {
@@ -169,7 +174,16 @@ public class JavaTypeGenerator {
 		if (newValue.length() > 0)
 			shellLines.add("export " + varName + "=" + newValue.append("$").append(varName));
 	}
-	
+
+	private static String checkEnvVarIsSet(String varName, List<String> shellLines, String defaultValue) {
+		String value = System.getenv(varName);
+		if (value == null || value.trim().length() == 0) {
+			shellLines.add("export " + varName + "=" + defaultValue);
+			value = defaultValue;
+		}
+		return value;
+	}
+
 	public static JavaData processJson(File jsonParsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, 
 			boolean createServer, File libOutDir, String gwtPackage) throws Exception {		
 		ObjectMapper mapper = new ObjectMapper();

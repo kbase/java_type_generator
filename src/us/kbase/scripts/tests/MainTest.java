@@ -1,12 +1,10 @@
 package us.kbase.scripts.tests;
 
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
@@ -173,33 +171,27 @@ public class MainTest extends Assert {
 			File bashFile = new File(workDir, "parse.sh");
 			File serverOutDir = new File(workDir, "out");
 			serverOutDir.mkdir();
-			Utils.writeFileLines(Arrays.asList(
-					"#!/bin/bash",
-					"export KB_TOP=/kb/deployment:$KB_TOP",
-					"export KB_RUNTIME=/kb/runtime:$KB_RUNTIME",
-					"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
-					"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
-					"cd \"" + workDir.getAbsolutePath() + "\"",
-					"perl /kb/deployment/plbin/compile_typespec.pl --path " + workDir.getAbsolutePath() +
+			Utils.writeFileLines(listConcat( 
+					Arrays.asList("#!/bin/bash"),
+					JavaTypeGenerator.checkEnvVars(new ArrayList<String>(), "PERL5LIB"),
+					Arrays.asList(
+					"perl $KB_TOP/plbin/compile_typespec.pl --path " + workDir.getAbsolutePath() +
 					" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
 					testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
-					), bashFile);
+					)), bashFile);
 			ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 			perlServerCorrection(serverOutDir, parsingData);
 			File pidFile = new File(serverOutDir, "pid.txt");
 			int portNum = 10000 + testNum;
 			try {
 				File plackupFile = new File(serverOutDir, "start_perl_server.sh");
-				Utils.writeFileLines(Arrays.asList(
-						"#!/bin/bash",
-						"export KB_TOP=/kb/deployment:$KB_TOP",
-						"export KB_RUNTIME=/kb/runtime:$KB_RUNTIME",
-						"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
-						"export PERL5LIB=/kb/deployment/lib:$PERL5LIB",
-						"cd \"" + serverOutDir.getAbsolutePath() + "\"",
+				List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+				JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
+				lines.addAll(Arrays.asList(
 						"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
 						"echo $pid > " + pidFile.getAbsolutePath()
-						), plackupFile);
+						));
+				Utils.writeFileLines(lines, plackupFile);
 				ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
 				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
 			} finally {
@@ -229,15 +221,13 @@ public class MainTest extends Assert {
 			try {
 				File serverFile = findPythonServerScript(serverOutDir);
 				File uwsgiFile = new File(serverOutDir, "start_py_server.sh");
-				Utils.writeFileLines(Arrays.asList(
-						"#!/bin/bash",
-						"export KB_TOP=/kb/deployment:$KB_TOP",
-						"export KB_RUNTIME=/kb/runtime:$KB_RUNTIME",
-						"export PATH=/kb/runtime/bin:/kb/deployment/bin:$PATH",
-						"export PYTHONPATH=/kb/deployment/lib:$PYTHONPATH",
+				List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+				JavaTypeGenerator.checkEnvVars(lines, "PYTHONPATH");
+				lines.addAll(Arrays.asList(
 						"python " + serverFile.getAbsolutePath() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
 						"echo $pid > " + pidFile.getAbsolutePath()
-						), uwsgiFile);
+						));
+				Utils.writeFileLines(lines, uwsgiFile);
 				ProcessHelper.cmd("bash", uwsgiFile.getCanonicalPath()).exec(serverOutDir);
 				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
 			} finally {
@@ -252,6 +242,13 @@ public class MainTest extends Assert {
 		}
 	}
 
+	private static List<String> listConcat(List<String>... lists) {
+		List<String> ret = new ArrayList<String>();
+		for (List<String> list : lists)
+			ret.addAll(list);
+		return ret;
+	}
+	
 	private static File findPythonServerScript(File dir) {
 		for (File f : dir.listFiles()) {
 			if (f.getName().endsWith("Server.py"))
