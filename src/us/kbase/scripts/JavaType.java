@@ -83,24 +83,6 @@ public class JavaType implements Comparable<JavaType> {
 	private String getTypeNameWithModuleIfNeed(JavaType iType) {
 		return (iType.getModuleName().equals(getModuleName()) ? "" : iType.getModuleName()) + iType.getJavaClassName();
 	}
-
-	public String getComment() {
-		StringBuilder ret = new StringBuilder();
-		int count = getAliasHistoryOuterToDeep().size();
-		for (KbTypedef td : getAliasHistoryOuterToDeep()) {
-			String text = td.getComment();
-			if (text == null)
-				text = "";
-			if (text.trim().length() > 0) {
-				if (count > 1)
-					ret.append("From " + td.getName() + " type:\n");
-				ret.append(text);
-				if (count > 1)
-					ret.append("\n");
-			}
-		}
-		return ret.toString();
-	}
 	
 	@Override
 	public boolean equals(Object obj) {

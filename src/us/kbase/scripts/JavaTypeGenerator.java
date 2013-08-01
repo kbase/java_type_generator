@@ -383,6 +383,7 @@ public class JavaTypeGenerator {
 	}
 
 	private static void generateClientClass(JavaData data, File srcOutDir, String packageParent) throws Exception {
+		Map<String, JavaType> originalToJavaTypes = getOriginalToJavaTypesMap(data);
 		File parentDir = getParentSourceDir(srcOutDir, packageParent);
 		for (JavaModule module : data.getModules()) {
 			File moduleDir = new File(parentDir, module.getModuleName());
@@ -400,8 +401,7 @@ public class JavaTypeGenerator {
 				}
 			}
 			List<String> classLines = new ArrayList<String>();
-			List<String> classCommentLines = parseCommentLines(module.getOriginal().getComment());
-			printCommentLines("", classCommentLines, classLines);
+			printModuleComment(module, classLines);
 			classLines.addAll(Arrays.asList(
 					"public class " + clientClassName + " {",
 					"    private " + callerClass + " caller;",
@@ -453,8 +453,7 @@ public class JavaTypeGenerator {
 				String listClass = model.ref("java.util.List");
 				String arrayListClass = model.ref("java.util.ArrayList");
 				classLines.add("");
-				List<String> funcCommentLines = parseCommentLines(func.getOriginal().getComment());
-				printCommentLines("    ", funcCommentLines, classLines);
+				printFuncComment(func, originalToJavaTypes, packageParent, classLines);
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
 				classLines.add("        " + listClass + "<Object> args = new " + arrayListClass + "<Object>();");
 				for (JavaFuncParam param : func.getParams()) {
@@ -500,6 +499,79 @@ public class JavaTypeGenerator {
 			classLines.addAll(0, headerLines);
 			Utils.writeFileLines(classLines, classFile);
 		}
+	}
+
+	private static void printFuncComment(JavaFunc func, Map<String, JavaType> originalToJavaTypes, 
+			String packageParent, List<String> classLines) {
+		List<String> funcCommentLines = new ArrayList<String>();
+		funcCommentLines.add("<p>Original spec-file function name: " + func.getOriginal().getName() + "</p>");
+		funcCommentLines.add("<pre>");
+		funcCommentLines.addAll(parseCommentLines(func.getOriginal().getComment()));
+		funcCommentLines.add("</pre>");
+		for (JavaFuncParam param : func.getParams()) {
+			List<KbTypedef> refHistory = param.getType().getAliasHistoryOuterToDeep();
+			if (refHistory.size() > 0) {
+				String descr = createTypeDescr(originalToJavaTypes, refHistory, packageParent);
+				funcCommentLines.add("@param   " + param.getJavaName() + "   " + descr);
+			}
+		}
+		if (func.getReturns().size() > 0) {
+			JavaType retType = func.getRetMultyType() == null ? func.getReturns().get(0).getType() : func.getRetMultyType();
+			List<KbTypedef> refHistory =  retType.getAliasHistoryOuterToDeep();
+			if (refHistory.size() > 0) {
+				String descr = createTypeDescr(originalToJavaTypes, refHistory, packageParent);
+				funcCommentLines.add("@return   " + descr);
+			}
+		}
+		printCommentLines("    ", funcCommentLines, classLines);
+	}
+
+	private static String createTypeDescr(
+			Map<String, JavaType> originalToJavaTypes,
+			List<KbTypedef> refHistory, String packageParent) {
+		StringBuilder sb = new StringBuilder();
+		for (KbTypedef ref : refHistory) {
+			if (sb.length() > 0)
+				sb.append(" &rarr; ");
+			sb.append("Original type \"").append(ref.getName()).append("\"");
+			String originalTypeKey = Utils.capitalize(ref.getModule()).toLowerCase() + "." + ref.getName();
+			if (originalToJavaTypes.containsKey(originalTypeKey)) {
+				JavaType refJavaType = originalToJavaTypes.get(originalTypeKey);
+				sb.append(" (see {@link ").append(getPackagePrefix(packageParent, refJavaType))
+				.append(refJavaType.getJavaClassName()).append(' ').append(refJavaType.getJavaClassName())
+				.append("} for details)");
+			} else {
+				List<String> refCommentLines = parseCommentLines(ref.getComment());
+				if (refCommentLines.size() > 0) {
+					StringBuilder concatLines = new StringBuilder();
+					for (String l : refCommentLines) {
+						if (concatLines.length() > 0 && concatLines.charAt(concatLines.length() - 1) != ' ')
+							concatLines.append(' ');
+						concatLines.append(l.trim());
+					}
+					sb.append(" (").append(concatLines).append(")");
+				}
+			}
+		}
+		String descr = sb.toString();
+		return descr;
+	}
+
+	private static Map<String, JavaType> getOriginalToJavaTypesMap(JavaData data) {
+		Map<String, JavaType> originalToJavaTypes = new HashMap<String, JavaType>();
+		for (JavaType type : data.getTypes()) {
+			originalToJavaTypes.put(type.getModuleName() + "." + type.getOriginalTypeName(), type);
+		}
+		return originalToJavaTypes;
+	}
+
+	private static void printModuleComment(JavaModule module, List<String> classLines) {
+		List<String> lines = new ArrayList<String>();
+		lines.add("<p>Original spec-file module name: " + module.getOriginal().getModuleName() + "</p>");
+		lines.add("<pre>");
+		lines.addAll(parseCommentLines(module.getOriginal().getComment()));
+		lines.add("</pre>");
+		printCommentLines("", lines, classLines);
 	}
 	
 	private static String backupExtension() {
@@ -558,6 +630,7 @@ public class JavaTypeGenerator {
 	}
 	
 	private static void generateServerClass(JavaData data, File srcOutDir, String packageParent) throws Exception {
+		Map<String, JavaType> originalToJavaTypes = getOriginalToJavaTypesMap(data);
 		File parentDir = getParentSourceDir(srcOutDir, packageParent);
 		for (JavaModule module : data.getModules()) {
 			File moduleDir = new File(parentDir, module.getModuleName());
@@ -568,8 +641,7 @@ public class JavaTypeGenerator {
 			File classFile = new File(moduleDir, serverClassName + ".java");
 			HashMap<String, String> originalCode = parsePrevCode(classFile, module.getFuncs());
 			List<String> classLines = new ArrayList<String>();
-			List<String> classCommentLines = parseCommentLines(module.getOriginal().getComment());
-			printCommentLines("", classCommentLines, classLines);
+			printModuleComment(module, classLines);
 			classLines.addAll(Arrays.asList(
 					"public class " + serverClassName + " extends " + model.ref(utilPackage + ".JsonServerServlet") + " {",
 					"    private static final long serialVersionUID = 1L;",
@@ -608,8 +680,7 @@ public class JavaTypeGenerator {
 				}
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
-				List<String> funcCommentLines = parseCommentLines(func.getOriginal().getComment());
-				printCommentLines("    ", funcCommentLines, classLines);
+				printFuncComment(func, originalToJavaTypes, packageParent, classLines);
 				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
 						(func.getRetMultyType() == null ? "" : ", tuple = true") + (func.isAuthOptional() ? ", authOptional=true" : "") + ")");
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
@@ -717,8 +788,6 @@ public class JavaTypeGenerator {
 		if (!dir.exists())
 			dir.mkdirs();
 		File dstClassFile = new File(dir, className + ".java");
-		//if (dstClassFile.exists())
-		//	return;
 		Utils.writeFileLines(Utils.readStreamLines(JavaTypeGenerator.class.getResourceAsStream(
 				className + ".java.properties")), dstClassFile);
 	}
@@ -751,7 +820,19 @@ public class JavaTypeGenerator {
 		LinkedHashMap<String, Object> tree = new LinkedHashMap<String, Object>();
 		tree.put("$schema", "http://json-schema.org/draft-04/schema#");
 		tree.put("id", type.getModuleName() + "." + type.getJavaClassName());
-		tree.put("description", type.getComment());
+		StringBuilder descr = new StringBuilder("<p>Original spec-file type: ").append(type.getOriginalTypeName()).append("</p>\n");
+		List<String> descrLines = new ArrayList<String>();
+		if (type.getAliasHistoryOuterToDeep().size() > 0) {
+			descrLines.addAll(parseCommentLines(type.getAliasHistoryOuterToDeep().get(0).getComment()));
+			if (descrLines.size() > 0) {
+				descr.append("<pre>\n");
+				for (String l : descrLines) {
+					descr.append(l).append("\n");
+				}
+				descr.append("</pre>");
+			}
+		}
+		tree.put("description", descr.toString());
 		tree.put("type", "object");
 		tree.put("javaType", packageParent + "." + type.getModuleName() + "." + type.getJavaClassName());
 		if (type.getMainType() instanceof KbMapping) {

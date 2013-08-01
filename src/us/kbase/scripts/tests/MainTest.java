@@ -101,7 +101,10 @@ public class MainTest extends Assert {
 		try {
 			JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
 		} catch (Exception ex) {
-			Assert.assertTrue(ex.getMessage().contains("Missing header in original file"));
+			boolean key = ex.getMessage().contains("Missing header in original file");
+			if (!key)
+				ex.printStackTrace();
+			Assert.assertTrue(key);
 		}
         String testJavaResource = "Test" + testNum + ".java.properties";
         InputStream testClassIS = MainTest.class.getResourceAsStream(testJavaResource);
@@ -167,6 +170,12 @@ public class MainTest extends Assert {
         }
         Utils.copyStreams(testClassIS, new FileOutputStream(testJavaFile));
     	runJavac(workDir, srcDir, classPath, binDir, testFilePath);
+    	File docDir = new File(workDir, "doc");
+    	docDir.mkdir();
+    	List<String> docPackages = new ArrayList<String>(Arrays.asList(testPackage));
+    	for (JavaModule module : parsingData.getModules())
+    		docPackages.add(testPackage + "." + module.getModuleName());
+    	runJavaDoc(workDir, srcDir, classPath, docDir, docPackages.toArray(new String[docPackages.size()]));
 		if (needClientServer) {
 			File bashFile = new File(workDir, "parse.sh");
 			File serverOutDir = new File(workDir, "out");
@@ -350,7 +359,11 @@ public class MainTest extends Assert {
 							testClass.getConstructor(clientClass, Integer.class).newInstance(client, portNum);							
 						}
 					} else {
-						testClass.getConstructor().newInstance();
+						try {
+							testClass.getConstructor().newInstance();
+						} catch (NoSuchMethodException e) {
+							testClass.getConstructor(File.class).newInstance(binDir.getParentFile());
+						}
 					}
 				}
 				error = null;
@@ -487,6 +500,11 @@ public class MainTest extends Assert {
 			String... sourceFilePaths) throws IOException {
 		ProcessHelper.cmd("javac", "-g:source,lines", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", 
 				classPath).add(sourceFilePaths).exec(workDir);
+	}
+
+	private static void runJavaDoc(File workDir, File srcDir, String classPath, File docDir, String... packages) throws IOException {
+		ProcessHelper.cmd("javadoc", "-d", docDir.getName(), "-sourcepath", srcDir.getName(), "-classpath", 
+				classPath).add(packages).exec(workDir, (File)null, null);
 	}
 
 	private static String getClientClassName(JavaModule module) {
