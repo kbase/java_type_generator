@@ -25,15 +25,14 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.SerializationConfig.Feature;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 
 import us.kbase.scripts.util.ProcessHelper;
 
@@ -64,6 +63,8 @@ public class JavaTypeGenerator {
 	private static final Pattern PAT_CONSTRUCTOR = Pattern.compile(
 			".*//BEGIN_CONSTRUCTOR\n(.*)        //END_CONSTRUCTOR\n.*", Pattern.DOTALL);
 
+	private static final boolean useJsyncForParsing = true;
+	
 	public static void main(String[] args) throws Exception {
 		Args parsedArgs = new Args();
 		CmdLineParser parser = new CmdLineParser(parsedArgs);
@@ -110,22 +111,23 @@ public class JavaTypeGenerator {
 	
 	public static JavaData processSpec(File specFile, File tempDir, File srcOutDir, String packageParent, 
 			boolean createServer, File libOutDir, String gwtPackage) throws Exception {		
-		return processJson(transformSpecToJson(specFile, tempDir), new File(tempDir, "json-schemas"), 
-				srcOutDir, packageParent, createServer, libOutDir, gwtPackage);
+		return processParsingFile(transformSpecToJson(specFile, tempDir, useJsyncForParsing), new File(tempDir, "json-schemas"), 
+				srcOutDir, packageParent, createServer, libOutDir, gwtPackage, useJsyncForParsing);
 	}
 	
-	public static File transformSpecToJson(File specFile, File tempDir) throws Exception {
+	public static File transformSpecToJson(File specFile, File tempDir, boolean jsync) throws Exception {
 		File bashFile = new File(tempDir, "comp_server.sh");
 		File serverOutDir = new File(tempDir, "server_out");
 		serverOutDir.mkdir();
 		File specDir = specFile.getAbsoluteFile().getParentFile();
-		File retFile = new File(tempDir, "jsync_parsing_file.json");
+		File retFile = new File(tempDir, "parsing_file." + (jsync ? "json" : "xml"));
 		File outFile = new File(tempDir, "comp.out");
 		File errFile = new File(tempDir, "comp.err");
 		List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
 		checkEnvVars(lines, "PERL5LIB");
 		lines.add("perl $KB_TOP/plbin/compile_typespec.pl --path \"" + specDir.getAbsolutePath() + "\"" +
-				" --jsync " + retFile.getName() + " \"" + specFile.getAbsolutePath() + "\" " + 
+				" --" + (jsync ? "jsync" : "xml") + " " + retFile.getName() + " " +
+				"\"" + specFile.getAbsolutePath() + "\" " + 
 				serverOutDir.getName() + " >" + outFile.getName() + " 2>" + errFile.getName()
 				);
 		Utils.writeFileLines(lines, bashFile);
@@ -184,15 +186,20 @@ public class JavaTypeGenerator {
 		return value;
 	}
 
-	public static JavaData processJson(File jsonParsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, 
-			boolean createServer, File libOutDir, String gwtPackage) throws Exception {		
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.configure(Feature.INDENT_OUTPUT, true);
-		Map<?,?> map = mapper.readValue(jsonParsingFile, Map.class);
+	private static JavaData processParsingFile(File parsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, 
+			boolean createServer, File libOutDir, String gwtPackage, boolean jsync) throws Exception {		
+		Map<?,?> map = null;
+		if (jsync) {
+			ObjectMapper mapper = new ObjectMapper();
+			mapper.configure(Feature.INDENT_OUTPUT, true);
+			map = mapper.readValue(parsingFile, Map.class);
+		} else {
+			map = SpecXmlHelper.parseXml(parsingFile);
+		}
 		JSyncProcessor subst = new JSyncProcessor(map);
 		List<KbService> srvList = KbService.loadFromMap(map, subst);
 		JavaData data = prepareDataStructures(srvList);
-		jsonParsingFile.delete();
+		parsingFile.delete();
 		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir, gwtPackage);
 		return data;
 	}
