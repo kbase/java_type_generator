@@ -125,11 +125,17 @@ public class JavaTypeGenerator {
 		File errFile = new File(tempDir, "comp.err");
 		List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
 		checkEnvVars(lines, "PERL5LIB");
-		lines.add("perl $KB_TOP/plbin/compile_typespec.pl --path \"" + specDir.getAbsolutePath() + "\"" +
+		lines.addAll(Arrays.asList(
+				"COMP_EXEC=\"perl $KB_TOP/plbin/compile_typespec.pl\"",
+				"if [ ! -f $KB_TOP/plbin/compile_typespec.pl ]",
+				"then",
+				"    COMP_EXEC=$KB_TOP/bin/compile_typespec",
+				"fi",
+				"$COMP_EXEC --path \"" + specDir.getAbsolutePath() + "\"" +
 				" --" + (jsync ? "jsync" : "xml") + " " + retFile.getName() + " " +
 				"\"" + specFile.getAbsolutePath() + "\" " + 
 				serverOutDir.getName() + " >" + outFile.getName() + " 2>" + errFile.getName()
-				);
+				));
 		Utils.writeFileLines(lines, bashFile);
 		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(tempDir);
 		File jsyncFile = new File(serverOutDir, retFile.getName());

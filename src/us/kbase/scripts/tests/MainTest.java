@@ -184,10 +184,15 @@ public class MainTest extends Assert {
 					Arrays.asList("#!/bin/bash"),
 					JavaTypeGenerator.checkEnvVars(new ArrayList<String>(), "PERL5LIB"),
 					Arrays.asList(
-					"perl $KB_TOP/plbin/compile_typespec.pl --path " + workDir.getAbsolutePath() +
-					" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
-					testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
-					)), bashFile);
+							"COMP_EXEC=\"perl $KB_TOP/plbin/compile_typespec.pl\"",
+							"if [ ! -f $KB_TOP/plbin/compile_typespec.pl ]",
+							"then",
+							"    COMP_EXEC=$KB_TOP/bin/compile_typespec",
+							"fi",
+							"$COMP_EXEC --path " + workDir.getAbsolutePath() +
+							" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
+							testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
+							)), bashFile);
 			ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 			perlServerCorrection(serverOutDir, parsingData);
 			File pidFile = new File(serverOutDir, "pid.txt");
