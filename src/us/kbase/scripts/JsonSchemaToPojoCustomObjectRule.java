@@ -109,6 +109,9 @@ public class JsonSchemaToPojoCustomObjectRule implements Rule<JPackage, JType> {
                 }
 
                 try {
+                	if (fqn.endsWith(".UObject")) {
+                		throw new ClassAlreadyExistsException(_package.owner().ref(fqn));
+                	}
                 	if (node.has("javaTypeParams")) {
                         JClass ret = loadParameterizedType(node, _package.owner());
                         throw new ClassAlreadyExistsException(ret);

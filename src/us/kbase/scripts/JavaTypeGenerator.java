@@ -928,7 +928,7 @@ public class JavaTypeGenerator {
 			typeTree.put("javaTypeParams", subList);
 		} else if (type.getMainType() instanceof KbUnspecifiedObject) {
 			typeTree.put("type", "object");
-			typeTree.put("javaType", "java.lang.Object");
+			typeTree.put("javaType", utilPackage + ".UObject");
 		} else {
 			throw new IllegalStateException("Unknown type: " + type.getMainType().getClass().getName());
 		}
@@ -998,9 +998,9 @@ public class JavaTypeGenerator {
 					narrowParams.append(", ");
 				narrowParams.append(getJType(iType, packageParent, codeModel));
 			}
-			return codeModel.ref(utilPackage + "." + "Tuple" + paramCount) + "<" + narrowParams + ">";
+			return codeModel.ref(utilPackage + ".Tuple" + paramCount) + "<" + narrowParams + ">";
 		} else if (kbt instanceof KbUnspecifiedObject) {
-			return codeModel.ref("java.lang.Object");
+			return codeModel.ref(utilPackage + ".UObject");
 	    } else {
 			throw new IllegalStateException("Unknown data type: " + kbt.getClass().getName());
 		}
