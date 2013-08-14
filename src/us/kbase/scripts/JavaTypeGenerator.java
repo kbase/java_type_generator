@@ -818,7 +818,9 @@ public class JavaTypeGenerator {
 			checkLib(libOutDir, "servlet-api-2.5");
 			checkLib(libOutDir, "jetty-all-7.0.0");
 			checkLib(libOutDir, "ini4j-0.5.2");
-			checkLib(libOutDir, "log4j-1.2.17");
+			//checkLib(libOutDir, "log4j-1.2.17");
+			checkLib(libOutDir, "syslog4j-0.9.46");
+			checkLib(libOutDir, "jna-4.0.0");
 		}
 	}
 	
