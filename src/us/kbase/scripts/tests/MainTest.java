@@ -67,10 +67,10 @@ public class MainTest extends Assert {
 		startTest(4);
 	}
 
-	@Test
+	/*@Test
 	public void testBool() throws Exception {
 		startTest(5);
-	}
+	}*/
 
 	@Test
 	public void testAuth() throws Exception {
@@ -180,19 +180,12 @@ public class MainTest extends Assert {
 			File bashFile = new File(workDir, "parse.sh");
 			File serverOutDir = new File(workDir, "out");
 			serverOutDir.mkdir();
-			Utils.writeFileLines(listConcat( 
-					Arrays.asList("#!/bin/bash"),
-					JavaTypeGenerator.checkEnvVars(new ArrayList<String>(), "PERL5LIB"),
-					Arrays.asList(
-							"COMP_EXEC=\"perl $KB_TOP/plbin/compile_typespec.pl\"",
-							"if [ ! -f $KB_TOP/plbin/compile_typespec.pl ]",
-							"then",
-							"    COMP_EXEC=$KB_TOP/bin/compile_typespec",
-							"fi",
-							"$COMP_EXEC --path " + workDir.getAbsolutePath() +
-							" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
-							testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
-							)), bashFile);
+			Utils.writeFileLines(Arrays.asList(
+					"#!/bin/bash",
+					getKbBinDir() + "compile_typespec --path " + workDir.getAbsolutePath() +
+					" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
+					testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
+					), bashFile);
 			ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 			perlServerCorrection(serverOutDir, parsingData);
 			File pidFile = new File(serverOutDir, "pid.txt");
@@ -200,7 +193,7 @@ public class MainTest extends Assert {
 			try {
 				File plackupFile = new File(serverOutDir, "start_perl_server.sh");
 				List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-				JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
+				//JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
 				lines.addAll(Arrays.asList(
 						"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
 						"echo $pid > " + pidFile.getAbsolutePath()
@@ -236,7 +229,7 @@ public class MainTest extends Assert {
 				File serverFile = findPythonServerScript(serverOutDir);
 				File uwsgiFile = new File(serverOutDir, "start_py_server.sh");
 				List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-				JavaTypeGenerator.checkEnvVars(lines, "PYTHONPATH");
+				//JavaTypeGenerator.checkEnvVars(lines, "PYTHONPATH");
 				lines.addAll(Arrays.asList(
 						"python " + serverFile.getAbsolutePath() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
 						"echo $pid > " + pidFile.getAbsolutePath()
@@ -256,11 +249,11 @@ public class MainTest extends Assert {
 		}
 	}
 
-	private static List<String> listConcat(List<String>... lists) {
-		List<String> ret = new ArrayList<String>();
-		for (List<String> list : lists)
-			ret.addAll(list);
-		return ret;
+	private static String getKbBinDir() {
+		String kbTop = System.getenv("KB_TOP");
+		if (kbTop != null && kbTop.trim().length() > 0)
+			return kbTop + "/bin/";
+		return "";
 	}
 	
 	private static File findPythonServerScript(File dir) {

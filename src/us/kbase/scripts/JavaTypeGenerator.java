@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -124,14 +123,15 @@ public class JavaTypeGenerator {
 		File outFile = new File(tempDir, "comp.out");
 		File errFile = new File(tempDir, "comp.err");
 		List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-		checkEnvVars(lines, "PERL5LIB");
+		String kbTop = System.getenv("KB_TOP");
+		String compileTypespecDir = "";
+		if (kbTop != null && kbTop.trim().length() > 0) {
+			compileTypespecDir = kbTop + "/bin/";
+		} else {
+			System.out.println("WARNING: KB_TOP environment variable is not defined, so compile_typespec is supposed to be in PATH");
+		}
 		lines.addAll(Arrays.asList(
-				"COMP_EXEC=\"perl $KB_TOP/plbin/compile_typespec.pl\"",
-				"if [ ! -f $KB_TOP/plbin/compile_typespec.pl ]",
-				"then",
-				"    COMP_EXEC=$KB_TOP/bin/compile_typespec",
-				"fi",
-				"$COMP_EXEC --path \"" + specDir.getAbsolutePath() + "\"" +
+				compileTypespecDir + "compile_typespec --path \"" + specDir.getAbsolutePath() + "\"" +
 				" --" + (jsync ? "jsync" : "xml") + " " + retFile.getName() + " " +
 				"\"" + specFile.getAbsolutePath() + "\" " + 
 				serverOutDir.getName() + " >" + outFile.getName() + " 2>" + errFile.getName()
@@ -157,41 +157,7 @@ public class JavaTypeGenerator {
 		}
 		return retFile;
 	}
-
-	public static List<String> checkEnvVars(List<String> lines, String libVar) {
-		String deplPath = checkEnvVarIsSet("KB_TOP", lines, "/kb/deployment");
-		String rtPath = checkEnvVarIsSet("KB_RUNTIME", lines, "/kb/runtime");
-		checkEnvVarIncludes("PATH", lines, rtPath + "/bin", deplPath + "/bin");
-		checkEnvVarIncludes(libVar, lines, deplPath + "/lib");
-		return lines;
-	}
 	
-	private static void checkEnvVarIncludes(String varName, List<String> shellLines, String... partPath) {
-		String value = System.getenv(varName);
-		Set<String> paths = new HashSet<String>();
-		if (value != null) {
-			String[] parts = value.split(":");
-			for (String part : parts)
-				if (part.trim().length() > 0)
-					paths.add(part.trim());
-		}
-		StringBuilder newValue = new StringBuilder();
-		for (String path : partPath)
-			if (!paths.contains(path))
-				newValue.append(path).append(":");
-		if (newValue.length() > 0)
-			shellLines.add("export " + varName + "=" + newValue.append("$").append(varName));
-	}
-
-	private static String checkEnvVarIsSet(String varName, List<String> shellLines, String defaultValue) {
-		String value = System.getenv(varName);
-		if (value == null || value.trim().length() == 0) {
-			shellLines.add("export " + varName + "=" + defaultValue);
-			value = defaultValue;
-		}
-		return value;
-	}
-
 	private static JavaData processParsingFile(File parsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, 
 			boolean createServer, File libOutDir, String gwtPackage, boolean jsync) throws Exception {		
 		Map<?,?> map = null;
