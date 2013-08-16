@@ -392,7 +392,10 @@ public class JavaTypeGenerator {
 			if (anyAuth) {
 				classLines.addAll(Arrays.asList(
 						"",
-						"    public " + clientClassName + "(String url, String token) throws " + model.ref("java.net.MalformedURLException") + ", " + model.ref("java.io.IOException") + " {",
+						"    public " + clientClassName + "(String url, String token) throws\n            " +
+								model.ref("java.net.MalformedURLException") + ", " + 
+								model.ref("java.io.IOException") + ", " + 
+								model.ref("us.kbase.auth.TokenFormatException") + " {",
 						"        caller = new " + callerClass + "(url, token);",
 						"    }",
 						"",
@@ -778,8 +781,8 @@ public class JavaTypeGenerator {
 			libOutDir.mkdirs();
 		checkLib(libOutDir, "jackson-all-1.9.11");
 		checkLib(libOutDir, "kbase-auth");
-		checkLib(libOutDir, "bcpkix-jdk15on-147");
-		checkLib(libOutDir, "bcprov-ext-jdk15on-147");
+//		checkLib(libOutDir, "bcpkix-jdk15on-147");
+//		checkLib(libOutDir, "bcprov-ext-jdk15on-147");
 		if (createServers) {
 			checkLib(libOutDir, "servlet-api-2.5");
 			checkLib(libOutDir, "jetty-all-7.0.0");

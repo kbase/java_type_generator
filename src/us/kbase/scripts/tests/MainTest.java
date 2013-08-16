@@ -285,8 +285,8 @@ public class MainTest extends Assert {
 		addLib("jetty-all-7.0.0", libDir, classPathSB, cpUrls);
 		addLib("junit-4.9", libDir, classPathSB, cpUrls);
 		addLib("kbase-auth", libDir, classPathSB, cpUrls);
-		addLib("bcpkix-jdk15on-147", libDir, classPathSB, cpUrls);
-		addLib("bcprov-ext-jdk15on-147", libDir, classPathSB, cpUrls);
+//		addLib("bcpkix-jdk15on-147", libDir, classPathSB, cpUrls);
+//		addLib("bcprov-ext-jdk15on-147", libDir, classPathSB, cpUrls);
 		addLib("ini4j-0.5.2", libDir, classPathSB, cpUrls);
 		//addLib("log4j-1.2.17", libDir, classPathSB, cpUrls);
 		addLib("syslog4j-0.9.46", libDir, classPathSB, cpUrls);
