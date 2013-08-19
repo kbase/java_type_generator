@@ -658,7 +658,7 @@ public class JavaTypeGenerator {
 				if (func.isAuthCouldBeUsed()) {
 					if (funcParams.length() > 0)
 						funcParams.append(", ");
-					funcParams.append(model.ref(utilPackage + ".auth.AuthUser")).append(" authPart");;					
+					funcParams.append(model.ref(utilPackage + ".auth.AuthToken")).append(" authPart");;					
 				}
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
