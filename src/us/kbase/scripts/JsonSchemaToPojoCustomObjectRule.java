@@ -116,8 +116,10 @@ public class JsonSchemaToPojoCustomObjectRule implements Rule<JPackage, JType> {
                         JClass ret = loadParameterizedType(node, _package.owner());
                         throw new ClassAlreadyExistsException(ret);
                 	}
-                    Class<?> existingClass = Thread.currentThread().getContextClassLoader().loadClass(fqn);
-                    throw new ClassAlreadyExistsException(_package.owner().ref(existingClass));
+                    //Class<?> existingClass = Thread.currentThread().getContextClassLoader().loadClass(fqn);
+                    //System.out.println("JsonSchemaToPojoCustomObjectRule: class [" + fqn + "] already exists");
+                    //throw new ClassAlreadyExistsException(_package.owner().ref(existingClass));
+                	throw new ClassNotFoundException(fqn);
                 } catch (ClassNotFoundException e) {
                     newType = _package.owner()._class(fqn);
                 }

@@ -1,6 +1,7 @@
 package us.kbase.scripts.tests;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,8 +34,7 @@ import us.kbase.scripts.Utils;
 import us.kbase.scripts.util.ProcessHelper;
 
 public class MainTest extends Assert {
-	public static final String rootPackageName = "us.kbase";
-	public static final String gwtPackageName = "us.kbase.gwt";
+	public static final String rootPackageName = "us.kbase.scripts.tests";
 	
 	public static void main(String[] args) throws Exception{
 		int testNum = Integer.parseInt(args[0]);
@@ -67,11 +67,6 @@ public class MainTest extends Assert {
 		startTest(4);
 	}
 
-	/*@Test
-	public void testBool() throws Exception {
-		startTest(5);
-	}*/
-
 	@Test
 	public void testAuth() throws Exception {
 		startTest(6);
@@ -81,7 +76,7 @@ public class MainTest extends Assert {
 	public void testEmptyArgsAndReturns() throws Exception {
 		startTest(7);
 	}
-
+	
 	@Test
 	public void testServerCodeStoring() throws Exception {
 		int testNum = 8;
@@ -97,6 +92,7 @@ public class MainTest extends Assert {
         serverJavaFile.getParentFile().mkdirs();
         serverJavaFile.createNewFile();
 		File libDir = new File(workDir, "lib");
+		String gwtPackageName = getGwtPackageName(testNum);
         // Test for empty server file
 		try {
 			JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
@@ -152,6 +148,7 @@ public class MainTest extends Assert {
 		File srcDir = new File(workDir, "src");
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
+		String gwtPackageName = getGwtPackageName(testNum);
 		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
 		javaServerCorrection(srcDir, testPackage, parsingData);
 		parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
@@ -160,16 +157,8 @@ public class MainTest extends Assert {
 		File binDir = new File(workDir, "bin");
         cpUrls.add(binDir.toURI().toURL());
 		compileModulesIntoBin(workDir, srcDir, testPackage, parsingData, classPath, binDir);
-        String testJavaFileName = "Test" + testNum + ".java";
-    	String testFilePath = "src/" + testPackage.replace('.', '/') + "/" + testJavaFileName;
-        File testJavaFile = new File(workDir, testFilePath);
-        String testJavaResource = testJavaFileName + ".properties";
-        InputStream testClassIS = MainTest.class.getResourceAsStream(testJavaResource);
-        if (testClassIS == null) {
-        	Assert.fail("Java test class resource was not found: " + testJavaResource);
-        }
-        Utils.copyStreams(testClassIS, new FileOutputStream(testJavaFile));
-    	runJavac(workDir, srcDir, classPath, binDir, testFilePath);
+		copyTestClassesIntoBin(testPackage, testNum, binDir);
+    	//runJavac(workDir, srcDir, classPath, binDir, testFilePath);
     	File docDir = new File(workDir, "doc");
     	docDir.mkdir();
     	List<String> docPackages = new ArrayList<String>(Arrays.asList(testPackage));
@@ -249,6 +238,43 @@ public class MainTest extends Assert {
 		}
 	}
 
+	protected static void copyTestClassesIntoBin(String testPackage, int testNum,
+			File binDir) throws ClassNotFoundException, IOException,
+			FileNotFoundException {
+		Class<?> testClass = Class.forName(testPackage + ".Test" + testNum);
+		List<String> testClassList = new ArrayList<String>();
+		testClassList.add(testClass.getSimpleName() + ".class");
+		for (Class<?> innerClass : testClass.getDeclaredClasses()) {
+			String className = innerClass.getName();
+			if (className.indexOf('.') > 0)
+				className = className.substring(className.lastIndexOf('.') + 1);
+			System.out.println("Inner test class: " + className + ".class");
+			testClassList.add(className + ".class");
+		}
+		int innerNum = 1;
+		while (true) {
+			String resName = testClass.getSimpleName() + "$" + innerNum + ".class";
+			if (testClass.getResource(resName) == null)
+				break;
+			System.out.println("Inner test class: " + resName);
+			testClassList.add(resName);
+			innerNum++;
+		}
+		for (String resName : testClassList) {
+			String destFilePath = testPackage.replace('.', '/') + "/" + resName;
+			File destClassFile = new File(binDir, destFilePath);
+			InputStream testClassIS = testClass.getResourceAsStream(resName);
+			if (testClassIS == null) {
+				Assert.fail("Test class resource was not found: " + resName);
+			}
+			Utils.copyStreams(testClassIS, new FileOutputStream(destClassFile));
+		}
+	}
+
+	private static String getGwtPackageName(int testNum) {
+		return rootPackageName +".test" + testNum + ".gwt";
+	}
+	
 	private static String getKbBinDir() {
 		String kbTop = System.getenv("KB_TOP");
 		if (kbTop != null && kbTop.trim().length() > 0)
@@ -280,17 +306,11 @@ public class MainTest extends Assert {
 	private static String prepareClassPath(File libDir, List<URL> cpUrls)
 			throws Exception {
 		StringBuilder classPathSB = new StringBuilder();
-		addLib("jackson-all-1.9.11", libDir, classPathSB, cpUrls);
-		addLib("servlet-api-2.5", libDir, classPathSB, cpUrls);
-		addLib("jetty-all-7.0.0", libDir, classPathSB, cpUrls);
-		addLib("junit-4.9", libDir, classPathSB, cpUrls);
-		addLib("kbase-auth", libDir, classPathSB, cpUrls);
-//		addLib("bcpkix-jdk15on-147", libDir, classPathSB, cpUrls);
-//		addLib("bcprov-ext-jdk15on-147", libDir, classPathSB, cpUrls);
-		addLib("ini4j-0.5.2", libDir, classPathSB, cpUrls);
-		//addLib("log4j-1.2.17", libDir, classPathSB, cpUrls);
-		addLib("syslog4j-0.9.46", libDir, classPathSB, cpUrls);
-		addLib("jna-4.0.0", libDir, classPathSB, cpUrls);
+		for (File jarFile : libDir.listFiles()) {
+			if (!jarFile.getName().endsWith(".jar"))
+				continue;
+			addLib(jarFile, libDir, classPathSB, cpUrls);
+		}
 		return classPathSB.toString();
 	}
 
@@ -516,17 +536,10 @@ public class MainTest extends Assert {
 		return Utils.capitalize(module.getModuleName()) + "Server";
 	}
 
-	private static void addLib(String libName, File libDir, StringBuilder classPath, List<URL> libUrls) throws Exception {
-		String libFileName = libName + ".jar";
-		File libFile = new File(libDir, libFileName);
-		if (!libFile.exists()) {
-			InputStream is = MainTest.class.getResourceAsStream(libFileName + ".properties");
-			OutputStream os = new FileOutputStream(libFile);
-			Utils.copyStreams(is, os);
-		}
+	private static void addLib(File libFile, File libDir, StringBuilder classPath, List<URL> libUrls) throws Exception {
         if (classPath.length() > 0)
         	classPath.append(':');
-        classPath.append("lib/").append(libFileName);
+        classPath.append("lib/").append(libFile.getName());
         libUrls.add(libFile.toURI().toURL());
 	}
 }
