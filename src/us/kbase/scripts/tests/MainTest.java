@@ -99,7 +99,8 @@ public class MainTest extends Assert {
 		File libDir = new File(workDir, "lib");
         // Test for empty server file
 		try {
-			JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
+			JavaTypeGenerator.processSpec(new File(workDir, testFileName),
+					workDir, srcDir, testPackage, true, libDir, gwtPackageName, null);
 		} catch (Exception ex) {
 			boolean key = ex.getMessage().contains("Missing header in original file");
 			if (!key)
@@ -113,7 +114,9 @@ public class MainTest extends Assert {
         }
         Utils.copyStreams(testClassIS, new FileOutputStream(serverJavaFile));
         // Test for full server file
-		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
+		JavaData parsingData = JavaTypeGenerator.processSpec(
+				new File(workDir, testFileName), workDir, srcDir, testPackage,
+				true, libDir, gwtPackageName, null);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
 		File binDir = new File(workDir, "bin");
@@ -152,9 +155,13 @@ public class MainTest extends Assert {
 		File srcDir = new File(workDir, "src");
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
-		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
+		JavaData parsingData = JavaTypeGenerator.processSpec(
+				new File(workDir, testFileName), workDir, srcDir, testPackage,
+				true, libDir, gwtPackageName, null);
 		javaServerCorrection(srcDir, testPackage, parsingData);
-		parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
+		parsingData = JavaTypeGenerator.processSpec(
+				new File(workDir, testFileName), workDir, srcDir, testPackage,
+				true, libDir, gwtPackageName, null);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
 		File binDir = new File(workDir, "bin");
