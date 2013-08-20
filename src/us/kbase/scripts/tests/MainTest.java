@@ -146,10 +146,19 @@ public class MainTest extends Assert {
 		startTest(testNum, true);
 	}
 	
+	private static String getCallingMethod() {
+		StackTraceElement[] st = Thread.currentThread().getStackTrace();
+		String methodName = st[3].getMethodName();
+		if (methodName.equals("startTest")) {
+			methodName = st[4].getMethodName();
+		}
+		return methodName;
+	}
+	
 	private static void startTest(int testNum, boolean needClientServer) throws Exception {
 		File workDir = prepareWorkDir(testNum);
 		System.out.println();
-		System.out.println("Test " + testNum + " is staring in directory: " + workDir.getName());
+		System.out.println("Test " + testNum + " (" + getCallingMethod() + ") is starting in directory: " + workDir.getName());
 		String testFileName = "test" + testNum + ".spec";
 		extractSpecFiles(testNum, workDir, testFileName);
 		File srcDir = new File(workDir, "src");
@@ -360,7 +369,7 @@ public class MainTest extends Assert {
 					if (needClientServer) {
 						String clientClassName = getClientClassName(module);
 						Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + "." + clientClassName);
-						Object client = clientClass.getConstructor(String.class).newInstance("http://localhost:" + portNum);
+						Object client = clientClass.getConstructor(URL.class).newInstance(new URL("http://localhost:" + portNum));
 						try {
 							testClass.getConstructor(clientClass).newInstance(client);
 						} catch (NoSuchMethodException e) {
