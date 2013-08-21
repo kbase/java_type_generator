@@ -1,12 +1,15 @@
 package us.kbase.scripts;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.text.MessageFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -97,7 +100,17 @@ public class JavaTypeGenerator {
 			libDir = new File(parsedArgs.outputDir, "lib");
 		}
 		boolean createServer = parsedArgs.createServerSide;
-		processSpec(inputFile, tempDir, srcOutDir, packageParent, createServer, libDir, parsedArgs.gwtPackage);
+		URL url = null;
+		if (parsedArgs.url != null) {
+			try {
+				url = new URL(parsedArgs.url);
+			} catch (MalformedURLException mue) {
+				String msg = "The provided url " + parsedArgs.url + " is invalid.";
+				showUsage(parser, msg);
+				return;
+			}
+		}
+		processSpec(inputFile, tempDir, srcOutDir, packageParent, createServer, libDir, parsedArgs.gwtPackage, url);
 		if (deleteTempDir)
 			tempDir.delete();
 	}
@@ -109,9 +122,9 @@ public class JavaTypeGenerator {
 	}
 	
 	public static JavaData processSpec(File specFile, File tempDir, File srcOutDir, String packageParent, 
-			boolean createServer, File libOutDir, String gwtPackage) throws Exception {		
+			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
 		return processParsingFile(transformSpecToJson(specFile, tempDir, useJsyncForParsing), new File(tempDir, "json-schemas"), 
-				srcOutDir, packageParent, createServer, libOutDir, gwtPackage, useJsyncForParsing);
+				srcOutDir, packageParent, createServer, libOutDir, gwtPackage, useJsyncForParsing, url);
 	}
 	
 	public static File transformSpecToJson(File specFile, File tempDir, boolean jsync) throws Exception {
@@ -159,7 +172,7 @@ public class JavaTypeGenerator {
 	}
 	
 	private static JavaData processParsingFile(File parsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, 
-			boolean createServer, File libOutDir, String gwtPackage, boolean jsync) throws Exception {		
+			boolean createServer, File libOutDir, String gwtPackage, boolean jsync, URL url) throws Exception {		
 		Map<?,?> map = null;
 		if (jsync) {
 			ObjectMapper mapper = new ObjectMapper();
@@ -172,7 +185,7 @@ public class JavaTypeGenerator {
 		List<KbService> srvList = KbService.loadFromMap(map, subst);
 		JavaData data = prepareDataStructures(srvList);
 		parsingFile.delete();
-		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir, gwtPackage);
+		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir, gwtPackage, url);
 		return data;
 	}
 
@@ -222,12 +235,12 @@ public class JavaTypeGenerator {
 	}
 
 	private static void outputData(JavaData data, File jsonOutDir, File srcOutDir, String packageParent, 
-			boolean createServers, File libOutDir, String gwtPackage) throws Exception {
+			boolean createServers, File libOutDir, String gwtPackage, URL url) throws Exception {
 		if (!srcOutDir.exists())
 			srcOutDir.mkdirs();
 		generatePojos(data, jsonOutDir, srcOutDir, packageParent);
 		generateTupleClasses(data,srcOutDir, packageParent);
-		generateClientClass(data, srcOutDir, packageParent);
+		generateClientClass(data, srcOutDir, packageParent, url);
 		if (createServers)
 			generateServerClass(data, srcOutDir, packageParent);
 		checkUtilityClasses(srcOutDir, createServers);
@@ -361,7 +374,8 @@ public class JavaTypeGenerator {
 		return parentDir;
 	}
 
-	private static void generateClientClass(JavaData data, File srcOutDir, String packageParent) throws Exception {
+	private static void generateClientClass(JavaData data, File srcOutDir,
+			String packageParent, URL url) throws Exception {
 		Map<String, JavaType> originalToJavaTypes = getOriginalToJavaTypesMap(data);
 		File parentDir = getParentSourceDir(srcOutDir, packageParent);
 		for (JavaModule module : data.getModules()) {
@@ -380,29 +394,59 @@ public class JavaTypeGenerator {
 				}
 			}
 			List<String> classLines = new ArrayList<String>();
+			String urlClass = model.ref("java.net.URL");
 			printModuleComment(module, classLines);
 			classLines.addAll(Arrays.asList(
 					"public class " + clientClassName + " {",
-					"    private " + callerClass + " caller;",
+					"    private " + callerClass + " caller;"
+					));
+			if (url != null) {
+				classLines.addAll(Arrays.asList(
+					"    private static URL DEFAULT_URL = null;",
+					"    static {",
+					"        try {",
+					"            DEFAULT_URL = new URL(\"" + url + "\");",
+					"        } catch (" + model.ref("java.net.MalformedURLException") + " mue) {",
+					"            throw new RuntimeException(\"Compile error in client - bad url compiled\");",
+					"        }",
+					"    }",
 					"",
-					"    public " + clientClassName + "(String url) throws " + model.ref("java.net.MalformedURLException") + " {",
+					"    public " + clientClassName + "() {",
+					"       caller = new " + callerClass + "(DEFAULT_URL);",
+					"    }"
+					));
+			}
+			classLines.addAll(Arrays.asList(
+					"",
+					"    public " + clientClassName + "(" + urlClass + " url) {",
 					"        caller = new " + callerClass + "(url);",
 					"    }"
 					));
 			if (anyAuth) {
 				classLines.addAll(Arrays.asList(
 						"",
-						"    public " + clientClassName + "(String url, String token) throws\n            " +
-								model.ref("java.net.MalformedURLException") + ", " + 
-								model.ref("java.io.IOException") + ", " + 
-								model.ref("us.kbase.auth.TokenFormatException") + " {",
+						"    public " + clientClassName + "(" + urlClass + " url, " + 
+								model.ref("us.kbase.auth.AuthToken") + " token) {",
 						"        caller = new " + callerClass + "(url, token);",
 						"    }",
 						"",
-						"    public " + clientClassName + "(String url, String user, String password) throws " + model.ref("java.net.MalformedURLException") + " {",
+						"    public " + clientClassName + "(" + urlClass + 
+								" url, String user, String password) {",
 						"        caller = new " + callerClass + "(url, user, password);",
 						"    }"
 						));
+				if (url != null) {
+					classLines.addAll(Arrays.asList(
+						"",
+						"    public " + clientClassName + "(" + model.ref("us.kbase.auth.AuthToken") + " token) {",
+						"        caller = new " + callerClass + "(DEFAULT_URL, token);",
+						"    }",
+						"",
+						"    public " + clientClassName + "(String user, String password) {",
+						"        caller = new " + callerClass + "(DEFAULT_URL, user, password);",
+						"    }"
+						));
+				}
 			}
 			if (anyAuth) {
 				classLines.addAll(Arrays.asList(
@@ -781,22 +825,26 @@ public class JavaTypeGenerator {
 			libOutDir.mkdirs();
 		checkLib(libOutDir, "jackson-all-1.9.11");
 		checkLib(libOutDir, "kbase-auth");
-//		checkLib(libOutDir, "bcpkix-jdk15on-147");
-//		checkLib(libOutDir, "bcprov-ext-jdk15on-147");
 		if (createServers) {
 			checkLib(libOutDir, "servlet-api-2.5");
 			checkLib(libOutDir, "jetty-all-7.0.0");
 			checkLib(libOutDir, "ini4j-0.5.2");
-			//checkLib(libOutDir, "log4j-1.2.17");
 			checkLib(libOutDir, "syslog4j-0.9.46");
 			checkLib(libOutDir, "jna-4.0.0");
 		}
 	}
 	
-	private static void checkLib(File libDir, String libName) throws Exception {
-		String libFileName = libName + ".jar";
-		InputStream is = JavaTypeGenerator.class.getResourceAsStream(libFileName + ".properties");
-		OutputStream os = new FileOutputStream(new File(libDir, libFileName));
+	public static void checkLib(File libDir, String libName) throws Exception {
+		File libFile = null;
+		for (URL url : ((URLClassLoader)(Thread.currentThread().getContextClassLoader())).getURLs()) {
+			File maybelibFile = new File(url.getPath());
+			if (maybelibFile.isFile() && maybelibFile.getName().equals(libName + ".jar"))
+				libFile = maybelibFile;
+		}
+		if (libFile == null)
+			throw new IllegalStateException("Can't find lib-file for: " + libName);
+		InputStream is = new FileInputStream(libFile);
+		OutputStream os = new FileOutputStream(new File(libDir, libFile.getName()));
 		Utils.copyStreams(is, os);
 	}
 	
@@ -988,6 +1036,9 @@ public class JavaTypeGenerator {
 
 		@Option(name="-l",usage="Library output folder (exclusive with -o, not required when using -s)", metaVar="<lib-dir>")
 		String libDir;
+		
+		@Option(name="-u", usage="Default url for service", metaVar="<url>")
+		String url = null;
 
 		@Option(name="-p",usage="Java package parent (module subpackages are created in this package), default value is " + utilPackage, metaVar="<package>")		
 		String packageParent = utilPackage;

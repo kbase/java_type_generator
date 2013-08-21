@@ -1,11 +1,9 @@
 package us.kbase.scripts.tests;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
@@ -34,7 +32,7 @@ import us.kbase.scripts.Utils;
 import us.kbase.scripts.util.ProcessHelper;
 
 public class MainTest extends Assert {
-	public static final String rootPackageName = "us.kbase.scripts.tests";
+	public static final String rootPackageName = "us.kbase";
 	
 	public static void main(String[] args) throws Exception{
 		int testNum = Integer.parseInt(args[0]);
@@ -95,7 +93,8 @@ public class MainTest extends Assert {
 		String gwtPackageName = getGwtPackageName(testNum);
         // Test for empty server file
 		try {
-			JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
+			JavaTypeGenerator.processSpec(new File(workDir, testFileName),
+					workDir, srcDir, testPackage, true, libDir, gwtPackageName, null);
 		} catch (Exception ex) {
 			boolean key = ex.getMessage().contains("Missing header in original file");
 			if (!key)
@@ -109,7 +108,9 @@ public class MainTest extends Assert {
         }
         Utils.copyStreams(testClassIS, new FileOutputStream(serverJavaFile));
         // Test for full server file
-		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
+		JavaData parsingData = JavaTypeGenerator.processSpec(
+				new File(workDir, testFileName), workDir, srcDir, testPackage,
+				true, libDir, gwtPackageName, null);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
 		File binDir = new File(workDir, "bin");
@@ -139,26 +140,47 @@ public class MainTest extends Assert {
 		startTest(testNum, true);
 	}
 	
+	private static String getCallingMethod() {
+		StackTraceElement[] st = Thread.currentThread().getStackTrace();
+		String methodName = st[3].getMethodName();
+		if (methodName.equals("startTest")) {
+			methodName = st[4].getMethodName();
+		}
+		return methodName;
+	}
+	
 	private static void startTest(int testNum, boolean needClientServer) throws Exception {
 		File workDir = prepareWorkDir(testNum);
 		System.out.println();
-		System.out.println("Test " + testNum + " is staring in directory: " + workDir.getName());
+		System.out.println("Test " + testNum + " (" + getCallingMethod() + ") is starting in directory: " + workDir.getName());
 		String testFileName = "test" + testNum + ".spec";
 		extractSpecFiles(testNum, workDir, testFileName);
 		File srcDir = new File(workDir, "src");
 		String testPackage = rootPackageName + ".test" + testNum;
-		File libDir = new File(workDir, "lib");
 		String gwtPackageName = getGwtPackageName(testNum);
-		JavaData parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
+		File libDir = new File(workDir, "lib");
+		JavaData parsingData = JavaTypeGenerator.processSpec(
+				new File(workDir, testFileName), workDir, srcDir, testPackage,
+				true, libDir, gwtPackageName, null);
 		javaServerCorrection(srcDir, testPackage, parsingData);
-		parsingData = JavaTypeGenerator.processSpec(new File(workDir, testFileName), workDir, srcDir, testPackage, true, libDir, gwtPackageName);
+		parsingData = JavaTypeGenerator.processSpec(
+				new File(workDir, testFileName), workDir, srcDir, testPackage,
+				true, libDir, gwtPackageName, null);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
 		File binDir = new File(workDir, "bin");
         cpUrls.add(binDir.toURI().toURL());
 		compileModulesIntoBin(workDir, srcDir, testPackage, parsingData, classPath, binDir);
-		copyTestClassesIntoBin(testPackage, testNum, binDir);
-    	//runJavac(workDir, srcDir, classPath, binDir, testFilePath);
+        String testJavaFileName = "Test" + testNum + ".java";
+    	String testFilePath = "src/" + testPackage.replace('.', '/') + "/" + testJavaFileName;
+        File testJavaFile = new File(workDir, testFilePath);
+        String testJavaResource = testJavaFileName + ".properties";
+        InputStream testClassIS = MainTest.class.getResourceAsStream(testJavaResource);
+        if (testClassIS == null) {
+        	Assert.fail("Java test class resource was not found: " + testJavaResource);
+        }
+        Utils.copyStreams(testClassIS, new FileOutputStream(testJavaFile));
+    	runJavac(workDir, srcDir, classPath, binDir, testFilePath);
     	File docDir = new File(workDir, "doc");
     	docDir.mkdir();
     	List<String> docPackages = new ArrayList<String>(Arrays.asList(testPackage));
@@ -238,41 +260,8 @@ public class MainTest extends Assert {
 		}
 	}
 
-	protected static void copyTestClassesIntoBin(String testPackage, int testNum,
-			File binDir) throws ClassNotFoundException, IOException,
-			FileNotFoundException {
-		Class<?> testClass = Class.forName(testPackage + ".Test" + testNum);
-		List<String> testClassList = new ArrayList<String>();
-		testClassList.add(testClass.getSimpleName() + ".class");
-		for (Class<?> innerClass : testClass.getDeclaredClasses()) {
-			String className = innerClass.getName();
-			if (className.indexOf('.') > 0)
-				className = className.substring(className.lastIndexOf('.') + 1);
-			System.out.println("Inner test class: " + className + ".class");
-			testClassList.add(className + ".class");
-		}
-		int innerNum = 1;
-		while (true) {
-			String resName = testClass.getSimpleName() + "$" + innerNum + ".class";
-			if (testClass.getResource(resName) == null)
-				break;
-			System.out.println("Inner test class: " + resName);
-			testClassList.add(resName);
-			innerNum++;
-		}
-		for (String resName : testClassList) {
-			String destFilePath = testPackage.replace('.', '/') + "/" + resName;
-			File destClassFile = new File(binDir, destFilePath);
-			InputStream testClassIS = testClass.getResourceAsStream(resName);
-			if (testClassIS == null) {
-				Assert.fail("Test class resource was not found: " + resName);
-			}
-			Utils.copyStreams(testClassIS, new FileOutputStream(destClassFile));
-		}
-	}
-
 	private static String getGwtPackageName(int testNum) {
-		return rootPackageName +".test" + testNum + ".gwt";
+		return rootPackageName + ".gwt";
 	}
 	
 	private static String getKbBinDir() {
@@ -305,6 +294,7 @@ public class MainTest extends Assert {
 
 	private static String prepareClassPath(File libDir, List<URL> cpUrls)
 			throws Exception {
+		JavaTypeGenerator.checkLib(libDir, "junit-4.9");
 		StringBuilder classPathSB = new StringBuilder();
 		for (File jarFile : libDir.listFiles()) {
 			if (!jarFile.getName().endsWith(".jar"))
@@ -373,7 +363,7 @@ public class MainTest extends Assert {
 					if (needClientServer) {
 						String clientClassName = getClientClassName(module);
 						Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + "." + clientClassName);
-						Object client = clientClass.getConstructor(String.class).newInstance("http://localhost:" + portNum);
+						Object client = clientClass.getConstructor(URL.class).newInstance(new URL("http://localhost:" + portNum));
 						try {
 							testClass.getConstructor(clientClass).newInstance(client);
 						} catch (NoSuchMethodException e) {
