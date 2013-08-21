@@ -1,6 +1,7 @@
 package us.kbase.scripts.tests;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,7 +68,21 @@ public class MainTest extends Assert {
 
 	@Test
 	public void testAuth() throws Exception {
-		startTest(6);
+		int testNum = 6;
+		File workDir = prepareWorkDir(testNum);
+		System.out.println();
+		System.out.println("Test " + testNum + " (testAuth) is starting in directory: " + workDir.getName());
+		String testPackage = rootPackageName + ".test" + testNum;
+		File libDir = new File(workDir, "lib");
+		File binDir = new File(workDir, "bin");
+		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, perlPort(testNum));
+		File serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
+		runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir);
+		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, pyPort(testNum));
+		serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
+		runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir);
+		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, javaPort(testNum));
+		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData);
 	}
 
 	@Test
@@ -139,7 +154,7 @@ public class MainTest extends Assert {
 	private static void startTest(int testNum) throws Exception {
 		startTest(testNum, true);
 	}
-	
+
 	private static String getCallingMethod() {
 		StackTraceElement[] st = Thread.currentThread().getStackTrace();
 		String methodName = st[3].getMethodName();
@@ -153,22 +168,148 @@ public class MainTest extends Assert {
 		File workDir = prepareWorkDir(testNum);
 		System.out.println();
 		System.out.println("Test " + testNum + " (" + getCallingMethod() + ") is starting in directory: " + workDir.getName());
+		String testPackage = rootPackageName + ".test" + testNum;
+		File libDir = new File(workDir, "lib");
+		File binDir = new File(workDir, "bin");
+		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null);
+		if (needClientServer) {
+			File serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
+			runPerlServerTest(testNum, needClientServer, workDir, testPackage,
+					libDir, binDir, parsingData, serverOutDir);
+			runJavaServerTest(testNum, needClientServer, testPackage, libDir,
+					binDir, parsingData);
+			runPythonServerTest(testNum, needClientServer, workDir,
+					testPackage, libDir, binDir, parsingData, serverOutDir);
+		} else {
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, -1, needClientServer);
+		}
+	}
+
+	protected static void runPythonServerTest(int testNum,
+			boolean needClientServer, File workDir, String testPackage,
+			File libDir, File binDir, JavaData parsingData, File serverOutDir)
+			throws IOException, Exception {
+		int portNum = pyPort(testNum);
+		File pidFile = new File(serverOutDir, "pid.txt");
+		pythonServerCorrection(serverOutDir, parsingData);
+		try {
+			File serverFile = findPythonServerScript(serverOutDir);
+			File uwsgiFile = new File(serverOutDir, "start_py_server.sh");
+			List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+			//JavaTypeGenerator.checkEnvVars(lines, "PYTHONPATH");
+			lines.addAll(Arrays.asList(
+					"python " + serverFile.getAbsolutePath() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
+					"echo $pid > " + pidFile.getAbsolutePath()
+					));
+			Utils.writeFileLines(lines, uwsgiFile);
+			ProcessHelper.cmd("bash", uwsgiFile.getCanonicalPath()).exec(serverOutDir);
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
+		} finally {
+			if (pidFile.exists()) {
+				String pid = Utils.readFileLines(pidFile).get(0).trim();
+				ProcessHelper.cmd("kill", pid).exec(workDir);
+				System.out.println("Python server process was finally killed: " + pid);
+			}
+		}
+	}
+
+	protected static int pyPort(int testNum) {
+		int portNum = 10200 + testNum;
+		return portNum;
+	}
+
+	protected static void runJavaServerTest(int testNum,
+			boolean needClientServer, String testPackage, File libDir,
+			File binDir, JavaData parsingData) throws Exception {
+		int portNum = javaPort(testNum);
+		Server javaServer = null;
+		try {
+			JavaModule mainModule = parsingData.getModules().get(0);
+			long time = System.currentTimeMillis();
+			javaServer = startupJavaServer(mainModule, libDir, binDir, testPackage, portNum);
+			System.out.println("Java server startup time: " + (System.currentTimeMillis() - time) + " ms.");
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
+		} finally {
+			if (javaServer != null) {
+				javaServer.stop();
+				System.out.println("Java server thread was finally stopped");
+			}
+			System.out.println();
+		}
+	}
+
+	protected static int javaPort(int testNum) {
+		int portNum = 10100 + testNum;
+		return portNum;
+	}
+
+	protected static void runPerlServerTest(int testNum,
+			boolean needClientServer, File workDir, String testPackage,
+			File libDir, File binDir, JavaData parsingData, File serverOutDir)
+			throws IOException, Exception {
+		perlServerCorrection(serverOutDir, parsingData);
+		File pidFile = new File(serverOutDir, "pid.txt");
+		int portNum = perlPort(testNum);
+		try {
+			File plackupFile = new File(serverOutDir, "start_perl_server.sh");
+			List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+			//JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
+			lines.addAll(Arrays.asList(
+					"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
+					"echo $pid > " + pidFile.getAbsolutePath()
+					));
+			Utils.writeFileLines(lines, plackupFile);
+			ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
+		} finally {
+			if (pidFile.exists()) {
+				String pid = Utils.readFileLines(pidFile).get(0).trim();
+				ProcessHelper.cmd("kill", pid).exec(workDir);
+				System.out.println("Perl server process was finally killed: " + pid);
+			}
+		}
+	}
+
+	protected static int perlPort(int testNum) {
+		int portNum = 10000 + testNum;
+		return portNum;
+	}
+
+	protected static File preparePerlAndPyServerCode(int testNum, File workDir)
+			throws IOException {
+		String testFileName = "test" + testNum + ".spec";
+		File bashFile = new File(workDir, "parse.sh");
+		File serverOutDir = new File(workDir, "out");
+		serverOutDir.mkdir();
+		Utils.writeFileLines(Arrays.asList(
+				"#!/bin/bash",
+				getKbBinDir() + "compile_typespec --path " + workDir.getAbsolutePath() +
+				" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
+				testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
+				), bashFile);
+		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
+		return serverOutDir;
+	}
+
+	protected static JavaData prepareJavaCode(int testNum, File workDir,
+			String testPackage, File libDir, File binDir, Integer defaultUrlPort) throws Exception,
+			IOException, MalformedURLException, FileNotFoundException {
+		JavaData parsingData = null;
 		String testFileName = "test" + testNum + ".spec";
 		extractSpecFiles(testNum, workDir, testFileName);
 		File srcDir = new File(workDir, "src");
-		String testPackage = rootPackageName + ".test" + testNum;
 		String gwtPackageName = getGwtPackageName(testNum);
-		File libDir = new File(workDir, "lib");
-		JavaData parsingData = JavaTypeGenerator.processSpec(
+		URL defaultUrl = defaultUrlPort == null ? null :
+			new URL("http://localhost:" + defaultUrlPort);
+		parsingData = JavaTypeGenerator.processSpec(
 				new File(workDir, testFileName), workDir, srcDir, testPackage,
-				true, libDir, gwtPackageName, null);
+				true, libDir, gwtPackageName, defaultUrl);
 		javaServerCorrection(srcDir, testPackage, parsingData);
 		parsingData = JavaTypeGenerator.processSpec(
 				new File(workDir, testFileName), workDir, srcDir, testPackage,
-				true, libDir, gwtPackageName, null);
+				true, libDir, gwtPackageName, defaultUrl);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
-		File binDir = new File(workDir, "bin");
         cpUrls.add(binDir.toURI().toURL());
 		compileModulesIntoBin(workDir, srcDir, testPackage, parsingData, classPath, binDir);
         String testJavaFileName = "Test" + testNum + ".java";
@@ -187,77 +328,7 @@ public class MainTest extends Assert {
     	for (JavaModule module : parsingData.getModules())
     		docPackages.add(testPackage + "." + module.getModuleName());
     	runJavaDoc(workDir, srcDir, classPath, docDir, docPackages.toArray(new String[docPackages.size()]));
-		if (needClientServer) {
-			File bashFile = new File(workDir, "parse.sh");
-			File serverOutDir = new File(workDir, "out");
-			serverOutDir.mkdir();
-			Utils.writeFileLines(Arrays.asList(
-					"#!/bin/bash",
-					getKbBinDir() + "compile_typespec --path " + workDir.getAbsolutePath() +
-					" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
-					testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
-					), bashFile);
-			ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
-			perlServerCorrection(serverOutDir, parsingData);
-			File pidFile = new File(serverOutDir, "pid.txt");
-			int portNum = 10000 + testNum;
-			try {
-				File plackupFile = new File(serverOutDir, "start_perl_server.sh");
-				List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-				//JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
-				lines.addAll(Arrays.asList(
-						"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
-						"echo $pid > " + pidFile.getAbsolutePath()
-						));
-				Utils.writeFileLines(lines, plackupFile);
-				ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
-				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
-			} finally {
-				if (pidFile.exists()) {
-					String pid = Utils.readFileLines(pidFile).get(0).trim();
-					ProcessHelper.cmd("kill", pid).exec(workDir);
-					System.out.println("Perl server process was finally killed: " + pid);
-				}
-			}
-			portNum += 100;
-			Server javaServer = null;
-			try {
-				JavaModule mainModule = parsingData.getModules().get(0);
-				long time = System.currentTimeMillis();
-				javaServer = startupJavaServer(mainModule, libDir, binDir, testPackage, portNum);
-				System.out.println("Java server startup time: " + (System.currentTimeMillis() - time) + " ms.");
-				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
-			} finally {
-				if (javaServer != null) {
-					javaServer.stop();
-					System.out.println("Java server thread was finally stopped");
-				}
-				System.out.println();
-			}
-			portNum += 100;
-			pythonServerCorrection(serverOutDir, parsingData);
-			try {
-				File serverFile = findPythonServerScript(serverOutDir);
-				File uwsgiFile = new File(serverOutDir, "start_py_server.sh");
-				List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-				//JavaTypeGenerator.checkEnvVars(lines, "PYTHONPATH");
-				lines.addAll(Arrays.asList(
-						"python " + serverFile.getAbsolutePath() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
-						"echo $pid > " + pidFile.getAbsolutePath()
-						));
-				Utils.writeFileLines(lines, uwsgiFile);
-				ProcessHelper.cmd("bash", uwsgiFile.getCanonicalPath()).exec(serverOutDir);
-				runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
-			} finally {
-				if (pidFile.exists()) {
-					String pid = Utils.readFileLines(pidFile).get(0).trim();
-					ProcessHelper.cmd("kill", pid).exec(workDir);
-					System.out.println("Python server process was finally killed: " + pid);
-				}
-			}
-		} else {
-			runClientTest(testNum, testPackage, parsingData, libDir, binDir, -1, needClientServer);
-		}
+		return parsingData;
 	}
 
 	private static String getGwtPackageName(int testNum) {
@@ -336,6 +407,12 @@ public class MainTest extends Assert {
 	
 	private static File prepareWorkDir(int testNum) throws IOException {
 		File tempDir = new File(".").getCanonicalFile();
+		if (!tempDir.getName().equals("test")) {
+			System.out.println("Current: " + tempDir.getName());
+			tempDir = new File(tempDir, "test");
+			if (!tempDir.exists())
+				tempDir.mkdir();
+		}
 		for (File dir : tempDir.listFiles()) {
 			if (dir.isDirectory() && dir.getName().startsWith("test" + testNum + "_"))
 				try {
