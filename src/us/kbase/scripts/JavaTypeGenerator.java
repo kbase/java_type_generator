@@ -65,7 +65,7 @@ public class JavaTypeGenerator {
 	private static final Pattern PAT_CONSTRUCTOR = Pattern.compile(
 			".*//BEGIN_CONSTRUCTOR\n(.*)        //END_CONSTRUCTOR\n.*", Pattern.DOTALL);
 
-	private static final boolean useJsyncForParsing = true;
+	private static final boolean useJsyncForParsing = false;
 	
 	public static void main(String[] args) throws Exception {
 		Args parsedArgs = new Args();
@@ -145,7 +145,7 @@ public class JavaTypeGenerator {
 		}
 		lines.addAll(Arrays.asList(
 				compileTypespecDir + "compile_typespec --path \"" + specDir.getAbsolutePath() + "\"" +
-				" --" + (jsync ? "jsync" : "xml") + " " + retFile.getName() + " " +
+				" --" + (jsync ? "jsync" : "xmldump") + " " + retFile.getName() + " " +
 				"\"" + specFile.getAbsolutePath() + "\" " + 
 				serverOutDir.getName() + " >" + outFile.getName() + " 2>" + errFile.getName()
 				));

@@ -20,7 +20,7 @@ public class SpecXmlHelper {
         DocumentBuilder builder = dbf.newDocumentBuilder();
         Document document = builder.parse(parsingFile);
         Node mainNode = document.getDocumentElement();
-        return processMap(getSubNodes(mainNode).get(0), new HashMap<String, Object>());
+        return (Map<?,?>)processMap(getSubNodes(mainNode).get(0), new HashMap<String, Object>()).get("parsed_data");
 	}
 	
 	private static Object processChild(Node parNode, Map<String, Object> memRefs) throws Exception {
