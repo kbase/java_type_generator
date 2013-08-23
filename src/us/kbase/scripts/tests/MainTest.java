@@ -23,6 +23,11 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.junit.Assert;
 import org.junit.Test;
+import org.productivity.java.syslog4j.SyslogConstants;
+import org.productivity.java.syslog4j.impl.unix.UnixSyslog;
+import org.productivity.java.syslog4j.impl.unix.UnixSyslogConfig;
+import org.productivity.java.syslog4j.impl.unix.socket.UnixSocketSyslog;
+import org.productivity.java.syslog4j.impl.unix.socket.UnixSocketSyslogConfig;
 
 import us.kbase.scripts.JavaData;
 import us.kbase.scripts.JavaFunc;
@@ -149,6 +154,30 @@ public class MainTest extends Assert {
 	@Test
 	public void testComments() throws Exception {
 		startTest(10, false);
+	}
+
+	@Test
+	public void testLogging() throws Exception {
+		{
+			UnixSyslogConfig cfg = new UnixSyslogConfig();
+			cfg.setFacility(SyslogConstants.FACILITY_LOCAL1);
+			cfg.removeAllMessageModifiers();
+			cfg.setIdent(null);
+			UnixSyslog log = new UnixSyslog();
+			log.initialize(SyslogConstants.UNIX_SYSLOG, cfg);
+			log.log(SyslogConstants.LEVEL_INFO, "A syslib message");
+		}
+		{
+			UnixSocketSyslogConfig cfg = new UnixSocketSyslogConfig();
+			if (System.getProperty("os.name").toLowerCase().startsWith("mac"))
+				cfg.setPath("/var/run/syslog");
+			cfg.setFacility(SyslogConstants.FACILITY_LOCAL1);
+			cfg.removeAllMessageModifiers();
+			cfg.setIdent(null);
+			UnixSocketSyslog log = new UnixSocketSyslog();
+			log.initialize(SyslogConstants.UNIX_SOCKET, cfg);
+			log.log(SyslogConstants.LEVEL_INFO, "A socket message");
+		}
 	}
 	
 	private static void startTest(int testNum) throws Exception {
