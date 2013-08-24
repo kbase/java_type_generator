@@ -678,6 +678,10 @@ public class JavaTypeGenerator {
 			classLines.add("    //END_CLASS_HEADER");
 			classLines.add("");
 			classLines.add("    public " + serverClassName + "() throws Exception {");
+			String serviceName = module.getOriginal().getServiceName();
+			if (serviceName == null || serviceName.trim().isEmpty())
+				serviceName = module.getOriginal().getModuleName();
+			classLines.add("        super(\"" + serviceName + "\");");
 			classLines.add("        //BEGIN_CONSTRUCTOR");
 			classLines.addAll(splitCodeLines(originalCode.get(CONSTRUCTOR)));
 			classLines.addAll(Arrays.asList(
@@ -806,6 +810,7 @@ public class JavaTypeGenerator {
 		if (createServers) {
 			checkUtilityClass(srcOutDir, "JsonServerMethod");
 			checkUtilityClass(srcOutDir, "JsonServerServlet");
+			checkUtilityClass(srcOutDir, "JsonServerSyslog");
 		}
 	}
 
@@ -830,7 +835,7 @@ public class JavaTypeGenerator {
 			checkLib(libOutDir, "jetty-all-7.0.0");
 			checkLib(libOutDir, "ini4j-0.5.2");
 			checkLib(libOutDir, "syslog4j-0.9.46");
-			checkLib(libOutDir, "jna-4.0.0");
+			checkLib(libOutDir, "jna-3.4.0");
 		}
 	}
 	
