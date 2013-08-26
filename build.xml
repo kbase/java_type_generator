@@ -47,6 +47,13 @@
         <attribute name="Main-Class" value="us.kbase.scripts.JavaTypeGenerator"/>
       </manifest>
     </jar>
+    <copy todir="${classes}">
+      <fileset dir="${src}">
+        <patternset>
+          <include name="us/kbase/kidl/**/*.java"/>
+        </patternset>
+      </fileset>
+    </copy>
     <jar destfile="${dist}/${kidl.jar.file}">
       <fileset dir="${classes}">
         <include name="us/kbase/kidl/**"/>
