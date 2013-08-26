@@ -7,10 +7,10 @@ public class KbStructItem {
 	private boolean nullable;
 	private KbType itemType;
 	
-	public KbStructItem loadFromMap(Map<?,?> data, JSyncProcessor subst) {
+	public KbStructItem loadFromMap(Map<?,?> data) {
 		name = Utils.prop(data, "name");
 		nullable = (0 != Utils.intPropFromString(data, "nullable"));
-		itemType = Utils.createTypeFromMap(Utils.propMap(data, "item_type", subst), subst);
+		itemType = Utils.createTypeFromMap(Utils.propMap(data, "item_type"));
 		return this;
 	}
 	

@@ -6,9 +6,9 @@ public class KbMapping extends KbBasicType {
 	private KbType keyType;
 	private KbType valueType;
 	
-	public KbMapping loadFromMap(Map<?,?> data, JSyncProcessor subst) {
-		keyType = Utils.createTypeFromMap(Utils.propMap(data, "key_type", subst), subst);
-		valueType = Utils.createTypeFromMap(Utils.propMap(data, "value_type", subst), subst);
+	public KbMapping loadFromMap(Map<?,?> data) {
+		keyType = Utils.createTypeFromMap(Utils.propMap(data, "key_type"));
+		valueType = Utils.createTypeFromMap(Utils.propMap(data, "value_type"));
 		return this;
 	}
 	

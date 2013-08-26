@@ -9,12 +9,12 @@ public class KbTypeInfo {
 	private String english;
 	private KbType ref;
 	
-	public KbTypeInfo loadFromMap(Map<?,?> data, JSyncProcessor subst) {
+	public KbTypeInfo loadFromMap(Map<?,?> data) {
 		name = Utils.prop(data, "name");
 		module = Utils.prop(data, "module");
 		comment = Utils.prop(data, "comment");
 		english = Utils.prop(data, "english");
-		ref = Utils.createTypeFromMap(Utils.propMap(data, "ref", subst), subst);
+		ref = Utils.createTypeFromMap(Utils.propMap(data, "ref"));
 		return this;
 	}
 	

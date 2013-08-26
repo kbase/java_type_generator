@@ -12,21 +12,23 @@ public class KbFuncdef implements KbModuleComp {
 	private String comment;
 	private List<KbParameter> parameters;
 	private List<KbParameter> returnType;
+	private Map<?,?> data = null;
 	
-	public KbFuncdef loadFromMap(Map<?,?> data, JSyncProcessor subst) {
+	public KbFuncdef loadFromMap(Map<?,?> data) {
 		name = Utils.prop(data, "name");
 		async = (0 != Utils.intPropFromString(data, "async"));
 		authentication = Utils.prop(data, "authentication");
 		comment = Utils.prop(data, "comment");
-		parameters = loadParameters(Utils.propList(data, "parameters"), subst, false);
-		returnType = loadParameters(Utils.propList(data, "return_type"), subst, true);
+		parameters = loadParameters(Utils.propList(data, "parameters"), false);
+		returnType = loadParameters(Utils.propList(data, "return_type"), true);
+		this.data = data;
 		return this;
 	}
 	
-	private static List<KbParameter> loadParameters(List<?> inputList, JSyncProcessor subst, boolean isReturn) {
+	private static List<KbParameter> loadParameters(List<?> inputList, boolean isReturn) {
 		List<KbParameter> ret = new ArrayList<KbParameter>();
-		for (Map<?,?> data : Utils.repareTypingMap(inputList, subst)) {
-			ret.add(new KbParameter().loadFromMap(data, subst, isReturn, ret.size() + 1));
+		for (Map<?,?> data : Utils.repareTypingMap(inputList)) {
+			ret.add(new KbParameter().loadFromMap(data, isReturn, ret.size() + 1));
 		}
 		return Collections.unmodifiableList(ret);
 	}
@@ -53,5 +55,9 @@ public class KbFuncdef implements KbModuleComp {
 	
 	public List<KbParameter> getReturnType() {
 		return returnType;
+	}
+	
+	public Map<?, ?> getData() {
+		return data;
 	}
 }

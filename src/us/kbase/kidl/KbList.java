@@ -5,8 +5,8 @@ import java.util.Map;
 public class KbList extends KbBasicType {
 	private KbType elementType;
 	
-	public KbList loadFromMap(Map<?,?> data, JSyncProcessor subst) {
-		elementType = Utils.createTypeFromMap(Utils.propMap(data, "element_type", subst), subst);
+	public KbList loadFromMap(Map<?,?> data) {
+		elementType = Utils.createTypeFromMap(Utils.propMap(data, "element_type"));
 		return this;
 	}
 	

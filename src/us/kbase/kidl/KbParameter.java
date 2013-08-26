@@ -10,12 +10,12 @@ public class KbParameter {
 	private String name;
 	private KbType type;
 	
-	public KbParameter loadFromMap(Map<?,?> data, JSyncProcessor subst, boolean isReturn, int paramNum) {
+	public KbParameter loadFromMap(Map<?,?> data, boolean isReturn, int paramNum) {
 		name = Utils.propOrNull(data, "name"); // Utils.prop(data, "name");
 		if (name == null && !isReturn) {
 			name = "arg" + paramNum;
 		}
-		type = Utils.createTypeFromMap(Utils.propMap(data, "type", subst), subst);
+		type = Utils.createTypeFromMap(Utils.propMap(data, "type"));
 		return this;
 	}
 	

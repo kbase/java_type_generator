@@ -9,11 +9,11 @@ public class KbStruct extends KbBasicType {
 	private String name;
 	private List<KbStructItem> items;
 	
-	public KbStruct loadFromMap(Map<?,?> data, JSyncProcessor subst) {
+	public KbStruct loadFromMap(Map<?,?> data) {
 		name = Utils.prop(data, "name");
 		items = new ArrayList<KbStructItem>();
-		for (Map<?,?> itemProps : Utils.getListOfMapProp(data, "items", subst)) {
-			items.add(new KbStructItem().loadFromMap(itemProps, subst));
+		for (Map<?,?> itemProps : Utils.getListOfMapProp(data, "items")) {
+			items.add(new KbStructItem().loadFromMap(itemProps));
 		}
 		items = Collections.unmodifiableList(items);
 		return this;

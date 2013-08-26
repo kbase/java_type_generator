@@ -13,21 +13,21 @@ public class KbService {
 		this.name = name;
 	}
 		
-	public void loadFromList(List<?> data, JSyncProcessor subst) {
+	public void loadFromList(List<?> data) {
 		List<KbModule> modules = new ArrayList<KbModule>();
 		for (Object item : data) {
 			KbModule mod = new KbModule();
-			mod.loadFromList((List<?>)item, subst);
+			mod.loadFromList((List<?>)item);
 			modules.add(mod);
 		}
 		this.modules = Collections.unmodifiableList(modules);
 	}
 	
-	public static List<KbService> loadFromMap(Map<?,?> data, JSyncProcessor subst) {
+	public static List<KbService> loadFromMap(Map<?,?> data) {
 		List<KbService> ret = new ArrayList<KbService>();
 		for (Map.Entry<?,?> entry : data.entrySet()) {
 			KbService srv = new KbService("" + entry.getKey());
-			srv.loadFromList((List<?>)entry.getValue(), subst);
+			srv.loadFromList((List<?>)entry.getValue());
 			ret.add(srv);
 		}
 		return ret;

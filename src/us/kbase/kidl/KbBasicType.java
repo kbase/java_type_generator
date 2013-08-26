@@ -8,18 +8,18 @@ import java.util.Map;
  */
 public abstract class KbBasicType implements KbType {
 	
-	public static KbBasicType createFromMap(Map<?,?> data, JSyncProcessor subst) {
+	public static KbBasicType createFromMap(Map<?,?> data) {
 		String typeName = Utils.getPerlSimpleType(data);
 		if (typeName.equals("Scalar")) {
 			return new KbScalar().loadFromMap(data);
 		} else if (typeName.equals("List")) {
-			return new KbList().loadFromMap(data, subst);
+			return new KbList().loadFromMap(data);
 		} else if (typeName.equals("Struct")) {
-			return new KbStruct().loadFromMap(data, subst);
+			return new KbStruct().loadFromMap(data);
 		} else if (typeName.equals("Tuple")) {
-			return new KbTuple().loadFromMap(data, subst);
+			return new KbTuple().loadFromMap(data);
 		} else if (typeName.equals("Mapping")) {
-			return new KbMapping().loadFromMap(data, subst);
+			return new KbMapping().loadFromMap(data);
 		} else if (typeName.equals("UnspecifiedObject")) {
 			return new KbUnspecifiedObject();
 		}

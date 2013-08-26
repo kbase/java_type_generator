@@ -19,12 +19,12 @@ public class KbTuple extends KbBasicType {
 		elementTypes = Collections.unmodifiableList(types);
 	}
 	
-	public KbTuple loadFromMap(Map<?,?> data, JSyncProcessor subst) {
+	public KbTuple loadFromMap(Map<?,?> data) {
 		List<?> optionList = Utils.propList(data, "element_names");
 		elementNames = Collections.unmodifiableList(Utils.repareTypingString(optionList));
 		elementTypes = new ArrayList<KbType>();
-		for (Map<?,?> itemProps : Utils.getListOfMapProp(data, "element_types", subst)) {
-			elementTypes.add(Utils.createTypeFromMap(itemProps, subst));
+		for (Map<?,?> itemProps : Utils.getListOfMapProp(data, "element_types")) {
+			elementTypes.add(Utils.createTypeFromMap(itemProps));
 		}
 		elementTypes = Collections.unmodifiableList(elementTypes);
 		return this;

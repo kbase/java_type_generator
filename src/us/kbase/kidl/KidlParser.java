@@ -46,8 +46,7 @@ public class KidlParser {
 			if (!xmlFile.exists())
 				throw new IllegalStateException("Parsing file wasn't created, see error lines above for detailes");
 			Map<?,?> map = SpecXmlHelper.parseXml(xmlFile);
-			JSyncProcessor subst = new JSyncProcessor(map);
-			return KbService.loadFromMap(map, subst);
+			return KbService.loadFromMap(map);
 		} finally {
 			deleteRecursively(workDir);			
 		}

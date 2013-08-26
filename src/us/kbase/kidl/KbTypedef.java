@@ -11,12 +11,14 @@ public class KbTypedef implements KbModuleComp, KbType {
 	private String module;
 	private KbType aliasType;
 	private String comment;
+	private Map<?,?> data = null;
 	
-	public KbTypedef loadFromMap(Map<?,?> data, JSyncProcessor subst) {
+	public KbTypedef loadFromMap(Map<?,?> data) {
 		name = Utils.prop(data, "name");
 		module = Utils.prop(data, "module");
 		comment = Utils.prop(data, "comment");
-		aliasType = Utils.createTypeFromMap(Utils.propMap(data, "alias_type", subst), subst);
+		aliasType = Utils.createTypeFromMap(Utils.propMap(data, "alias_type"));
+		this.data = data;
 		return this;
 	}
 	
@@ -34,6 +36,10 @@ public class KbTypedef implements KbModuleComp, KbType {
 	
 	public KbType getAliasType() {
 		return aliasType;
+	}
+	
+	public Map<?, ?> getData() {
+		return data;
 	}
 	
 	@Override
