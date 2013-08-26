@@ -18,6 +18,7 @@
   <property name="classes"	location="classes"/>
   <property name="test"	location="test"/>
   <property name="jar.file"	value="GenJavaTypes.jar"/>
+  <property name="kidl.jar.file"	value="KidlParser.jar"/>
   <property name="sh.file"	value="gen_java_types"/>
   <property name="test.file"	value="test_gen_java_types.sh"/>
 
@@ -45,6 +46,11 @@
       <manifest>
         <attribute name="Main-Class" value="us.kbase.scripts.JavaTypeGenerator"/>
       </manifest>
+    </jar>
+    <jar destfile="${dist}/${kidl.jar.file}">
+      <fileset dir="${classes}">
+        <include name="us/kbase/kidl/**"/>
+      </fileset>
     </jar>
     <!-- Remove uncompressed class files-->
     <delete dir="${classes}"/>

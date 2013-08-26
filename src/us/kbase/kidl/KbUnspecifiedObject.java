@@ -1,4 +1,4 @@
-package us.kbase.scripts;
+package us.kbase.kidl;
 
 public class KbUnspecifiedObject extends KbBasicType {
 	@Override

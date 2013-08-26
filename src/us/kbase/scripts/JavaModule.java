@@ -3,13 +3,15 @@ package us.kbase.scripts;
 import java.util.Collections;
 import java.util.List;
 
+import us.kbase.kidl.KbModule;
+
 public class JavaModule {
 	private String moduleName;
 	private KbModule original;
 	private List<JavaFunc> funcs;
 	
 	public JavaModule(KbModule original, List<JavaFunc> funcs) {
-		this.moduleName = Utils.capitalize(original.getModuleName()).toLowerCase();
+		this.moduleName = TextUtils.capitalize(original.getModuleName()).toLowerCase();
 		this.original = original;
 		this.funcs = Collections.unmodifiableList(funcs);
 	}

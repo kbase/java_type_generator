@@ -1,4 +1,4 @@
-package us.kbase.scripts;
+package us.kbase.kidl;
 
 import java.util.List;
 import java.util.Map;

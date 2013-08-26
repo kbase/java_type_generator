@@ -9,6 +9,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import us.kbase.kidl.KbModule;
+
 public class JavaData {
 	private List<JavaType> types = new ArrayList<JavaType>();
 	private Map<String, JavaModule> modules = new TreeMap<String, JavaModule>();

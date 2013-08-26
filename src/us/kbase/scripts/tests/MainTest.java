@@ -24,12 +24,12 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.junit.Assert;
 import org.junit.Test;
 
+import us.kbase.kidl.KbFuncdef;
 import us.kbase.scripts.JavaData;
 import us.kbase.scripts.JavaFunc;
 import us.kbase.scripts.JavaModule;
 import us.kbase.scripts.JavaTypeGenerator;
-import us.kbase.scripts.KbFuncdef;
-import us.kbase.scripts.Utils;
+import us.kbase.scripts.TextUtils;
 import us.kbase.scripts.util.ProcessHelper;
 
 public class MainTest extends Assert {
@@ -121,7 +121,7 @@ public class MainTest extends Assert {
         if (testClassIS == null) {
         	Assert.fail("Java test class resource was not found: " + testJavaResource);
         }
-        Utils.copyStreams(testClassIS, new FileOutputStream(serverJavaFile));
+        TextUtils.copyStreams(testClassIS, new FileOutputStream(serverJavaFile));
         // Test for full server file
 		JavaData parsingData = JavaTypeGenerator.processSpec(
 				new File(workDir, testFileName), workDir, srcDir, testPackage,
@@ -133,7 +133,7 @@ public class MainTest extends Assert {
 		compileModulesIntoBin(workDir, srcDir, testPackage, parsingData, classPath, binDir);
 		for (JavaModule module : parsingData.getModules())
         	createServerServletInstance(module, libDir, binDir, testPackage);
-		String text = Utils.readFileText(serverJavaFile);
+		String text = TextUtils.readFileText(serverJavaFile);
 		Assert.assertTrue(text.contains("* Header comment."));
 		Assert.assertTrue(text.contains("private int myValue = -1;"));
 		Assert.assertTrue(text.contains("myValue = 0;"));
@@ -201,12 +201,12 @@ public class MainTest extends Assert {
 					"python " + serverFile.getAbsolutePath() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
 					"echo $pid > " + pidFile.getAbsolutePath()
 					));
-			Utils.writeFileLines(lines, uwsgiFile);
+			TextUtils.writeFileLines(lines, uwsgiFile);
 			ProcessHelper.cmd("bash", uwsgiFile.getCanonicalPath()).exec(serverOutDir);
 			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
 		} finally {
 			if (pidFile.exists()) {
-				String pid = Utils.readFileLines(pidFile).get(0).trim();
+				String pid = TextUtils.readFileLines(pidFile).get(0).trim();
 				ProcessHelper.cmd("kill", pid).exec(workDir);
 				System.out.println("Python server process was finally killed: " + pid);
 			}
@@ -258,12 +258,12 @@ public class MainTest extends Assert {
 					"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
 					"echo $pid > " + pidFile.getAbsolutePath()
 					));
-			Utils.writeFileLines(lines, plackupFile);
+			TextUtils.writeFileLines(lines, plackupFile);
 			ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
 			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
 		} finally {
 			if (pidFile.exists()) {
-				String pid = Utils.readFileLines(pidFile).get(0).trim();
+				String pid = TextUtils.readFileLines(pidFile).get(0).trim();
 				ProcessHelper.cmd("kill", pid).exec(workDir);
 				System.out.println("Perl server process was finally killed: " + pid);
 			}
@@ -281,7 +281,7 @@ public class MainTest extends Assert {
 		File bashFile = new File(workDir, "parse.sh");
 		File serverOutDir = new File(workDir, "out");
 		serverOutDir.mkdir();
-		Utils.writeFileLines(Arrays.asList(
+		TextUtils.writeFileLines(Arrays.asList(
 				"#!/bin/bash",
 				getKbBinDir() + "compile_typespec --path " + workDir.getAbsolutePath() +
 				" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
@@ -320,7 +320,7 @@ public class MainTest extends Assert {
         if (testClassIS == null) {
         	Assert.fail("Java test class resource was not found: " + testJavaResource);
         }
-        Utils.copyStreams(testClassIS, new FileOutputStream(testJavaFile));
+        TextUtils.copyStreams(testClassIS, new FileOutputStream(testJavaFile));
     	runJavac(workDir, srcDir, classPath, binDir, testFilePath);
     	File docDir = new File(workDir, "doc");
     	docDir.mkdir();
@@ -416,7 +416,7 @@ public class MainTest extends Assert {
 		for (File dir : tempDir.listFiles()) {
 			if (dir.isDirectory() && dir.getName().startsWith("test" + testNum + "_"))
 				try {
-					Utils.deleteRecursively(dir);
+					TextUtils.deleteRecursively(dir);
 				} catch (Exception e) {
 					System.out.println("Can not delete directory [" + dir.getName() + "]: " + e.getMessage());
 				}
@@ -477,7 +477,7 @@ public class MainTest extends Assert {
 	private static void extractSpecFiles(int testNum, File workDir,
 			String testFileName) {
 		try {
-			Utils.writeFileLines(Utils.readStreamLines(MainTest.class.getResourceAsStream(testFileName + ".properties")), 
+			TextUtils.writeFileLines(TextUtils.readStreamLines(MainTest.class.getResourceAsStream(testFileName + ".properties")), 
 					new File(workDir, testFileName));
 		} catch (Exception ex) {
 			String zipFileName = "test" + testNum + ".zip";
@@ -487,7 +487,7 @@ public class MainTest extends Assert {
 					ZipEntry ze = zis.getNextEntry();
 					if (ze == null)
 						break;
-					Utils.writeFileLines(Utils.readStreamLines(zis, false), new File(workDir, ze.getName()));
+					TextUtils.writeFileLines(TextUtils.readStreamLines(zis, false), new File(workDir, ze.getName()));
 				}
 				zis.close();
 			} catch (Exception e2) {
@@ -505,7 +505,7 @@ public class MainTest extends Assert {
             	origNameToFunc.put(func.getOriginal().getName(), func);
             }
             File perlServerImpl = new File(serverOutDir, module.getOriginal().getModuleName() + "Impl.pm");
-            List<String> perlServerLines = Utils.readFileLines(perlServerImpl);
+            List<String> perlServerLines = TextUtils.readFileLines(perlServerImpl);
             for (int pos = 0; pos < perlServerLines.size(); pos++) {
             	String line = perlServerLines.get(pos);
             	if (line.startsWith("    #BEGIN ")) {
@@ -521,7 +521,7 @@ public class MainTest extends Assert {
             		}
             	}
             }
-            Utils.writeFileLines(perlServerLines, perlServerImpl);
+            TextUtils.writeFileLines(perlServerLines, perlServerImpl);
         }
 	}
 
@@ -533,7 +533,7 @@ public class MainTest extends Assert {
             }
             File moduleDir = new File(srcDir.getAbsolutePath() + "/" + packageParent.replace('.', '/') + "/" + module.getModuleName());
             File perlServerImpl = new File(moduleDir, getServerClassName(module) + ".java");
-            List<String> perlServerLines = Utils.readFileLines(perlServerImpl);
+            List<String> perlServerLines = TextUtils.readFileLines(perlServerImpl);
             for (int pos = 0; pos < perlServerLines.size(); pos++) {
             	String line = perlServerLines.get(pos);
             	if (line.startsWith("        //BEGIN ")) {
@@ -549,7 +549,7 @@ public class MainTest extends Assert {
             		}
             	}
             }
-            Utils.writeFileLines(perlServerLines, perlServerImpl);
+            TextUtils.writeFileLines(perlServerLines, perlServerImpl);
         }
 	}
 
@@ -560,7 +560,7 @@ public class MainTest extends Assert {
             	origNameToFunc.put(func.getOriginal().getName(), func);
             }
             File pyServerImpl = new File(serverOutDir, module.getOriginal().getModuleName() + "Impl.py");
-            List<String> pyServerLines = Utils.readFileLines(pyServerImpl);
+            List<String> pyServerLines = TextUtils.readFileLines(pyServerImpl);
             for (int pos = 0; pos < pyServerLines.size(); pos++) {
             	String line = pyServerLines.get(pos);
             	if (line.startsWith("        #BEGIN ")) {
@@ -580,7 +580,7 @@ public class MainTest extends Assert {
             		}
             	}
             }
-            Utils.writeFileLines(pyServerLines, pyServerImpl);
+            TextUtils.writeFileLines(pyServerLines, pyServerImpl);
         }
 	}
 
@@ -596,11 +596,11 @@ public class MainTest extends Assert {
 	}
 
 	private static String getClientClassName(JavaModule module) {
-		return Utils.capitalize(module.getModuleName()) + "Client";
+		return TextUtils.capitalize(module.getModuleName()) + "Client";
 	}
 
 	private static String getServerClassName(JavaModule module) {
-		return Utils.capitalize(module.getModuleName()) + "Server";
+		return TextUtils.capitalize(module.getModuleName()) + "Server";
 	}
 
 	private static void addLib(File libFile, File libDir, StringBuilder classPath, List<URL> libUrls) throws Exception {

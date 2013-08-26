@@ -1,4 +1,4 @@
-package us.kbase.scripts;
+package us.kbase.kidl;
 
 /**
  * Predefined of artificial type. This could be either KbBasicType successor (unnamed type) 

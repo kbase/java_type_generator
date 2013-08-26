@@ -1,4 +1,4 @@
-package us.kbase.scripts;
+package us.kbase.kidl;
 
 import java.io.File;
 import java.util.ArrayList;

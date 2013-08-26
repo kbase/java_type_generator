@@ -4,6 +4,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import us.kbase.kidl.KbBasicType;
+import us.kbase.kidl.KbStruct;
+import us.kbase.kidl.KbTypedef;
+
 public class JavaType implements Comparable<JavaType> {
 	private List<KbTypedef> aliasHistoryOuterToDeep;
 	private KbBasicType mainType;
@@ -16,10 +20,10 @@ public class JavaType implements Comparable<JavaType> {
 	
 	public JavaType(String typeName, KbBasicType mainType, String moduleName, List<KbTypedef> aliasHistoryOuterToDeep) {
 		this.mainType = mainType;
-		this.moduleName = Utils.capitalize(moduleName).toLowerCase();
+		this.moduleName = TextUtils.capitalize(moduleName).toLowerCase();
 		this.aliasHistoryOuterToDeep = Collections.unmodifiableList(aliasHistoryOuterToDeep);
 		this.originalTypeName = typeName;
-		this.javaClassName = typeName == null ? null : Utils.capitalize(typeName);
+		this.javaClassName = typeName == null ? null : TextUtils.capitalize(typeName);
 	}
 	
 	public boolean needClassGeneration() {

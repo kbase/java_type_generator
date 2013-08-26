@@ -1,4 +1,4 @@
-package us.kbase.scripts;
+package us.kbase.kidl;
 
 /**
  * Element of module declaration. This could be Typedef of Funcdef.

@@ -36,7 +36,22 @@ import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 
-import us.kbase.scripts.util.ProcessHelper;
+import us.kbase.kidl.KbBasicType;
+import us.kbase.kidl.KbFuncdef;
+import us.kbase.kidl.KbList;
+import us.kbase.kidl.KbMapping;
+import us.kbase.kidl.KbModule;
+import us.kbase.kidl.KbModuleComp;
+import us.kbase.kidl.KbParameter;
+import us.kbase.kidl.KbScalar;
+import us.kbase.kidl.KbService;
+import us.kbase.kidl.KbStruct;
+import us.kbase.kidl.KbStructItem;
+import us.kbase.kidl.KbTuple;
+import us.kbase.kidl.KbType;
+import us.kbase.kidl.KbTypedef;
+import us.kbase.kidl.KbUnspecifiedObject;
+import us.kbase.kidl.KidlParser;
 
 import com.googlecode.jsonschema2pojo.DefaultGenerationConfig;
 import com.googlecode.jsonschema2pojo.Jackson1Annotator;
@@ -64,8 +79,6 @@ public class JavaTypeGenerator {
 			".*//BEGIN_CLASS_HEADER\n(.*)    //END_CLASS_HEADER\n.*", Pattern.DOTALL);
 	private static final Pattern PAT_CONSTRUCTOR = Pattern.compile(
 			".*//BEGIN_CONSTRUCTOR\n(.*)        //END_CONSTRUCTOR\n.*", Pattern.DOTALL);
-
-	private static final boolean useJsyncForParsing = false;
 	
 	public static void main(String[] args) throws Exception {
 		Args parsedArgs = new Args();
@@ -123,68 +136,13 @@ public class JavaTypeGenerator {
 	
 	public static JavaData processSpec(File specFile, File tempDir, File srcOutDir, String packageParent, 
 			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
-		return processParsingFile(transformSpecToJson(specFile, tempDir, useJsyncForParsing), new File(tempDir, "json-schemas"), 
-				srcOutDir, packageParent, createServer, libOutDir, gwtPackage, useJsyncForParsing, url);
+		return processParsingFile(KidlParser.parseSpec(specFile, tempDir), new File(tempDir, "json-schemas"), 
+				srcOutDir, packageParent, createServer, libOutDir, gwtPackage, url);
 	}
-	
-	public static File transformSpecToJson(File specFile, File tempDir, boolean jsync) throws Exception {
-		File bashFile = new File(tempDir, "comp_server.sh");
-		File serverOutDir = new File(tempDir, "server_out");
-		serverOutDir.mkdir();
-		File specDir = specFile.getAbsoluteFile().getParentFile();
-		File retFile = new File(tempDir, "parsing_file." + (jsync ? "json" : "xml"));
-		File outFile = new File(tempDir, "comp.out");
-		File errFile = new File(tempDir, "comp.err");
-		List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-		String kbTop = System.getenv("KB_TOP");
-		String compileTypespecDir = "";
-		if (kbTop != null && kbTop.trim().length() > 0) {
-			compileTypespecDir = kbTop + "/bin/";
-		} else {
-			System.out.println("WARNING: KB_TOP environment variable is not defined, so compile_typespec is supposed to be in PATH");
-		}
-		lines.addAll(Arrays.asList(
-				compileTypespecDir + "compile_typespec --path \"" + specDir.getAbsolutePath() + "\"" +
-				" --" + (jsync ? "jsync" : "xmldump") + " " + retFile.getName() + " " +
-				"\"" + specFile.getAbsolutePath() + "\" " + 
-				serverOutDir.getName() + " >" + outFile.getName() + " 2>" + errFile.getName()
-				));
-		Utils.writeFileLines(lines, bashFile);
-		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(tempDir);
-		File jsyncFile = new File(serverOutDir, retFile.getName());
-		if (jsyncFile.exists()) {
-			Utils.writeFileLines(Utils.readFileLines(jsyncFile), retFile);
-		} else {
-			List<String> errLines = Utils.readFileLines(errFile);
-			if (errLines.size() > 1 || (errLines.size() == 1 && errLines.get(0).trim().length() > 0)) {
-				for (String errLine : errLines)
-					System.err.println(errLine);
-			}
-		}
-		bashFile.delete();
-		Utils.deleteRecursively(serverOutDir);
-		outFile.delete();
-		errFile.delete();
-		if (!retFile.exists()) {
-			throw new IllegalStateException("Parsing file wasn't created, see error lines above for detailes");
-		}
-		return retFile;
-	}
-	
-	private static JavaData processParsingFile(File parsingFile, File jsonSchemaOutDir, File srcOutDir, String packageParent, 
-			boolean createServer, File libOutDir, String gwtPackage, boolean jsync, URL url) throws Exception {		
-		Map<?,?> map = null;
-		if (jsync) {
-			ObjectMapper mapper = new ObjectMapper();
-			mapper.configure(Feature.INDENT_OUTPUT, true);
-			map = mapper.readValue(parsingFile, Map.class);
-		} else {
-			map = SpecXmlHelper.parseXml(parsingFile);
-		}
-		JSyncProcessor subst = new JSyncProcessor(map);
-		List<KbService> srvList = KbService.loadFromMap(map, subst);
-		JavaData data = prepareDataStructures(srvList);
-		parsingFile.delete();
+		
+	private static JavaData processParsingFile(List<KbService> services, File jsonSchemaOutDir, File srcOutDir, String packageParent, 
+			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
+		JavaData data = prepareDataStructures(services);
 		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir, gwtPackage, url);
 		return data;
 	}
@@ -200,16 +158,16 @@ public class JavaTypeGenerator {
 					if (comp instanceof KbFuncdef) {
 						String moduleName = module.getModuleName();
 						KbFuncdef func = (KbFuncdef)comp;
-						String funcJavaName = Utils.inCamelCase(func.getName());
+						String funcJavaName = TextUtils.inCamelCase(func.getName());
 						List<JavaFuncParam> params = new ArrayList<JavaFuncParam>();
 						for (KbParameter param : func.getParameters()) {
 							JavaType type = findBasic(param.getType(), module.getModuleName(), nonPrimitiveTypes, tupleTypes);
-							params.add(new JavaFuncParam(param, Utils.inCamelCase(param.getName()), type));
+							params.add(new JavaFuncParam(param, TextUtils.inCamelCase(param.getName()), type));
 						}
 						List<JavaFuncParam> returns = new ArrayList<JavaFuncParam>();
 						for (KbParameter param : func.getReturnType()) {
 							JavaType type = findBasic(param.getType(), module.getModuleName(), nonPrimitiveTypes, tupleTypes);
-							returns.add(new JavaFuncParam(param, param.getName() == null ? null : Utils.inCamelCase(param.getName()), type));
+							returns.add(new JavaFuncParam(param, param.getName() == null ? null : TextUtils.inCamelCase(param.getName()), type));
 						}
 						JavaType retMultiType = null;
 						if (returns.size() > 1) {
@@ -299,7 +257,7 @@ public class JavaTypeGenerator {
 			sm.generate(codeModel, type.getJavaClassName(), "", source);
 		}
 		codeModel.build(srcOutDir);
-		Utils.deleteRecursively(jsonOutDir);
+		TextUtils.deleteRecursively(jsonOutDir);
 	}
 	
 	private static void generateTupleClasses(JavaData data, File srcOutDir, String packageParent) throws Exception {
@@ -362,7 +320,7 @@ public class JavaTypeGenerator {
 						"    }",
 						"}"
 						));
-				Utils.writeFileLines(classLines, tupleFile);
+				TextUtils.writeFileLines(classLines, tupleFile);
 			}
 		}
 	}
@@ -383,7 +341,7 @@ public class JavaTypeGenerator {
 			if (!moduleDir.exists())
 				moduleDir.mkdir();
 			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModuleName());
-			String clientClassName = Utils.capitalize(module.getModuleName()) + "Client";
+			String clientClassName = TextUtils.capitalize(module.getModuleName()) + "Client";
 			File classFile = new File(moduleDir, clientClassName + ".java");
 			String callerClass = model.ref(utilPackage + ".JsonClientCaller");
 			boolean anyAuth = false;
@@ -523,7 +481,7 @@ public class JavaTypeGenerator {
 			headerLines.addAll(model.generateImports());
 			headerLines.add("");
 			classLines.addAll(0, headerLines);
-			Utils.writeFileLines(classLines, classFile);
+			TextUtils.writeFileLines(classLines, classFile);
 		}
 	}
 
@@ -560,7 +518,7 @@ public class JavaTypeGenerator {
 			if (sb.length() > 0)
 				sb.append(" &rarr; ");
 			sb.append("Original type \"").append(ref.getName()).append("\"");
-			String originalTypeKey = Utils.capitalize(ref.getModule()).toLowerCase() + "." + ref.getName();
+			String originalTypeKey = TextUtils.capitalize(ref.getModule()).toLowerCase() + "." + ref.getName();
 			if (originalToJavaTypes.containsKey(originalTypeKey)) {
 				JavaType refJavaType = originalToJavaTypes.get(originalTypeKey);
 				sb.append(" (see {@link ").append(getPackagePrefix(packageParent, refJavaType))
@@ -663,7 +621,7 @@ public class JavaTypeGenerator {
 			if (!moduleDir.exists())
 				moduleDir.mkdir();
 			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModuleName());
-			String serverClassName = Utils.capitalize(module.getModuleName()) + "Server";
+			String serverClassName = TextUtils.capitalize(module.getModuleName()) + "Server";
 			File classFile = new File(moduleDir, serverClassName + ".java");
 			HashMap<String, String> originalCode = parsePrevCode(classFile, module.getFuncs());
 			List<String> classLines = new ArrayList<String>();
@@ -770,7 +728,7 @@ public class JavaTypeGenerator {
 			headerLines.add("//END_HEADER");
 			headerLines.add("");
 			classLines.addAll(0, headerLines);
-			Utils.writeFileLines(classLines, classFile);
+			TextUtils.writeFileLines(classLines, classFile);
 		}
 	}
 
@@ -819,7 +777,7 @@ public class JavaTypeGenerator {
 		if (!dir.exists())
 			dir.mkdirs();
 		File dstClassFile = new File(dir, className + ".java");
-		Utils.writeFileLines(Utils.readStreamLines(JavaTypeGenerator.class.getResourceAsStream(
+		TextUtils.writeFileLines(TextUtils.readStreamLines(JavaTypeGenerator.class.getResourceAsStream(
 				className + ".java.properties")), dstClassFile);
 	}
 	
@@ -850,7 +808,7 @@ public class JavaTypeGenerator {
 			throw new IllegalStateException("Can't find lib-file for: " + libName);
 		InputStream is = new FileInputStream(libFile);
 		OutputStream os = new FileOutputStream(new File(libDir, libFile.getName()));
-		Utils.copyStreams(is, os);
+		TextUtils.copyStreams(is, os);
 	}
 	
 	private static void writeJsonSchema(File jsonFile, String packageParent, JavaType type, 

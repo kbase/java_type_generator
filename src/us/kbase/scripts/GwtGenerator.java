@@ -6,6 +6,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
+import us.kbase.kidl.KbBasicType;
+import us.kbase.kidl.KbList;
+import us.kbase.kidl.KbMapping;
+import us.kbase.kidl.KbScalar;
+import us.kbase.kidl.KbTuple;
+import us.kbase.kidl.KbUnspecifiedObject;
+
 public class GwtGenerator {
 	public static void generate(JavaData data, File srcOutDir, String gwtPackage) throws Exception {
 		if (!srcOutDir.exists())
@@ -26,7 +33,7 @@ public class GwtGenerator {
 			List<String> methodLines = new ArrayList<String>();
 			for (int fieldPos = 0; fieldPos < type.getInternalFields().size(); fieldPos++) {
 				String fieldName = type.getInternalFields().get(fieldPos);
-				String methodSuffix = Utils.capitalize(fieldName);
+				String methodSuffix = TextUtils.capitalize(fieldName);
 				JavaType fieldType = type.getInternalTypes().get(fieldPos);
 				String fieldTypeText = getJType(fieldType, outPackage, model);
 				varLines.add("    private " + fieldTypeText + " " + fieldName + ";");
@@ -52,7 +59,7 @@ public class GwtGenerator {
 			classLines.addAll(varLines);
 			classLines.addAll(methodLines);
 			classLines.add("}");
-			Utils.writeFileLines(classLines, tupleFile);
+			TextUtils.writeFileLines(classLines, tupleFile);
 		}
 	}
 	
@@ -95,7 +102,7 @@ public class GwtGenerator {
 							));
 				}
 				classLines.add("}");
-				Utils.writeFileLines(classLines, tupleFile);
+				TextUtils.writeFileLines(classLines, tupleFile);
 			}
 		}
 	}

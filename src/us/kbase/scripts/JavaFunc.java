@@ -3,6 +3,8 @@ package us.kbase.scripts;
 import java.util.Collections;
 import java.util.List;
 
+import us.kbase.kidl.KbFuncdef;
+
 public class JavaFunc {
 	private String moduleName;
 	private KbFuncdef original;
@@ -12,7 +14,7 @@ public class JavaFunc {
 	private JavaType retMultyType;
 	
 	public JavaFunc(String moduleName, KbFuncdef original, String javaName, List<JavaFuncParam> params, List<JavaFuncParam> returns, JavaType retMultyType) {
-		this.moduleName = Utils.capitalize(moduleName).toLowerCase();
+		this.moduleName = TextUtils.capitalize(moduleName).toLowerCase();
 		this.original = original;
 		this.javaName = javaName;
 		this.params = Collections.unmodifiableList(params);
