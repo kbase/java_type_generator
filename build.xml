@@ -18,7 +18,7 @@
   <property name="classes"	location="classes"/>
   <property name="test"	location="test"/>
   <property name="jar.file"	value="GenJavaTypes.jar"/>
-  <property name="kidl.jar.file"	value="KidlParser.jar"/>
+  <property name="kidl.jar.file" value="kbase-kidl-parser.jar"/>
   <property name="sh.file"	value="gen_java_types"/>
   <property name="test.file"	value="test_gen_java_types.sh"/>
 
