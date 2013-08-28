@@ -436,9 +436,11 @@ public class JavaTypeGenerator {
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				String listClass = model.ref("java.util.List");
 				String arrayListClass = model.ref("java.util.ArrayList");
+				String exceptions = "throws " + model.ref("java.io.IOException") 
+						+ ", " + model.ref("us.kbase.JsonClientException");
 				classLines.add("");
-				printFuncComment(func, originalToJavaTypes, packageParent, classLines);
-				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
+				printFuncComment(func, originalToJavaTypes, packageParent, classLines, true);
+				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") " + exceptions+ " {");
 				classLines.add("        " + listClass + "<Object> args = new " + arrayListClass + "<Object>();");
 				for (JavaFuncParam param : func.getParams()) {
 					classLines.add("        args.add(" + param.getJavaName() + ");");
@@ -486,7 +488,7 @@ public class JavaTypeGenerator {
 	}
 
 	private static void printFuncComment(JavaFunc func, Map<String, JavaType> originalToJavaTypes, 
-			String packageParent, List<String> classLines) {
+			String packageParent, List<String> classLines, boolean client) {
 		List<String> funcCommentLines = new ArrayList<String>();
 		funcCommentLines.add("<p>Original spec-file function name: " + func.getOriginal().getName() + "</p>");
 		funcCommentLines.add("<pre>");
@@ -506,6 +508,10 @@ public class JavaTypeGenerator {
 				String descr = createTypeDescr(originalToJavaTypes, refHistory, packageParent);
 				funcCommentLines.add("@return   " + descr);
 			}
+		}
+		if (client) {
+			funcCommentLines.add("@throws IOException if an IO exception occurs");
+			funcCommentLines.add("@throws JsonClientException if a JSON RPC exception occurs");
 		}
 		printCommentLines("    ", funcCommentLines, classLines);
 	}
@@ -668,7 +674,7 @@ public class JavaTypeGenerator {
 				}
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
-				printFuncComment(func, originalToJavaTypes, packageParent, classLines);
+				printFuncComment(func, originalToJavaTypes, packageParent, classLines, false);
 				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
 						(func.getRetMultyType() == null ? "" : ", tuple = true") + (func.isAuthOptional() ? ", authOptional=true" : "") + ")");
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
@@ -765,6 +771,9 @@ public class JavaTypeGenerator {
 		checkUtilityClass(srcOutDir, "JsonClientCaller");
 		checkUtilityClass(srcOutDir, "JacksonTupleModule");
 		checkUtilityClass(srcOutDir, "UObject");
+		checkUtilityClass(srcOutDir, "JsonClientException");
+		checkUtilityClass(srcOutDir, "UnauthorizedException");
+		checkUtilityClass(srcOutDir, "ServerException");
 		if (createServers) {
 			checkUtilityClass(srcOutDir, "JsonServerMethod");
 			checkUtilityClass(srcOutDir, "JsonServerServlet");
