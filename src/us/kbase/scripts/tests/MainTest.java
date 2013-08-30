@@ -37,9 +37,13 @@ public class MainTest extends Assert {
 	
 	public static void main(String[] args) throws Exception{
 		int testNum = Integer.parseInt(args[0]);
-		if (testNum == 8) {
+		if (testNum == 5) {
+			new MainTest().testSyslog();
+		} else if (testNum == 6) {
+			new MainTest().testAuth();
+		} else if (testNum == 8) {
 			new MainTest().testServerCodeStoring();
-		} else if (testNum == 9) {
+		} else if (testNum == 9 || testNum == 10) {
 			startTest(testNum, false);
 		} else {
 			startTest(testNum);
@@ -66,6 +70,23 @@ public class MainTest extends Assert {
 		startTest(4);
 	}
 
+	@Test
+	public void testSyslog() throws Exception {
+		int testNum = 5;
+		File workDir = prepareWorkDir(testNum);
+		System.out.println();
+		System.out.println("Test " + testNum + " (testSyslog) is starting in directory: " + workDir.getName());
+		String testPackage = rootPackageName + ".test" + testNum;
+		File srcDir = new File(workDir, "src");
+		File libDir = new File(workDir, "lib");
+		File binDir = new File(workDir, "bin");
+		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null);
+		javaServerCorrectionForTestCallback(srcDir, testPackage, parsingData, testPackage + ".Test" + testNum);
+		String classPath = prepareClassPath(libDir, new ArrayList<URL>());
+    	runJavac(workDir, srcDir, classPath, binDir, "src/us/kbase/test5/syslogtest/SyslogtestServer.java");
+		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData);
+	}
+	
 	@Test
 	public void testAuth() throws Exception {
 		int testNum = 6;
@@ -522,6 +543,22 @@ public class MainTest extends Assert {
             	}
             }
             TextUtils.writeFileLines(perlServerLines, perlServerImpl);
+        }
+	}
+
+	private static void javaServerCorrectionForTestCallback(File srcDir, String packageParent, JavaData parsingData, String testClassName) throws IOException {
+		for (JavaModule module : parsingData.getModules()) {
+            File moduleDir = new File(srcDir.getAbsolutePath() + "/" + packageParent.replace('.', '/') + "/" + module.getModuleName());
+            File serverImpl = new File(moduleDir, getServerClassName(module) + ".java");
+            List<String> serverLines = TextUtils.readFileLines(serverImpl);
+            for (int pos = 0; pos < serverLines.size(); pos++) {
+            	String line = serverLines.get(pos);
+            	if (line.startsWith("        //BEGIN ") || line.startsWith("        //BEGIN_CONSTRUCTOR")) {
+            		pos++;
+            		serverLines.add(pos, "        " + testClassName + ".serverMethod(this);");
+            	}
+            }
+            TextUtils.writeFileLines(serverLines, serverImpl);
         }
 	}
 
