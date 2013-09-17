@@ -25,14 +25,26 @@ public class KbModule {
 		List<?> optionList = Utils.propList(props, "options");
 		options = Collections.unmodifiableList(Utils.repareTypingString(optionList));
 		moduleComponents = new ArrayList<KbModuleComp>();
-		for (Map<?,?> compProps : Utils.getListOfMapProp(props, "module_components")) {
-			String compType = Utils.getPerlSimpleType(compProps);
-			if (compType.equals("Typedef")) {
-				moduleComponents.add(new KbTypedef().loadFromMap(compProps));
-			} else if (compType.equals("Funcdef")) {
-				moduleComponents.add(new KbFuncdef().loadFromMap(compProps));
+		List<?> compList = Utils.propList(props, "module_components");
+		String defaultAuth = null;
+		for (Object item : compList) {
+			if (!Map.class.isInstance(item)) {
+				if (item instanceof String) {
+					defaultAuth = (String)item;
+				} else {
+					throw new IllegalStateException("List item is not compatible with type " +
+							"[" + Map.class.getName() + "], it has type: " + item.getClass().getName());
+				}
 			} else {
-				throw new IllegalStateException("Unknown module component type: " + compType);
+				Map<?,?> compProps = (Map)item;
+				String compType = Utils.getPerlSimpleType(compProps);
+				if (compType.equals("Typedef")) {
+					moduleComponents.add(new KbTypedef().loadFromMap(compProps));
+				} else if (compType.equals("Funcdef")) {
+					moduleComponents.add(new KbFuncdef().loadFromMap(compProps, defaultAuth));
+				} else {
+					throw new IllegalStateException("Unknown module component type: " + compType);
+				}
 			}
 		}
 		moduleComponents = Collections.unmodifiableList(moduleComponents);

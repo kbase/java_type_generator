@@ -14,10 +14,10 @@ public class KbFuncdef implements KbModuleComp {
 	private List<KbParameter> returnType;
 	private Map<?,?> data = null;
 	
-	public KbFuncdef loadFromMap(Map<?,?> data) {
+	public KbFuncdef loadFromMap(Map<?,?> data, String defaultAuth) {
 		name = Utils.prop(data, "name");
 		async = (0 != Utils.intPropFromString(data, "async"));
-		authentication = Utils.prop(data, "authentication");
+		authentication = Utils.prop(data, "authentication");  // defaultAuth was already involved on kidl stage
 		comment = Utils.prop(data, "comment");
 		parameters = loadParameters(Utils.propList(data, "parameters"), false);
 		returnType = loadParameters(Utils.propList(data, "return_type"), true);
