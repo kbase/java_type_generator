@@ -347,7 +347,7 @@ public class MainTest extends Assert {
     	docDir.mkdir();
     	List<String> docPackages = new ArrayList<String>(Arrays.asList(testPackage));
     	for (JavaModule module : parsingData.getModules())
-    		docPackages.add(testPackage + "." + module.getModuleName());
+    		docPackages.add(testPackage + "." + module.getModulePackage());
     	runJavaDoc(workDir, srcDir, classPath, docDir, docPackages.toArray(new String[docPackages.size()]));
 		return parsingData;
 	}
@@ -376,9 +376,9 @@ public class MainTest extends Assert {
 		if (!binDir.exists())
 			binDir.mkdir();
         for (JavaModule module : parsingData.getModules()) {
-        	String clientFilePath = "src/" + testPackage.replace('.', '/') + "/" + module.getModuleName() + "/" + 
+        	String clientFilePath = "src/" + testPackage.replace('.', '/') + "/" + module.getModulePackage() + "/" + 
 					getClientClassName(module) + ".java";
-        	String serverFilePath = "src/" + testPackage.replace('.', '/') + "/" + module.getModuleName() + "/" + 
+        	String serverFilePath = "src/" + testPackage.replace('.', '/') + "/" + module.getModulePackage() + "/" + 
 					getServerClassName(module) + ".java";
         	runJavac(workDir, srcDir, classPath, binDir, clientFilePath, serverFilePath);
         }
@@ -412,7 +412,7 @@ public class MainTest extends Assert {
 			File libDir, File binDir, String testPackage) throws Exception,
 			MalformedURLException, ClassNotFoundException {
 		URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
-        String serverClassName = testPackage + "." + module.getModuleName() + "." + getServerClassName(module);
+        String serverClassName = testPackage + "." + module.getModulePackage() + "." + getServerClassName(module);
         Class<?> serverClass = urlcl.loadClass(serverClassName);
 		return serverClass;
 	}
@@ -460,7 +460,7 @@ public class MainTest extends Assert {
 					Class<?> testClass = urlcl.loadClass(testPackage + ".Test" + testNum);
 					if (needClientServer) {
 						String clientClassName = getClientClassName(module);
-						Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModuleName() + "." + clientClassName);
+						Class<?> clientClass = urlcl.loadClass(testPackage + "." + module.getModulePackage() + "." + clientClassName);
 						Object client = clientClass.getConstructor(URL.class).newInstance(new URL("http://localhost:" + portNum));
 						try {
 							testClass.getConstructor(clientClass).newInstance(client);
@@ -548,7 +548,7 @@ public class MainTest extends Assert {
 
 	private static void javaServerCorrectionForTestCallback(File srcDir, String packageParent, JavaData parsingData, String testClassName) throws IOException {
 		for (JavaModule module : parsingData.getModules()) {
-            File moduleDir = new File(srcDir.getAbsolutePath() + "/" + packageParent.replace('.', '/') + "/" + module.getModuleName());
+            File moduleDir = new File(srcDir.getAbsolutePath() + "/" + packageParent.replace('.', '/') + "/" + module.getModulePackage());
             File serverImpl = new File(moduleDir, getServerClassName(module) + ".java");
             List<String> serverLines = TextUtils.readFileLines(serverImpl);
             for (int pos = 0; pos < serverLines.size(); pos++) {
@@ -568,7 +568,7 @@ public class MainTest extends Assert {
             for (JavaFunc func : module.getFuncs()) {
             	origNameToFunc.put(func.getOriginal().getName(), func);
             }
-            File moduleDir = new File(srcDir.getAbsolutePath() + "/" + packageParent.replace('.', '/') + "/" + module.getModuleName());
+            File moduleDir = new File(srcDir.getAbsolutePath() + "/" + packageParent.replace('.', '/') + "/" + module.getModulePackage());
             File perlServerImpl = new File(moduleDir, getServerClassName(module) + ".java");
             List<String> perlServerLines = TextUtils.readFileLines(perlServerImpl);
             for (int pos = 0; pos < perlServerLines.size(); pos++) {

@@ -11,13 +11,17 @@ public class JavaModule {
 	private List<JavaFunc> funcs;
 	
 	public JavaModule(KbModule original, List<JavaFunc> funcs) {
-		this.moduleName = TextUtils.capitalize(original.getModuleName()).toLowerCase();
+		this.moduleName = TextUtils.capitalize(original.getModuleName());
 		this.original = original;
 		this.funcs = Collections.unmodifiableList(funcs);
 	}
 	
 	public String getModuleName() {
 		return moduleName;
+	}
+	
+	public String getModulePackage() {
+		return moduleName.toLowerCase();
 	}
 	
 	public KbModule getOriginal() {

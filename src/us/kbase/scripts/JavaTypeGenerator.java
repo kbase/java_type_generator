@@ -66,7 +66,7 @@ import com.sun.codemodel.JType;
 
 public class JavaTypeGenerator {
 	private static final char[] propWordDelim = {'_', '-'};
-	private static final String utilPackage = "us.kbase";
+	private static final String utilPackage = "us.kbase.common.service";
 	
 	private static final String HEADER = "HEADER";
 	private static final String CLSHEADER = "CLASS_HEADER";
@@ -337,10 +337,10 @@ public class JavaTypeGenerator {
 		Map<String, JavaType> originalToJavaTypes = getOriginalToJavaTypesMap(data);
 		File parentDir = getParentSourceDir(srcOutDir, packageParent);
 		for (JavaModule module : data.getModules()) {
-			File moduleDir = new File(parentDir, module.getModuleName());
+			File moduleDir = new File(parentDir, module.getModulePackage());
 			if (!moduleDir.exists())
 				moduleDir.mkdir();
-			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModuleName());
+			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModulePackage());
 			String clientClassName = TextUtils.capitalize(module.getModuleName()) + "Client";
 			File classFile = new File(moduleDir, clientClassName + ".java");
 			String callerClass = model.ref(utilPackage + ".JsonClientCaller");
@@ -437,7 +437,7 @@ public class JavaTypeGenerator {
 				String listClass = model.ref("java.util.List");
 				String arrayListClass = model.ref("java.util.ArrayList");
 				String exceptions = "throws " + model.ref("java.io.IOException") 
-						+ ", " + model.ref("us.kbase.JsonClientException");
+						+ ", " + model.ref(utilPackage + ".JsonClientException");
 				classLines.add("");
 				printFuncComment(func, originalToJavaTypes, packageParent, classLines, true);
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") " + exceptions+ " {");
@@ -477,7 +477,7 @@ public class JavaTypeGenerator {
 			}
 			classLines.add("}");
 			List<String> headerLines = new ArrayList<String>(Arrays.asList(
-					"package " + packageParent + "." + module.getModuleName() + ";",
+					"package " + packageParent + "." + module.getModulePackage() + ";",
 					""
 					));
 			headerLines.addAll(model.generateImports());
@@ -623,10 +623,10 @@ public class JavaTypeGenerator {
 		Map<String, JavaType> originalToJavaTypes = getOriginalToJavaTypesMap(data);
 		File parentDir = getParentSourceDir(srcOutDir, packageParent);
 		for (JavaModule module : data.getModules()) {
-			File moduleDir = new File(parentDir, module.getModuleName());
+			File moduleDir = new File(parentDir, module.getModulePackage());
 			if (!moduleDir.exists())
 				moduleDir.mkdir();
-			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModuleName());
+			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModulePackage());
 			String serverClassName = TextUtils.capitalize(module.getModuleName()) + "Server";
 			File classFile = new File(moduleDir, serverClassName + ".java");
 			HashMap<String, String> originalCode = parsePrevCode(classFile, module.getFuncs());
@@ -670,7 +670,7 @@ public class JavaTypeGenerator {
 				if (func.isAuthCouldBeUsed()) {
 					if (funcParams.length() > 0)
 						funcParams.append(", ");
-					funcParams.append(model.ref(utilPackage + ".auth.AuthToken")).append(" authPart");;					
+					funcParams.append(model.ref("us.kbase.auth.AuthToken")).append(" authPart");;					
 				}
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
@@ -724,7 +724,7 @@ public class JavaTypeGenerator {
 					"    }",
 					"}"));
 			List<String> headerLines = new ArrayList<String>(Arrays.asList(
-					"package " + packageParent + "." + module.getModuleName() + ";",
+					"package " + packageParent + "." + module.getModulePackage() + ";",
 					""
 					));
 			headerLines.addAll(model.generateImports());
@@ -786,8 +786,12 @@ public class JavaTypeGenerator {
 		if (!dir.exists())
 			dir.mkdirs();
 		File dstClassFile = new File(dir, className + ".java");
-		TextUtils.writeFileLines(TextUtils.readStreamLines(JavaTypeGenerator.class.getResourceAsStream(
-				className + ".java.properties")), dstClassFile);
+		List<String> lines = TextUtils.readStreamLines(JavaTypeGenerator.class.getResourceAsStream(
+				className + ".java.properties"));
+		if (lines.get(0).startsWith("package "))
+			lines.remove(0);
+		lines.add(0, "package " + utilPackage + ";");
+		TextUtils.writeFileLines(lines, dstClassFile);
 	}
 	
 	private static void checkLibs(File libOutDir, boolean createServers) throws Exception {
