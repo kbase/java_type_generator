@@ -32,6 +32,10 @@ import us.kbase.scripts.JavaTypeGenerator;
 import us.kbase.scripts.TextUtils;
 import us.kbase.scripts.util.ProcessHelper;
 
+/**
+ * Main test class for JavaTypeGenerator.
+ * @author rsutormin
+ */
 public class MainTest extends Assert {
 	public static final String rootPackageName = "us.kbase";
 	
