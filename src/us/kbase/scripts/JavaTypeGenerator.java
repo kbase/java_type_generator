@@ -66,7 +66,9 @@ import com.sun.codemodel.JType;
 
 public class JavaTypeGenerator {
 	private static final char[] propWordDelim = {'_', '-'};
-	private static final String utilPackage = "us.kbase.common.service";
+
+	private static final String defaultParentPackage = "us.kbase";
+	private static final String utilPackage = defaultParentPackage + ".common.service";
 	
 	private static final String HEADER = "HEADER";
 	private static final String CLSHEADER = "CLASS_HEADER";
@@ -1016,8 +1018,8 @@ public class JavaTypeGenerator {
 		@Option(name="-u", usage="Default url for service", metaVar="<url>")
 		String url = null;
 
-		@Option(name="-p",usage="Java package parent (module subpackages are created in this package), default value is " + utilPackage, metaVar="<package>")		
-		String packageParent = utilPackage;
+		@Option(name="-p",usage="Java package parent (module subpackages are created in this package), default value is " + defaultParentPackage, metaVar="<package>")		
+		String packageParent = defaultParentPackage;
 
 		@Option(name="-t", usage="Temporary folder, default value is parent folder of <spec-file>", metaVar="<tmp-dir>")
 		String tempDir;
