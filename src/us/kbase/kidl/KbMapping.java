@@ -6,7 +6,7 @@ public class KbMapping extends KbBasicType {
 	private KbType keyType;
 	private KbType valueType;
 	
-	public KbMapping loadFromMap(Map<?,?> data) {
+	public KbMapping loadFromMap(Map<?,?> data) throws KidlParseException {
 		keyType = Utils.createTypeFromMap(Utils.propMap(data, "key_type"));
 		valueType = Utils.createTypeFromMap(Utils.propMap(data, "value_type"));
 		return this;

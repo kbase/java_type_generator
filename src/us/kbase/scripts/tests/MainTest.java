@@ -433,7 +433,6 @@ public class MainTest extends Assert {
 	private static File prepareWorkDir(int testNum) throws IOException {
 		File tempDir = new File(".").getCanonicalFile();
 		if (!tempDir.getName().equals("test")) {
-			System.out.println("Current: " + tempDir.getName());
 			tempDir = new File(tempDir, "test");
 			if (!tempDir.exists())
 				tempDir.mkdir();

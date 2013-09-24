@@ -8,7 +8,7 @@ import java.util.Map;
  */
 public abstract class KbBasicType implements KbType {
 	
-	public static KbBasicType createFromMap(Map<?,?> data) {
+	public static KbBasicType createFromMap(Map<?,?> data) throws KidlParseException {
 		String typeName = Utils.getPerlSimpleType(data);
 		if (typeName.equals("Scalar")) {
 			return new KbScalar().loadFromMap(data);
@@ -23,7 +23,7 @@ public abstract class KbBasicType implements KbType {
 		} else if (typeName.equals("UnspecifiedObject")) {
 			return new KbUnspecifiedObject();
 		}
-		throw new IllegalStateException("Unsupported type: " + typeName);
+		throw new KidlParseException("Unsupported type: " + typeName);
 	}
 	
 	public abstract String getJavaStyleName();

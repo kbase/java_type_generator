@@ -13,7 +13,7 @@ public class KbService {
 		this.name = name;
 	}
 		
-	public void loadFromList(List<?> data) {
+	public void loadFromList(List<?> data) throws KidlParseException {
 		List<KbModule> modules = new ArrayList<KbModule>();
 		for (Object item : data) {
 			KbModule mod = new KbModule();
@@ -23,7 +23,7 @@ public class KbService {
 		this.modules = Collections.unmodifiableList(modules);
 	}
 	
-	public static List<KbService> loadFromMap(Map<?,?> data) {
+	public static List<KbService> loadFromMap(Map<?,?> data) throws KidlParseException {
 		List<KbService> ret = new ArrayList<KbService>();
 		for (Map.Entry<?,?> entry : data.entrySet()) {
 			KbService srv = new KbService("" + entry.getKey());

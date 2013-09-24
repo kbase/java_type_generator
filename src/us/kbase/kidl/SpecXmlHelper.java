@@ -1,6 +1,7 @@
 package us.kbase.kidl;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -9,13 +10,16 @@ import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 public class SpecXmlHelper {
-	public static Map<?,?> parseXml(File parsingFile) throws Exception {
+	public static Map<?,?> parseXml(File parsingFile) 
+			throws ParserConfigurationException, SAXException, IOException, KidlParseException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = dbf.newDocumentBuilder();
         Document document = builder.parse(parsingFile);
@@ -23,7 +27,7 @@ public class SpecXmlHelper {
         return (Map<?,?>)processMap(getSubNodes(mainNode).get(0), new HashMap<String, Object>()).get("parsed_data");
 	}
 	
-	private static Object processChild(Node parNode, Map<String, Object> memRefs) throws Exception {
+	private static Object processChild(Node parNode, Map<String, Object> memRefs) throws KidlParseException {
 		List<Node> subNodes = getSubNodes(parNode);
 		Object ret = null;
 		if (subNodes.size() == 1) {
@@ -33,17 +37,17 @@ public class SpecXmlHelper {
 			} else if (subNode.getNodeName().equals("arrayref")) {
 				ret = processList(subNode, memRefs);
 			} else {
-				throw new IllegalStateException("Unknown node type [" + subNode.getNodeName() + "]");
+				throw new KidlParseException("Unknown node type [" + subNode.getNodeName() + "]");
 			}
 		} else if (subNodes.size() == 0) {
 			ret = getTextContent(parNode);
 		} else {
-			throw new IllegalStateException("Node [" + parNode.getNodeName() + "] has more than 1 child");
+			throw new KidlParseException("Node [" + parNode.getNodeName() + "] has more than 1 child");
 		}
 		return ret;
 	}
 	
-	private static Map<?,?> processMap(Node mapNode, Map<String, Object> memRefs) throws Exception {
+	private static Map<?,?> processMap(Node mapNode, Map<String, Object> memRefs) throws KidlParseException {
 		if (!mapNode.getNodeName().equals("hashref"))
 			return null;
 		String memRef = extractMemRef(mapNode);
@@ -55,7 +59,7 @@ public class SpecXmlHelper {
 		}
 		for (Node child : getSubNodes(mapNode)) {
 			if (!child.getNodeName().equals("item"))
-				throw new IllegalStateException("Wrong hash element node type: " + child.getNodeName());
+				throw new KidlParseException("Wrong hash element node type: " + child.getNodeName());
 			String key = child.getAttributes().getNamedItem("key").getNodeValue();
 			Object value = processChild(child, memRefs);
 			ret.put(key, value);
@@ -73,7 +77,7 @@ public class SpecXmlHelper {
 		return memRef;
 	}
 
-	private static List<?> processList(Node listNode, Map<String, Object> memRefs) throws Exception {
+	private static List<?> processList(Node listNode, Map<String, Object> memRefs) throws KidlParseException {
 		if (!listNode.getNodeName().equals("arrayref"))
 			return null;
 		String memRef = extractMemRef(listNode);
@@ -82,7 +86,7 @@ public class SpecXmlHelper {
 		List<Object> ret = new ArrayList<Object>();
 		for (Node child : getSubNodes(listNode)) {
 			if (!child.getNodeName().equals("item"))
-				throw new IllegalStateException("Wrong array element node type: " + child.getNodeName());
+				throw new KidlParseException("Wrong array element node type: " + child.getNodeName());
 			Object value = processChild(child, memRefs);
 			ret.add(value);
 		}
@@ -103,7 +107,7 @@ public class SpecXmlHelper {
         return ret;
 	}
 	
-	public static String getTextContent(Node node) throws Exception {
+	public static String getTextContent(Node node) {
 		NodeList nl = node.getChildNodes();
 		for(int i = 0; i < nl.getLength(); i++) {
 			if (nl.item(i).getNodeType() == Node.TEXT_NODE)

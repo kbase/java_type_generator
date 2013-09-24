@@ -13,7 +13,7 @@ public class KbTypedef implements KbModuleComp, KbType {
 	private String comment;
 	private Map<?,?> data = null;
 	
-	public KbTypedef loadFromMap(Map<?,?> data) {
+	public KbTypedef loadFromMap(Map<?,?> data) throws KidlParseException {
 		name = Utils.prop(data, "name");
 		module = Utils.prop(data, "module");
 		comment = Utils.prop(data, "comment");

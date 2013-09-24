@@ -15,9 +15,9 @@ public class KbModule {
 	private List<KbTypeInfo> typeInfoList;
 	private Map<String, KbType> nameToType;
 	
-	public void loadFromList(List<?> data) {
+	public void loadFromList(List<?> data) throws KidlParseException {
 		if (data.size() != 3)
-			throw new IllegalStateException("List has wrong number of elements: " + data.size());
+			throw new KidlParseException("List has wrong number of elements: " + data.size());
 		Map<?,?> props = (Map<?,?>)data.get(0);
 		moduleName = Utils.prop(props, "module_name");
 		serviceName = Utils.prop(props, "service_name");
@@ -32,7 +32,7 @@ public class KbModule {
 				if (item instanceof String) {
 					defaultAuth = (String)item;
 				} else {
-					throw new IllegalStateException("List item is not compatible with type " +
+					throw new KidlParseException("List item is not compatible with type " +
 							"[" + Map.class.getName() + "], it has type: " + item.getClass().getName());
 				}
 			} else {
@@ -43,7 +43,7 @@ public class KbModule {
 				} else if (compType.equals("Funcdef")) {
 					moduleComponents.add(new KbFuncdef().loadFromMap(compProps, defaultAuth));
 				} else {
-					throw new IllegalStateException("Unknown module component type: " + compType);
+					throw new KidlParseException("Unknown module component type: " + compType);
 				}
 			}
 		}

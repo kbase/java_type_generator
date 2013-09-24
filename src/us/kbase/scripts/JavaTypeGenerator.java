@@ -51,6 +51,7 @@ import us.kbase.kidl.KbTuple;
 import us.kbase.kidl.KbType;
 import us.kbase.kidl.KbTypedef;
 import us.kbase.kidl.KbUnspecifiedObject;
+import us.kbase.kidl.KidlParseException;
 import us.kbase.kidl.KidlParser;
 
 import com.googlecode.jsonschema2pojo.DefaultGenerationConfig;
@@ -270,7 +271,7 @@ public class JavaTypeGenerator {
 				utilDir.mkdirs();
 			for (int tupleType : tupleTypes) {
 				if (tupleType < 1)
-					throw new IllegalStateException("Wrong tuple type: " + tupleType);
+					throw new KidlParseException("Wrong tuple type: " + tupleType);
 				File tupleFile = new File(utilDir, "Tuple" + tupleType + ".java");
 				StringBuilder sb = new StringBuilder();
 				for (int i = 0; i < tupleType; i++) {
@@ -820,7 +821,7 @@ public class JavaTypeGenerator {
 				libFile = maybelibFile;
 		}
 		if (libFile == null)
-			throw new IllegalStateException("Can't find lib-file for: " + libName);
+			throw new KidlParseException("Can't find lib-file for: " + libName);
 		InputStream is = new FileInputStream(libFile);
 		OutputStream os = new FileOutputStream(new File(libDir, libFile.getName()));
 		TextUtils.copyStreams(is, os);
@@ -846,17 +847,7 @@ public class JavaTypeGenerator {
 		tree.put("description", descr.toString());
 		tree.put("type", "object");
 		tree.put("javaType", packageParent + "." + type.getModuleName() + "." + type.getJavaClassName());
-		if (type.getMainType() instanceof KbMapping) {
-			JavaType firstInternal = type.getInternalTypes().get(0);
-			if (!firstInternal.getJavaClassName().equals("String"))
-				throw new IllegalStateException("Type [" + firstInternal.getOriginalTypeName() + "] " +
-						"can not be used as map key type");
-			JavaType subType = type.getInternalTypes().get(1);
-			LinkedHashMap<String, Object> typeTree = createJsonRefTypeTree(type.getModuleName(), subType, 
-					null, false, packageParent, tupleTypes);
-			tree.put("additionalProperties", typeTree);
-			throw new IllegalStateException();
-		} else {
+		if (type.getMainType() instanceof KbStruct) {
 			LinkedHashMap<String, Object> props = new LinkedHashMap<String, Object>();
 			for (int itemPos = 0; itemPos < type.getInternalTypes().size(); itemPos++) {
 				JavaType iType = type.getInternalTypes().get(itemPos);
@@ -866,6 +857,9 @@ public class JavaTypeGenerator {
 			}
 			tree.put("properties", props);
 			tree.put("additionalProperties", true);
+		} else {
+			throw new KidlParseException("Type " + type.getMainType().getClass().getSimpleName() + " is not " +
+					"supported for POJO generation");
 		}
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(Feature.INDENT_OUTPUT, true);

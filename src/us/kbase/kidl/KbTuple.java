@@ -19,7 +19,7 @@ public class KbTuple extends KbBasicType {
 		elementTypes = Collections.unmodifiableList(types);
 	}
 	
-	public KbTuple loadFromMap(Map<?,?> data) {
+	public KbTuple loadFromMap(Map<?,?> data) throws KidlParseException {
 		List<?> optionList = Utils.propList(data, "element_names");
 		elementNames = Collections.unmodifiableList(Utils.repareTypingString(optionList));
 		elementTypes = new ArrayList<KbType>();

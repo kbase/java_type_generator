@@ -14,7 +14,7 @@ public class KbFuncdef implements KbModuleComp {
 	private List<KbParameter> returnType;
 	private Map<?,?> data = null;
 	
-	public KbFuncdef loadFromMap(Map<?,?> data, String defaultAuth) {
+	public KbFuncdef loadFromMap(Map<?,?> data, String defaultAuth) throws KidlParseException {
 		name = Utils.prop(data, "name");
 		async = (0 != Utils.intPropFromString(data, "async"));
 		authentication = Utils.prop(data, "authentication");  // defaultAuth was already involved on kidl stage
@@ -25,7 +25,7 @@ public class KbFuncdef implements KbModuleComp {
 		return this;
 	}
 	
-	private static List<KbParameter> loadParameters(List<?> inputList, boolean isReturn) {
+	private static List<KbParameter> loadParameters(List<?> inputList, boolean isReturn) throws KidlParseException {
 		List<KbParameter> ret = new ArrayList<KbParameter>();
 		for (Map<?,?> data : Utils.repareTypingMap(inputList)) {
 			ret.add(new KbParameter().loadFromMap(data, isReturn, ret.size() + 1));

@@ -16,7 +16,8 @@ public class KidlParser {
 		return parseSpec(specFile, tempDir, null);
 	}
 	
-	public static List<KbService> parseSpec(File specFile, File tempDir, Map<String, Map<String, String>> modelToTypeJsonSchemaReturn) throws KidlParseException {
+	public static List<KbService> parseSpec(File specFile, File tempDir, 
+			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn) throws KidlParseException {
 		if (tempDir == null)
 			tempDir = new File(".");
 		File workDir = new File(tempDir, "temp_" + System.currentTimeMillis());
@@ -29,7 +30,8 @@ public class KidlParser {
 		if (kbTop != null && kbTop.trim().length() > 0) {
 			compileTypespecDir = kbTop + "/bin/";
 		} else {
-			System.out.println("WARNING: KB_TOP environment variable is not defined, so compile_typespec is supposed to be in PATH");
+			System.out.println("WARNING: KB_TOP environment variable is not defined, " +
+					"so compile_typespec is supposed to be in PATH");
 		}
 		try {
 			PrintWriter pw = new PrintWriter(bashFile);

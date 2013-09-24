@@ -9,7 +9,7 @@ public class KbTypeInfo {
 	private String english;
 	private KbType ref;
 	
-	public KbTypeInfo loadFromMap(Map<?,?> data) {
+	public KbTypeInfo loadFromMap(Map<?,?> data) throws KidlParseException {
 		name = Utils.prop(data, "name");
 		module = Utils.prop(data, "module");
 		comment = Utils.prop(data, "comment");
