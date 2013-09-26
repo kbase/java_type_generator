@@ -23,7 +23,9 @@ public class KbAnnotations {
 			} else if (key.equals("unknown_annotations")) {
 				unknown.putAll((Map<String, Object>)enrty.getValue());
 			} else {
-				throw new KidlParseException("Unknown type of annotation: " + key);
+				//throw new KidlParseException("Unknown type of annotation: " + key);
+				if (!unknown.containsKey(key))
+					unknown.put(key, enrty.getValue());
 			}
 		}
 		optional = Collections.unmodifiableSet(optional);

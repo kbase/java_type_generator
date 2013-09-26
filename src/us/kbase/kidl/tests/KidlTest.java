@@ -63,6 +63,7 @@ public class KidlTest {
 				"module Test {\n" +
 				"  /*\n" +
 				"   @optional val2\n" +
+				"   @new_annotation val1\n" +
 				"  */\n" +
 				"  typedef structure {\n" +
 				"    int val1;\n" +
@@ -80,6 +81,8 @@ public class KidlTest {
 		Assert.assertEquals(2, type.getItems().size());
 		for (KbStructItem item : type.getItems())
 			Assert.assertEquals(item.getName().equals("val2"), item.isOptional());
+		Object newAnnotation = type.getAnnotations().getUnknown().get("new_annotation");
+		Assert.assertEquals("val1", ((List<?>)newAnnotation).get(0));
 	}
 	
 	@Test

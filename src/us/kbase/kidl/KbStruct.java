@@ -37,4 +37,8 @@ public class KbStruct extends KbBasicType {
 	public String getJavaStyleName() {
 		return "Struct";
 	}
+	
+	public KbAnnotations getAnnotations() {
+		return annotations;
+	}
 }
