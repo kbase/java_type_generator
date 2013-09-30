@@ -29,8 +29,6 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.SerializationConfig.Feature;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -54,8 +52,10 @@ import us.kbase.kidl.KbUnspecifiedObject;
 import us.kbase.kidl.KidlParseException;
 import us.kbase.kidl.KidlParser;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.googlecode.jsonschema2pojo.DefaultGenerationConfig;
-import com.googlecode.jsonschema2pojo.Jackson1Annotator;
+import com.googlecode.jsonschema2pojo.Jackson2Annotator;
 import com.googlecode.jsonschema2pojo.SchemaGenerator;
 import com.googlecode.jsonschema2pojo.SchemaMapper;
 import com.googlecode.jsonschema2pojo.SchemaStore;
@@ -246,7 +246,7 @@ public class JavaTypeGenerator {
 			}
 		};
 		SchemaStore ss = new SchemaStore();
-		RuleFactory rf = new RuleFactory(cfg, new Jackson1Annotator(), ss) {
+		RuleFactory rf = new RuleFactory(cfg, new Jackson2Annotator(), ss) {
 			@Override
 			public Rule<JPackage, JType> getObjectRule() {
 				return new JsonSchemaToPojoCustomObjectRule(this);
@@ -284,8 +284,8 @@ public class JavaTypeGenerator {
 						"",
 						"import java.util.HashMap;",
 						"import java.util.Map;",
-						"import org.codehaus.jackson.annotate.JsonAnyGetter;",
-						"import org.codehaus.jackson.annotate.JsonAnySetter;",
+						"import com.fasterxml.jackson.annotation.JsonAnyGetter;",
+						"import com.fasterxml.jackson.annotation.JsonAnySetter;",
 						"",
 						"public class Tuple" + tupleType + " <" + sb + "> {"
 						));
@@ -448,7 +448,7 @@ public class JavaTypeGenerator {
 				for (JavaFuncParam param : func.getParams()) {
 					classLines.add("        args.add(" + param.getJavaName() + ");");
 				}
-				String typeReferenceClass = model.ref("org.codehaus.jackson.type.TypeReference");
+				String typeReferenceClass = model.ref("com.fasterxml.jackson.core.type.TypeReference");
 				boolean authRequired = func.isAuthRequired();
 				boolean needRet = retType != null;
 				if (func.getRetMultyType() == null) {
@@ -802,7 +802,10 @@ public class JavaTypeGenerator {
 			return;
 		if (!libOutDir.exists())
 			libOutDir.mkdirs();
-		checkLib(libOutDir, "jackson-all-1.9.11");
+		//checkLib(libOutDir, "jackson-all-1.9.11");
+		checkLib(libOutDir, "jackson-annotations-2.2.3");
+		checkLib(libOutDir, "jackson-core-2.2.3");
+		checkLib(libOutDir, "jackson-databind-2.2.3");
 		checkLib(libOutDir, "kbase-auth");
 		if (createServers) {
 			checkLib(libOutDir, "servlet-api-2.5");
@@ -862,7 +865,7 @@ public class JavaTypeGenerator {
 					"supported for POJO generation");
 		}
 		ObjectMapper mapper = new ObjectMapper();
-		mapper.configure(Feature.INDENT_OUTPUT, true);
+		mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
 		mapper.writeValue(jsonFile, tree);
 	}
 
