@@ -14,8 +14,10 @@ public class KbModule {
 	private List<KbModuleComp> moduleComponents;
 	private List<KbTypeInfo> typeInfoList;
 	private Map<String, KbType> nameToType;
+	private List<?> data = null;
 	
 	public void loadFromList(List<?> data) throws KidlParseException {
+		this.data = data;
 		if (data.size() != 3)
 			throw new KidlParseException("List has wrong number of elements: " + data.size());
 		Map<?,?> props = (Map<?,?>)data.get(0);
@@ -89,5 +91,9 @@ public class KbModule {
 	
 	public Map<String, KbType> getNameToType() {
 		return nameToType;
+	}
+	
+	public List<?> getData() {
+		return data;
 	}
 }
