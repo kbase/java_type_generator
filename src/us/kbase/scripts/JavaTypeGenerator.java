@@ -52,16 +52,26 @@ import us.kbase.kidl.KbUnspecifiedObject;
 import us.kbase.kidl.KidlParseException;
 import us.kbase.kidl.KidlParser;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.googlecode.jsonschema2pojo.DefaultGenerationConfig;
 import com.googlecode.jsonschema2pojo.Jackson2Annotator;
+import com.googlecode.jsonschema2pojo.Schema;
 import com.googlecode.jsonschema2pojo.SchemaGenerator;
 import com.googlecode.jsonschema2pojo.SchemaMapper;
 import com.googlecode.jsonschema2pojo.SchemaStore;
 import com.googlecode.jsonschema2pojo.rules.Rule;
 import com.googlecode.jsonschema2pojo.rules.RuleFactory;
+import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JCodeModel;
+import com.sun.codemodel.JDefinedClass;
+import com.sun.codemodel.JExpr;
+import com.sun.codemodel.JExpression;
+import com.sun.codemodel.JFieldVar;
+import com.sun.codemodel.JMethod;
+import com.sun.codemodel.JMod;
+import com.sun.codemodel.JOp;
 import com.sun.codemodel.JPackage;
 import com.sun.codemodel.JType;
 
@@ -249,7 +259,32 @@ public class JavaTypeGenerator {
 		RuleFactory rf = new RuleFactory(cfg, new Jackson2Annotator(), ss) {
 			@Override
 			public Rule<JPackage, JType> getObjectRule() {
-				return new JsonSchemaToPojoCustomObjectRule(this);
+				return new JsonSchemaToPojoCustomObjectRule(this) {
+					@Override
+					public JType apply(String nodeName, JsonNode node,
+							JPackage _package, Schema schema) {
+						JType jclass = super.apply(nodeName, node, _package, schema);
+						if (jclass instanceof JDefinedClass) {
+							addToString((JDefinedClass)jclass);
+						}
+						return jclass;
+					}
+					
+				    private void addToString(JDefinedClass jclass) {
+				        JMethod toString = jclass.method(JMod.PUBLIC, String.class, "toString");
+				        JBlock body = toString.body();
+				        JExpression ret = JExpr.lit(jclass.name());
+				        boolean firstField = true;
+				        for (Map.Entry<String, JFieldVar> entry : jclass.fields().entrySet()) {
+				        	ret = JOp.plus(ret, JExpr.lit((firstField ? " [" : ", ") + entry.getKey() + "="));
+				        	ret = JOp.plus(ret, entry.getValue());
+				        	firstField = false;
+				        }
+				        ret = JOp.plus(ret, JExpr.lit("]"));
+				        body._return(ret);
+				        toString.annotate(Override.class);
+				    }
+				};
 			}
 		};
 		SchemaGenerator sg = new SchemaGenerator();
@@ -293,6 +328,7 @@ public class JavaTypeGenerator {
 					classLines.add("    private T" + (i + 1) + " e" + (i + 1) + ";");
 				}
 				classLines.add("    private Map<String, Object> additionalProperties = new HashMap<String, Object>();");
+				StringBuilder toStr = new StringBuilder();
 				for (int i = 0; i < tupleType; i++) {
 					classLines.addAll(Arrays.asList(
 							"",
@@ -309,8 +345,16 @@ public class JavaTypeGenerator {
 							"        return this;",
 							"    }"
 							));
+					if (i > 0)
+						toStr.append(", ");
+					toStr.append("e").append(i + 1).append("=\" + ").append("e").append(i + 1).append(" + \"");
 				}
 				classLines.addAll(Arrays.asList(
+						"",
+						"    @Override",
+						"    public String toString() {",
+						"        return \"Tuple" + tupleType + " [" + toStr + "]\";",
+						"    }",
 						"",
 						"    @JsonAnyGetter",
 						"    public Map<String, Object> getAdditionalProperties() {",
