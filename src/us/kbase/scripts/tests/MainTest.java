@@ -84,7 +84,7 @@ public class MainTest extends Assert {
 		File srcDir = new File(workDir, "src");
 		File libDir = new File(workDir, "lib");
 		File binDir = new File(workDir, "bin");
-		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null);
+		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null, true);
 		javaServerCorrectionForTestCallback(srcDir, testPackage, parsingData, testPackage + ".Test" + testNum);
 		String classPath = prepareClassPath(libDir, new ArrayList<URL>());
     	runJavac(workDir, srcDir, classPath, binDir, "src/us/kbase/test5/syslogtest/SyslogtestServer.java");
@@ -100,13 +100,13 @@ public class MainTest extends Assert {
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
 		File binDir = new File(workDir, "bin");
-		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, perlPort(testNum));
+		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, perlPort(testNum), true);
 		File serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
 		runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir);
-		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, pyPort(testNum));
+		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, pyPort(testNum), true);
 		serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
 		runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir);
-		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, javaPort(testNum));
+		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, javaPort(testNum), true);
 		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData);
 	}
 
@@ -196,7 +196,7 @@ public class MainTest extends Assert {
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
 		File binDir = new File(workDir, "bin");
-		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null);
+		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null, needClientServer);
 		if (needClientServer) {
 			File serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
 			runPerlServerTest(testNum, needClientServer, workDir, testPackage,
@@ -317,7 +317,8 @@ public class MainTest extends Assert {
 	}
 
 	protected static JavaData prepareJavaCode(int testNum, File workDir,
-			String testPackage, File libDir, File binDir, Integer defaultUrlPort) throws Exception,
+			String testPackage, File libDir, File binDir, Integer defaultUrlPort,
+			boolean needJavaServerCorrection) throws Exception,
 			IOException, MalformedURLException, FileNotFoundException {
 		JavaData parsingData = null;
 		String testFileName = "test" + testNum + ".spec";
@@ -329,7 +330,8 @@ public class MainTest extends Assert {
 		parsingData = JavaTypeGenerator.processSpec(
 				new File(workDir, testFileName), workDir, srcDir, testPackage,
 				true, libDir, gwtPackageName, defaultUrl);
-		javaServerCorrection(srcDir, testPackage, parsingData);
+		if (needJavaServerCorrection)
+			javaServerCorrection(srcDir, testPackage, parsingData);
 		parsingData = JavaTypeGenerator.processSpec(
 				new File(workDir, testFileName), workDir, srcDir, testPackage,
 				true, libDir, gwtPackageName, defaultUrl);

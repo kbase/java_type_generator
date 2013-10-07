@@ -1,6 +1,7 @@
 package us.kbase.scripts;
 
 import us.kbase.kidl.KbParameter;
+import us.kbase.kidl.KbType;
 
 public class JavaFuncParam {
 	private KbParameter original;

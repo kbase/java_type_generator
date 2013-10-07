@@ -542,18 +542,26 @@ public class JavaTypeGenerator {
 		funcCommentLines.addAll(parseCommentLines(func.getOriginal().getComment()));
 		funcCommentLines.add("</pre>");
 		for (JavaFuncParam param : func.getParams()) {
-			List<KbTypedef> refHistory = param.getType().getAliasHistoryOuterToDeep();
-			if (refHistory.size() > 0) {
-				String descr = createTypeDescr(originalToJavaTypes, refHistory, packageParent);
-				funcCommentLines.add("@param   " + param.getJavaName() + "   " + descr);
-			}
+			String descr = getTypeDescr(originalToJavaTypes, param.getOriginal().getType(), packageParent, null);
+			funcCommentLines.add("@param   " + param.getJavaName() + "   " + descr);
 		}
 		if (func.getReturns().size() > 0) {
-			JavaType retType = func.getRetMultyType() == null ? func.getReturns().get(0).getType() : func.getRetMultyType();
-			List<KbTypedef> refHistory =  retType.getAliasHistoryOuterToDeep();
-			if (refHistory.size() > 0) {
-				String descr = createTypeDescr(originalToJavaTypes, refHistory, packageParent);
+			if (func.getRetMultyType() == null) {
+				JavaFuncParam ret = func.getReturns().get(0);
+				String descr = getTypeDescr(originalToJavaTypes, ret.getOriginal().getType(), packageParent, 
+						ret.getOriginal().getName());
 				funcCommentLines.add("@return   " + descr);
+			} else {
+				StringBuilder descr = new StringBuilder();
+				for (int i = 0; i < func.getReturns().size(); i++) {
+					JavaFuncParam ret = func.getReturns().get(i);
+					if (descr.length() > 0)
+						descr.append(", ");
+					descr.append('(').append((i + 1)).append(") ");
+					descr.append(getTypeDescr(originalToJavaTypes, ret.getOriginal().getType(), packageParent, 
+							ret.getOriginal().getName()));
+				}
+				funcCommentLines.add("@return   multiple set: " + descr);
 			}
 		}
 		if (client) {
@@ -563,21 +571,31 @@ public class JavaTypeGenerator {
 		printCommentLines("    ", funcCommentLines, classLines);
 	}
 
-	private static String createTypeDescr(
-			Map<String, JavaType> originalToJavaTypes,
-			List<KbTypedef> refHistory, String packageParent) {
+	private static String getTypeDescr(Map<String, JavaType> originalToJavaTypes,
+			KbType type, String packageParent, String paramName) {
 		StringBuilder sb = new StringBuilder();
-		for (KbTypedef ref : refHistory) {
-			if (sb.length() > 0)
-				sb.append(" &rarr; ");
-			sb.append("Original type \"").append(ref.getName()).append("\"");
+		if (paramName == null)
+			sb.append("instance of ");
+		createTypeDescr(originalToJavaTypes, type, packageParent, paramName, sb);
+		return sb.toString();
+	}
+	
+	private static void createTypeDescr(Map<String, JavaType> originalToJavaTypes,
+			KbType type, String packageParent, String paramName, StringBuilder sb) {
+		if (paramName != null)
+			sb.append("parameter \"").append(paramName).append("\" of ");
+		if (type instanceof KbTypedef) {
+			KbTypedef ref = (KbTypedef)type;
 			String originalTypeKey = TextUtils.capitalize(ref.getModule()).toLowerCase() + "." + ref.getName();
 			if (originalToJavaTypes.containsKey(originalTypeKey)) {
 				JavaType refJavaType = originalToJavaTypes.get(originalTypeKey);
-				sb.append(" (see {@link ").append(getPackagePrefix(packageParent, refJavaType))
+				sb.append("type {@link ").append(getPackagePrefix(packageParent, refJavaType))
 				.append(refJavaType.getJavaClassName()).append(' ').append(refJavaType.getJavaClassName())
-				.append("} for details)");
+				.append("}");
+				if (!refJavaType.getJavaClassName().equals(ref.getName()))
+					sb.append(" (original type \"").append(ref.getName()).append("\")");
 			} else {
+				sb.append("original type \"").append(ref.getName()).append("\"");
 				List<String> refCommentLines = parseCommentLines(ref.getComment());
 				if (refCommentLines.size() > 0) {
 					StringBuilder concatLines = new StringBuilder();
@@ -588,10 +606,40 @@ public class JavaTypeGenerator {
 					}
 					sb.append(" (").append(concatLines).append(")");
 				}
+				if (!(ref.getAliasType() instanceof KbScalar)) {
+					sb.append(" &rarr; ");
+					createTypeDescr(originalToJavaTypes, ref.getAliasType(), packageParent, null, sb);
+				}
 			}
+		} else if (type instanceof KbStruct) {
+			throw new IllegalStateException("Inline structures are not allowed in spec-syntax");
+		} else if (type instanceof KbList) {
+			KbList list = (KbList)type;
+			sb.append("list of ");
+			createTypeDescr(originalToJavaTypes, list.getElementType(), packageParent, null, sb);			
+		} else if (type instanceof KbMapping) {
+			KbMapping map = (KbMapping)type;
+			sb.append("mapping from ");
+			createTypeDescr(originalToJavaTypes, map.getKeyType(), packageParent, null, sb);
+			sb.append(" to ");
+			createTypeDescr(originalToJavaTypes, map.getValueType(), packageParent, null, sb);
+		} else if (type instanceof KbTuple) {
+			KbTuple tuple = (KbTuple)type;
+			sb.append("tuple of size ").append(tuple.getElementTypes().size()).append(": ");
+			for (int i = 0; i < tuple.getElementTypes().size(); i++) {
+				if (i > 0)
+					sb.append(", ");
+				String tupleParamName = tuple.getElementNames().get(i);
+				if (tupleParamName.equals("e_" + (i + 1)))
+					tupleParamName = null;
+				createTypeDescr(originalToJavaTypes, tuple.getElementTypes().get(i), packageParent, 
+						tupleParamName, sb);		
+			}
+		} else if (type instanceof KbUnspecifiedObject) {
+			sb.append("unspecified object");
+		} else if (type instanceof KbScalar) {
+			sb.append(((KbScalar)type).getJavaStyleName());
 		}
-		String descr = sb.toString();
-		return descr;
 	}
 
 	private static Map<String, JavaType> getOriginalToJavaTypesMap(JavaData data) {
