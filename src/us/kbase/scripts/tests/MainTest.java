@@ -87,7 +87,7 @@ public class MainTest extends Assert {
 		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null, true);
 		javaServerCorrectionForTestCallback(srcDir, testPackage, parsingData, testPackage + ".Test" + testNum);
 		String classPath = prepareClassPath(libDir, new ArrayList<URL>());
-    	runJavac(workDir, srcDir, classPath, binDir, "src/us/kbase/test5/syslogtest/SyslogtestServer.java");
+    	runJavac(workDir, srcDir, classPath, binDir, "src/us/kbase/test5/syslogtest/SyslogTestServer.java");
 		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData);
 	}
 	
