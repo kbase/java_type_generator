@@ -431,25 +431,31 @@ public class JavaTypeGenerator {
 				classLines.addAll(Arrays.asList(
 						"",
 						"    public " + clientClassName + "(" + urlClass + " url, " + 
-								model.ref("us.kbase.auth.AuthToken") + " token) {",
+								model.ref("us.kbase.auth.AuthToken") + " token) throws " + 
+								model.ref(utilPackage + ".UnauthorizedException") + ", " +
+								model.ref("java.io.IOException") + " {",
 						"        caller = new " + callerClass + "(url, token);",
 						"    }",
 						"",
 						"    public " + clientClassName + "(" + urlClass + 
 								" url, String user, String password) throws " + 
-								model.ref(utilPackage + ".UnauthorizedException") + " {",
+								model.ref(utilPackage + ".UnauthorizedException") + ", " +
+								model.ref("java.io.IOException") + " {",
 						"        caller = new " + callerClass + "(url, user, password);",
 						"    }"
 						));
 				if (url != null) {
 					classLines.addAll(Arrays.asList(
 						"",
-						"    public " + clientClassName + "(" + model.ref("us.kbase.auth.AuthToken") + " token) {",
+						"    public " + clientClassName + "(" + model.ref("us.kbase.auth.AuthToken") + " token) throws " + 
+								model.ref(utilPackage + ".UnauthorizedException") + ", " +
+								model.ref("java.io.IOException") + " {",
 						"        caller = new " + callerClass + "(DEFAULT_URL, token);",
 						"    }",
 						"",
 						"    public " + clientClassName + "(String user, String password) throws " + 
-								model.ref(utilPackage + ".UnauthorizedException") + " {",
+								model.ref(utilPackage + ".UnauthorizedException") + ", " +
+								model.ref("java.io.IOException") + " {",
 						"        caller = new " + callerClass + "(DEFAULT_URL, user, password);",
 						"    }"
 						));
