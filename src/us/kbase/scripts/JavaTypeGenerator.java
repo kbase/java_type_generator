@@ -436,7 +436,8 @@ public class JavaTypeGenerator {
 						"    }",
 						"",
 						"    public " + clientClassName + "(" + urlClass + 
-								" url, String user, String password) {",
+								" url, String user, String password) throws " + 
+								model.ref(utilPackage + ".UnauthorizedException") + " {",
 						"        caller = new " + callerClass + "(url, user, password);",
 						"    }"
 						));
@@ -447,7 +448,8 @@ public class JavaTypeGenerator {
 						"        caller = new " + callerClass + "(DEFAULT_URL, token);",
 						"    }",
 						"",
-						"    public " + clientClassName + "(String user, String password) {",
+						"    public " + clientClassName + "(String user, String password) throws " + 
+								model.ref(utilPackage + ".UnauthorizedException") + " {",
 						"        caller = new " + callerClass + "(DEFAULT_URL, user, password);",
 						"    }"
 						));
