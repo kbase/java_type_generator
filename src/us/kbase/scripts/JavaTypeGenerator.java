@@ -920,13 +920,14 @@ public class JavaTypeGenerator {
 		File libFile = null;
 		for (URL url : ((URLClassLoader)(Thread.currentThread().getContextClassLoader())).getURLs()) {
 			File maybelibFile = new File(url.getPath());
-			if (maybelibFile.isFile() && maybelibFile.getName().equals(libName + ".jar"))
+			if (maybelibFile.isFile() && maybelibFile.getName().startsWith(libName) && 
+					maybelibFile.getName().endsWith(".jar"))
 				libFile = maybelibFile;
 		}
 		if (libFile == null)
 			throw new KidlParseException("Can't find lib-file for: " + libName);
 		InputStream is = new FileInputStream(libFile);
-		OutputStream os = new FileOutputStream(new File(libDir, libFile.getName()));
+		OutputStream os = new FileOutputStream(new File(libDir, libName + ".jar"));
 		TextUtils.copyStreams(is, os);
 	}
 	

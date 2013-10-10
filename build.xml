@@ -10,11 +10,11 @@
 
   <!-- set global properties for this build -->
   <property name="src"	location="src"/>
-  <property name="lib"	location="lib"/>
-  <property name="out.lib"	location="${DEPLOY_RUNTIME}/lib/gen_java_types"/>
+  <property name="lib"	location="../jars/lib/jars"/>
+  <property name="out.lib"	location="${TARGET}/lib/jars"/>
   <property name="dist"	location="dist"/>
   <property name="out.bin"	location="${TARGET}/bin"/>
-  <property name="out.jar"	location="${TARGET}/lib"/>
+  <property name="out.jar"	location="${TARGET}/lib/jars/kbase"/>
   <property name="classes"	location="classes"/>
   <property name="test"	location="test"/>
   <property name="jar.file"	value="GenJavaTypes.jar"/>
@@ -64,8 +64,22 @@
   </target>
 
   <path id="compile.classpath">
-    <fileset dir="${lib}/">
-      <include name="*.jar"/>
+    <fileset dir="${lib}">
+      <include name="kohsuke/args4j-2.0.21.jar"/>
+      <include name="codemodel/codemodel-2.4.1.jar"/>
+      <include name="apache_commons/commons-io-2.4.jar"/>
+      <include name="ini4j/ini4j-0.5.2.jar"/>
+      <include name="jackson/jackson-annotations-2.2.3.jar"/>
+      <include name="jackson/jackson-core-2.2.3.jar"/>
+      <include name="jackson/jackson-databind-2.2.3.jar"/>
+      <include name="jetty/jetty-all-7.0.0.jar"/>
+      <include name="jna/jna-3.4.0.jar"/>
+      <include name="google/jsonschema2pojo-core-0.3.6.jar"/>
+      <include name="junit/junit-4.9.jar"/>
+      <include name="kbase/auth/kbase-auth-1380919426-d35c17d.jar"/>
+      <include name="servlet/servlet-api-2.5.jar"/>
+      <include name="syslog4j/syslog4j-0.9.46.jar"/>
+      <include name="apache_commons/commons-lang-2.4.jar"/>
     </fileset>
   </path>
 
@@ -101,11 +115,11 @@ java -cp ${lib.classpath}:${jar.absolute.path} org.junit.runner.JUnitCore us.kba
 
   <target name="dist" depends="compile" description="generate the distribution" >
     <!-- Copy necessary lib-jars into runtime lib subfolder-->
-    <copy todir="${out.lib}" flatten="true">
+    <!--copy todir="${out.lib}" flatten="true">
       <fileset dir="${lib}">
         <include name="*.jar"/>
       </fileset>
-    </copy>
+    </copy-->
     <!-- Copy main jar file into deployment lib folder-->
     <copy todir="${out.jar}" flatten="true">
       <fileset file="${dist}/${jar.file}"/>
