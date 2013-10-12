@@ -46,16 +46,19 @@ public class KidlParser {
 			Process proc = new ProcessBuilder("bash", bashFile.getCanonicalPath()).directory(tempDir)
 					.redirectErrorStream(true).start();
 			BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+			StringBuilder errText = new StringBuilder();
 			while (true) {
 				String l = br.readLine();
 				if (l == null)
 					break;
 				System.out.println("KIDL: " + l);
+				errText.append(l).append('\n');
 			}
 			br.close();
 			proc.waitFor();
-			if (!xmlFile.exists())
-				throw new KidlParseException("Parsing file wasn't created, see error lines above for detailes");
+			if (!xmlFile.exists()) {
+				throw new KidlParseException("Parsing file wasn't created, here is KIDL output:\n" + errText);
+			}
 			Map<?,?> map = SpecXmlHelper.parseXml(xmlFile);
 			if (createJsonSchemas) {
 				File schemasRoot = new File(workDir, "jsonschema");

@@ -121,6 +121,21 @@ public class KidlTest {
 		}
 	}
 
+	@Test
+	public void testSyntaxError() throws IOException {
+		File workDir = prepareWorkDir();
+		File specFile = prepareSpec(workDir, "" +
+				"module Test {\n" +
+				"  bebebe\n" +
+				"};");
+		try {
+			KidlParser.parseSpec(specFile, workDir, null);
+			Assert.fail();
+		} catch (Exception ex) {
+			Assert.assertTrue(ex.getMessage().contains("bebebe"));
+		}
+	}
+	
 	protected KbModule getModule(List<KbService> srvList) {
 		Assert.assertEquals(1, srvList.size());
 		List<KbModule> modList = srvList.get(0).getModules();
