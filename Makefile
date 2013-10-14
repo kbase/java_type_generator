@@ -1,9 +1,8 @@
 KB_TOP ?= /kb/dev_container
 KB_RUNTIME ?= /kb/runtime
 DEPLOY_RUNTIME ?= $(KB_RUNTIME)
-TARGET ?= $(KB_TOP)
+TARGET ?= /kb/deployment
 ANT = ant
-SETUP_ANT = $(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(TARGET)
 
 default: compile
 
@@ -15,14 +14,14 @@ test: test-client-server
 	@echo "finished all tests"
 
 test-client-server:
-	$(SETUP_ANT) test
+	$(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(KB_TOP) test
 	cd test; bash ./test_gen_java_types.sh
 
 compile:
-	$(SETUP_ANT)
+	$(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(KB_TOP)
 
 distrib:
-	$(SETUP_ANT) dist
+	$(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(TARGET) dist
 
 clean:
-	$(SETUP_ANT) clean
+	$(ANT) clean
