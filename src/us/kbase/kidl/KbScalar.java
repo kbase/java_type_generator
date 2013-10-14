@@ -35,7 +35,7 @@ public class KbScalar extends KbBasicType {
 	private String getJavaStyleType() throws KidlParseException {
 		switch (scalarType) {
 			case stringType: return "String";
-			case intType: return "Integer";
+			case intType: return "Long";
 			case floatType: return "Double";
 			case boolType : return "Boolean";
 			default: throw new KidlParseException("Unknown scalar type: " + scalarType);

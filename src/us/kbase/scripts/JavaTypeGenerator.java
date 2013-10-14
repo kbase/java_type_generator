@@ -254,6 +254,10 @@ public class JavaTypeGenerator {
 			public boolean isGenerateBuilders() {
 				return true;
 			}
+			@Override
+			public boolean isUseLongIntegers() {
+				return true;
+			}
 		};
 		SchemaStore ss = new SchemaStore();
 		RuleFactory rf = new RuleFactory(cfg, new Jackson2Annotator(), ss) {
@@ -284,6 +288,17 @@ public class JavaTypeGenerator {
 				        body._return(ret);
 				        toString.annotate(Override.class);
 				    }
+				};
+			}
+			
+			@Override
+			public Rule<JFieldVar, JFieldVar> getDefaultRule() {
+				return new Rule<JFieldVar, JFieldVar>() {
+					@Override
+					public JFieldVar apply(String nodeName, JsonNode node,
+							JFieldVar field, Schema currentSchema) {
+						return field;
+					}
 				};
 			}
 		};
@@ -992,15 +1007,10 @@ public class JavaTypeGenerator {
 			}
 		} else if (type.getMainType() instanceof KbList) {
 			LinkedHashMap<String, Object> subType = createJsonRefTypeTree(module, type.getInternalTypes().get(0), null, 
-					insideTypeParam, packageParent, tupleTypes);
-			if (insideTypeParam) {
+					true, packageParent, tupleTypes);
 				typeTree.put("type", "object");
 				typeTree.put("javaType", "java.util.List");
 				typeTree.put("javaTypeParams", subType);
-			} else {
-				typeTree.put("type", "array");
-				typeTree.put("items", subType);
-			}
 		} else if (type.getMainType() instanceof KbMapping) {
 			typeTree.put("type", "object");
 			typeTree.put("javaType", "java.util.Map");
