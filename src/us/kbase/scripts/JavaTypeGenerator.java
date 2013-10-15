@@ -892,6 +892,7 @@ public class JavaTypeGenerator {
 		checkUtilityClass(srcOutDir, "JsonClientException");
 		checkUtilityClass(srcOutDir, "UnauthorizedException");
 		checkUtilityClass(srcOutDir, "ServerException");
+		checkUtilityClass(srcOutDir, "JsonTreeTraversingParser");
 		if (createServers) {
 			checkUtilityClass(srcOutDir, "JsonServerMethod");
 			checkUtilityClass(srcOutDir, "JsonServerServlet");
