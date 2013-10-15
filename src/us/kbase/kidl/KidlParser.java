@@ -46,18 +46,29 @@ public class KidlParser {
 			Process proc = new ProcessBuilder("bash", bashFile.getCanonicalPath()).directory(tempDir)
 					.redirectErrorStream(true).start();
 			BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-			StringBuilder errText = new StringBuilder();
+			StringBuilder errTextSB = new StringBuilder();
 			while (true) {
 				String l = br.readLine();
 				if (l == null)
 					break;
 				System.out.println("KIDL: " + l);
-				errText.append(l).append('\n');
+				errTextSB.append(l).append('\n');
 			}
 			br.close();
 			proc.waitFor();
 			if (!xmlFile.exists()) {
-				throw new KidlParseException("Parsing file wasn't created, here is KIDL output:\n" + errText);
+				String errText = errTextSB.toString();
+				String[] options = {"path", "xmldump", "jsonschema"};
+				String caption = null;
+				for (String opt : options) {
+					if (errText.contains("Unknown option: " + opt)) {
+						caption = "It seems that you're using wrong branch of \"typecomp\" module (it should be \"dev-prototypes\")";
+						break;
+					}
+				}
+				if (caption == null)
+					caption = "Parsing file wasn't created";
+				throw new KidlParseException(caption + ", here is KIDL output:\n" + errText);
 			}
 			Map<?,?> map = SpecXmlHelper.parseXml(xmlFile);
 			if (createJsonSchemas) {
