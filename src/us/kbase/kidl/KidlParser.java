@@ -15,9 +15,14 @@ public class KidlParser {
 	public static List<KbService> parseSpec(File specFile, File tempDir) throws KidlParseException {
 		return parseSpec(specFile, tempDir, null);
 	}
-	
+
 	public static List<KbService> parseSpec(File specFile, File tempDir, 
 			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn) throws KidlParseException {
+		return parseSpec(specFile, tempDir, modelToTypeJsonSchemaReturn, null);
+	}
+	
+	public static List<KbService> parseSpec(File specFile, File tempDir, 
+			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, String kbTop) throws KidlParseException {
 		if (tempDir == null)
 			tempDir = new File(".");
 		File workDir = new File(tempDir, "temp_" + System.currentTimeMillis());
@@ -25,7 +30,8 @@ public class KidlParser {
 		File bashFile = new File(workDir, "comp_server.sh");
 		File specDir = specFile.getAbsoluteFile().getParentFile();
 		File xmlFile = new File(workDir, "parsing_file.xml");
-		String kbTop = System.getenv("KB_TOP");
+		if (kbTop == null)
+			kbTop = System.getenv("KB_TOP");
 		String compileTypespecDir = "";
 		if (kbTop != null && kbTop.trim().length() > 0) {
 			compileTypespecDir = kbTop + "/bin/";
