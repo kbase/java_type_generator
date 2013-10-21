@@ -476,6 +476,12 @@ public class JavaTypeGenerator {
 						));
 				}
 			}
+			classLines.addAll(Arrays.asList(
+					"",
+					"	public void setConnectionReadTimeOut(Integer milliseconds) {",
+					"		this.caller.setConnectionReadTimeOut(milliseconds);",
+					"	}"
+					));
 			if (anyAuth) {
 				classLines.addAll(Arrays.asList(
 						"",
