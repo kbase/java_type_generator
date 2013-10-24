@@ -66,11 +66,15 @@ public class Utils {
 	public static String getPerlSimpleType(String type) {
 		return type.contains("::") ? type.substring(type.lastIndexOf("::") + 2) : type;
 	}
-	
+
 	public static KbType createTypeFromMap(Map<?,?> data) throws KidlParseException {
+		return createTypeFromMap(data, null);
+	}
+	
+	public static KbType createTypeFromMap(Map<?,?> data, KbAnnotations annFromTypeDef) throws KidlParseException {
 		String typeType = Utils.getPerlSimpleType(data);
 		KbType ret = typeType.equals("Typedef") ? new KbTypedef().loadFromMap(data) :
-			KbBasicType.createFromMap(data);
+			KbBasicType.createFromMap(data, annFromTypeDef);
 		return ret;
 	}
 	

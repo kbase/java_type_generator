@@ -12,12 +12,16 @@ public class KbTypedef implements KbModuleComp, KbType {
 	private KbType aliasType;
 	private String comment;
 	private Map<?,?> data = null;
+	private KbAnnotations annotations;
 	
 	public KbTypedef loadFromMap(Map<?,?> data) throws KidlParseException {
 		name = Utils.prop(data, "name");
 		module = Utils.prop(data, "module");
 		comment = Utils.prop(data, "comment");
-		aliasType = Utils.createTypeFromMap(Utils.propMap(data, "alias_type"));
+		annotations = new KbAnnotations();
+		if (data.containsKey("annotations"))
+			annotations.loadFromMap(Utils.propMap(data, "annotations"));
+		aliasType = Utils.createTypeFromMap(Utils.propMap(data, "alias_type"), annotations);
 		this.data = data;
 		return this;
 	}
@@ -50,5 +54,9 @@ public class KbTypedef implements KbModuleComp, KbType {
 	@Override
 	public int hashCode() {
 		return toString().hashCode();
+	}
+	
+	public KbAnnotations getAnnotations() {
+		return annotations;
 	}
 }

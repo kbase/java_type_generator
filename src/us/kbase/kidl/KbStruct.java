@@ -11,12 +11,10 @@ public class KbStruct extends KbBasicType {
 	private KbAnnotations annotations;
 	private List<KbStructItem> items;
 	
-	public KbStruct loadFromMap(Map<?,?> data) throws KidlParseException {
+	public KbStruct loadFromMap(Map<?,?> data, KbAnnotations annFromTypeDef) throws KidlParseException {
 		name = Utils.prop(data, "name");
-		annotations = new KbAnnotations();
-		if (data.containsKey("annotations"))
-			annotations.loadFromMap(Utils.propMap(data, "annotations"));
-		Set<String> optional = annotations.getOptional();
+		annotations = annFromTypeDef;
+		Set<String> optional = annotations == null ? null : annotations.getOptional();
 		items = new ArrayList<KbStructItem>();
 		for (Map<?,?> itemProps : Utils.getListOfMapProp(data, "items")) {
 			items.add(new KbStructItem().loadFromMap(itemProps, optional));

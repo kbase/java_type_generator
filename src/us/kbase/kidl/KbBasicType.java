@@ -8,14 +8,14 @@ import java.util.Map;
  */
 public abstract class KbBasicType implements KbType {
 	
-	public static KbBasicType createFromMap(Map<?,?> data) throws KidlParseException {
+	public static KbBasicType createFromMap(Map<?,?> data, KbAnnotations annFromTypeDef) throws KidlParseException {
 		String typeName = Utils.getPerlSimpleType(data);
 		if (typeName.equals("Scalar")) {
 			return new KbScalar().loadFromMap(data);
 		} else if (typeName.equals("List")) {
 			return new KbList().loadFromMap(data);
 		} else if (typeName.equals("Struct")) {
-			return new KbStruct().loadFromMap(data);
+			return new KbStruct().loadFromMap(data, annFromTypeDef);
 		} else if (typeName.equals("Tuple")) {
 			return new KbTuple().loadFromMap(data);
 		} else if (typeName.equals("Mapping")) {

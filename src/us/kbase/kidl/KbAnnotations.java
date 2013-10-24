@@ -12,6 +12,7 @@ public class KbAnnotations {
 	private Set<String> idReferences = null;
 	private Map<String, Object> unknown = new HashMap<String, Object>();
 	
+	@SuppressWarnings("unchecked")
 	KbAnnotations loadFromMap(Map<?,?> data) throws KidlParseException {
 		for (Map.Entry<?, ?> enrty : data.entrySet()) {
 			String key = enrty.getKey().toString();

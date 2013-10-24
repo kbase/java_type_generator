@@ -13,7 +13,7 @@ public class KbStructItem {
 		name = Utils.prop(data, "name");
 		nullable = (0 != Utils.intPropFromString(data, "nullable"));
 		itemType = Utils.createTypeFromMap(Utils.propMap(data, "item_type"));
-		optional = optionalFields.contains(name);
+		optional = optionalFields != null && optionalFields.contains(name);
 		return this;
 	}
 	

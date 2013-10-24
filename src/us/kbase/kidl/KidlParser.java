@@ -79,30 +79,31 @@ public class KidlParser {
 			Map<?,?> map = SpecXmlHelper.parseXml(xmlFile);
 			if (createJsonSchemas) {
 				File schemasRoot = new File(workDir, "jsonschema");
-				for (File moduleDir : schemasRoot.listFiles()) {
-					if (!moduleDir.isDirectory())
-						continue;
-					Map<String, String> type2schema = new HashMap<String, String>();
-					for (File schemaFile : moduleDir.listFiles()) {
-						if (!schemaFile.getName().endsWith(".json"))
+				if (schemasRoot.exists())
+					for (File moduleDir : schemasRoot.listFiles()) {
+						if (!moduleDir.isDirectory())
 							continue;
-						String typeName = schemaFile.getName();
-						typeName = typeName.substring(0, typeName.length() - 5);
-						StringWriter sw = new StringWriter();
-						PrintWriter schemaPw = new PrintWriter(sw);
-						BufferedReader schemaBr = new BufferedReader(new FileReader(schemaFile));
-						while (true) {
-							String l = schemaBr.readLine();
-							if (l == null)
-								break;
-							schemaPw.println(l);
+						Map<String, String> type2schema = new HashMap<String, String>();
+						for (File schemaFile : moduleDir.listFiles()) {
+							if (!schemaFile.getName().endsWith(".json"))
+								continue;
+							String typeName = schemaFile.getName();
+							typeName = typeName.substring(0, typeName.length() - 5);
+							StringWriter sw = new StringWriter();
+							PrintWriter schemaPw = new PrintWriter(sw);
+							BufferedReader schemaBr = new BufferedReader(new FileReader(schemaFile));
+							while (true) {
+								String l = schemaBr.readLine();
+								if (l == null)
+									break;
+								schemaPw.println(l);
+							}
+							schemaBr.close();
+							schemaPw.close();
+							type2schema.put(typeName, sw.toString());
 						}
-						schemaBr.close();
-						schemaPw.close();
-						type2schema.put(typeName, sw.toString());
+						modelToTypeJsonSchemaReturn.put(moduleDir.getName(), type2schema);
 					}
-					modelToTypeJsonSchemaReturn.put(moduleDir.getName(), type2schema);
-				}
 			}
 			return KbService.loadFromMap(map);
 		} catch (KidlParseException ex) {

@@ -12,6 +12,9 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
 import us.kbase.kidl.KbModule;
 import us.kbase.kidl.KbModuleComp;
 import us.kbase.kidl.KbScalar;
