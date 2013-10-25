@@ -61,23 +61,15 @@ public interface SpecParserConstants {
   /** RegularExpression Id. */
   int T_figure_close_bracket = 32;
   /** RegularExpression Id. */
-  int S_NUMBER = 33;
+  int S_IDENTIFIER = 33;
   /** RegularExpression Id. */
-  int FLOAT = 34;
+  int LETTER = 34;
   /** RegularExpression Id. */
-  int INTEGER = 35;
+  int DIGIT = 35;
   /** RegularExpression Id. */
-  int DIGIT = 36;
+  int SPECIAL_CHARS = 36;
   /** RegularExpression Id. */
-  int S_IDENTIFIER = 37;
-  /** RegularExpression Id. */
-  int LETTER = 38;
-  /** RegularExpression Id. */
-  int SPECIAL_CHARS = 39;
-  /** RegularExpression Id. */
-  int S_CHAR_LITERAL = 40;
-  /** RegularExpression Id. */
-  int INCLUDE_LITERAL = 41;
+  int INCLUDE_LITERAL = 37;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -119,14 +111,10 @@ public interface SpecParserConstants {
     "\":\"",
     "\"{\"",
     "\"}\"",
-    "<S_NUMBER>",
-    "<FLOAT>",
-    "<INTEGER>",
-    "<DIGIT>",
     "<S_IDENTIFIER>",
     "<LETTER>",
+    "<DIGIT>",
     "<SPECIAL_CHARS>",
-    "<S_CHAR_LITERAL>",
     "<INCLUDE_LITERAL>",
     "\"<\"",
     "\">\"",

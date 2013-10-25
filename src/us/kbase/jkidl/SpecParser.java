@@ -8,25 +8,20 @@ import java.io.*;
 public class SpecParser implements SpecParserConstants {
         static String lastComment;
 
-    public static void main( String args[] ) throws Exception {
-
-        SpecParser p = null ;
-        String file_name=null;
-        if ( args.length < 1  ) {
-          return;
+    public static void main(String args[]) throws Exception {
+        String fileName = null;
+        if (args.length < 1) {
+            System.out.println("Usage: <program> <spec-file>");
+                return;
         }
-        else {
-          file_name=args[0];
-        }
+        fileName = args[0];
+        SpecParser p = null;
         try {
-                p = new SpecParser(new DataInputStream(
-                                new FileInputStream(file_name))) ;
-            }
-            catch (FileNotFoundException e) {
-                System.out.println("File " + args[0] +
-                                " not found. Reading from stdin") ;
+            p = new SpecParser(new DataInputStream(new FileInputStream(fileName)));
+        } catch (FileNotFoundException e) {
+            System.out.println("File " + fileName + " not found.");
+            return;
         }
-
         ParseNode root = p.SpecStatement();
         root.printTreeInfo();
         }
@@ -213,26 +208,26 @@ t = null;
       }
     case T_list:{
       t = jj_consume_token(T_list);
-      jj_consume_token(42);
+      jj_consume_token(38);
       subNode = Type();
 node.addChild(subNode);
-      jj_consume_token(43);
+      jj_consume_token(39);
       break;
       }
     case T_mapping:{
       t = jj_consume_token(T_mapping);
-      jj_consume_token(42);
+      jj_consume_token(38);
       subNode = Type();
 node.addChild(subNode);
       jj_consume_token(T_comma);
       Type();
 node.addChild(subNode);
-      jj_consume_token(43);
+      jj_consume_token(39);
       break;
       }
     case T_tuple:{
       t = jj_consume_token(T_tuple);
-      jj_consume_token(42);
+      jj_consume_token(38);
       subNode = Param();
 node.addChild(subNode);
       label_4:
@@ -250,7 +245,7 @@ node.addChild(subNode);
         subNode = Param();
 node.addChild(subNode);
       }
-      jj_consume_token(43);
+      jj_consume_token(39);
       break;
       }
     case T_structure:{
@@ -488,7 +483,7 @@ node.setProperty("name", name.toString());
       jj_la1_0 = new int[] {0x0,0x200,0xc400,0xc400,0x8000000,0xff0000,0xff0000,0x3800,0x400,0x8000000,0xff0000,0x0,};
    }
    private static void jj_la1_init_1() {
-      jj_la1_1 = new int[] {0x200,0x0,0x0,0x0,0x0,0x20,0x20,0x0,0x0,0x0,0x20,0x20,};
+      jj_la1_1 = new int[] {0x20,0x0,0x0,0x0,0x0,0x2,0x2,0x0,0x0,0x0,0x2,0x2,};
    }
   final private JJCalls[] jj_2_rtns = new JJCalls[2];
   private boolean jj_rescan = false;
@@ -675,7 +670,7 @@ node.setProperty("name", name.toString());
   /** Generate ParseException. */
   public ParseException generateParseException() {
     jj_expentries.clear();
-    boolean[] la1tokens = new boolean[44];
+    boolean[] la1tokens = new boolean[40];
     if (jj_kind >= 0) {
       la1tokens[jj_kind] = true;
       jj_kind = -1;
@@ -692,7 +687,7 @@ node.setProperty("name", name.toString());
         }
       }
     }
-    for (int i = 0; i < 44; i++) {
+    for (int i = 0; i < 40; i++) {
       if (la1tokens[i]) {
         jj_expentry = new int[1];
         jj_expentry[0] = i;

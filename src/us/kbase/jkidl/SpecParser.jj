@@ -1,7 +1,6 @@
 options{
     IGNORE_CASE = false;
     STATIC = false;
-//  DEBUG_LOOKAHEAD = true;
     UNICODE_INPUT = true;
 }
 
@@ -15,25 +14,20 @@ import java.io.*;
 public class SpecParser {
 	static String lastComment;
   
-    public static void main( String args[] ) throws Exception {
-
-        SpecParser p = null ;
-        String file_name=null;
-        if ( args.length < 1  ) {
-          return;
+    public static void main(String args[]) throws Exception {
+        String fileName = null;
+        if (args.length < 1) {
+            System.out.println("Usage: <program> <spec-file>");
+        	return;
         }
-        else {
-          file_name=args[0];
-        }
+        fileName = args[0];
+        SpecParser p = null;
         try {
-                p = new SpecParser(new DataInputStream(
-                                new FileInputStream(file_name))) ;
-            }
-            catch (FileNotFoundException e) {
-                System.out.println("File " + args[0] +
-                                " not found. Reading from stdin") ;
+            p = new SpecParser(new DataInputStream(new FileInputStream(fileName)));
+        } catch (FileNotFoundException e) {
+            System.out.println("File " + fileName + " not found.");
+            return;
         }
-
         ParseNode root = p.SpecStatement();
         root.printTreeInfo();
   	}
@@ -63,7 +57,6 @@ SKIP:
 |   "\r"
 |   "\n"
 |   "/*" : WithinComment
-//|   "//" : LineComment
 }
 
 <WithinComment> SKIP :
@@ -79,16 +72,6 @@ SKIP:
 {
   <~[]>
 }
-
-/*<LineComment> SKIP :
-{
-  <"\n"|"\r"|<EOF>> : DEFAULT
-}
-<LineComment> MORE :
-{
-  <~[]>
-}*/
-
 
 
 TOKEN: 
@@ -121,32 +104,12 @@ TOKEN:
 }
 
 
-TOKEN : /* Numeric Constants */
-{
-        < S_NUMBER: <FLOAT>
-            | <FLOAT> ( ["e","E"] ([ "-","+"])? <FLOAT> )?
-        >
-  |     < #FLOAT: <INTEGER>
-            | <INTEGER> ( "." <INTEGER> )?
-            | "." <INTEGER>
-        >
-  |     < #INTEGER: ( <DIGIT> )+ >
-  |     < #DIGIT: ["0" - "9"] >
-}
-
-/*SPECIAL_TOKEN:
-{
-   <LINE_COMMENT: "//"(~["\r","\n"])*>
-}*/
-
-
 TOKEN:
 {
     < S_IDENTIFIER: ( <LETTER> )+ ( <DIGIT> | <LETTER> |<SPECIAL_CHARS>)* >
 |   < #LETTER: ["a"-"z", "A"-"Z"] >
-|   < #SPECIAL_CHARS: "$" | "_">
-//|   < S_CHAR_LITERAL: "\"" (~["\""])* "\"" >
-|   < S_CHAR_LITERAL: "\"" (~["\""])* "\"" ("\"" (~["\""])* "\"")*>
+|   < #DIGIT: ["0" - "9"] >
+|   < #SPECIAL_CHARS: "$" | "_" | "-">
 |   < INCLUDE_LITERAL: "#include" ([" ", "\t"])* "<" (~[">"])* ">">
 }
 
