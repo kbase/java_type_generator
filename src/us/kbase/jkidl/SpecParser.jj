@@ -9,6 +9,28 @@ PARSER_BEGIN(SpecParser)
 package us.kbase.jkidl;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
+import us.kbase.kidl.KbAuthdef;
+import us.kbase.kidl.KbFuncdef;
+import us.kbase.kidl.KbList;
+import us.kbase.kidl.KbMapping;
+import us.kbase.kidl.KbModule;
+import us.kbase.kidl.KbModuleComp;
+import us.kbase.kidl.KbParameter;
+import us.kbase.kidl.KbScalar;
+import us.kbase.kidl.KbStruct;
+import us.kbase.kidl.KbStructItem;
+import us.kbase.kidl.KbTuple;
+import us.kbase.kidl.KbType;
+import us.kbase.kidl.KbTypedef;
+import us.kbase.kidl.KbUnspecifiedObject;
 
 @SuppressWarnings({"unused", "serial"})
 public class SpecParser {
@@ -28,8 +50,11 @@ public class SpecParser {
             System.out.println("File " + fileName + " not found.");
             return;
         }
-        ParseNode root = p.SpecStatement();
-        root.printTreeInfo();
+        IncludeProvider ip = new StaticIncludeProvider();
+        Map<?,?> root = parseAsJson(p, ip);
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
+		mapper.writeValue(System.out, root);
   	}
 
   	public ParseNode getBeginPlaceNode(Token t) {
@@ -45,6 +70,47 @@ public class SpecParser {
     	node.setProperty("COLUMN",""+t.endColumn);
     	return node;
   	}
+
+    public static Map<?,?> parseAsJson(SpecParser p, IncludeProvider ip) throws ParseException {
+        Map<String, KbModule> root = p.SpecStatement(ip);
+        Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
+        for (KbModule module : root.values()) {
+        	List<Object> modList = ret.get(module.getServiceName());
+        	if (modList == null) {
+        		modList = new ArrayList<Object>();
+        		ret.put(module.getServiceName(), modList);
+        	}
+        	modList.add(module.toJson());
+        }
+        return ret;
+    }
+
+    private static String trim(String comment) {
+    	if (comment == null)
+    		return "";
+    	StringBuilder sb = new StringBuilder(comment.trim());
+    	if (sb.substring(0, 2).equals("/*"))
+    		sb.delete(0, 2);
+    	if (sb.substring(sb.length() - 2, sb.length()).equals("*/"))
+    		sb.delete(sb.length() - 2, sb.length());
+    	while (sb.length() > 0) {
+    		char ch = sb.charAt(0);
+    		if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+    			sb.delete(0, 1);
+    		} else {
+    			break;
+    		}
+    	}
+    	while (sb.length() > 0) {
+    		char ch = sb.charAt(sb.length() - 1);
+    		if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
+    			sb.delete(sb.length() - 1, sb.length());
+    		} else {
+    			break;
+    		}
+    	}
+    	return sb.toString();
+    }
 }
 
 PARSER_END(SpecParser)
@@ -114,82 +180,69 @@ TOKEN:
 }
 
 
-ParseNode SpecStatement():
+Map<String, KbModule> SpecStatement(IncludeProvider ip):
 {
-  ParseNode specNode = new ParseNode("SPEC");
-  ParseNode includeListNode;
-  ParseNode moduleListNode;
+  Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  Map<String, KbModule> includes = null;
 }
 {
-  includeListNode = IncludeList()
-  moduleListNode = ModuleList()
+  includes = IncludeList(ip)
+  ret = ModuleList(includes)
   <EOF>
-  {
-    specNode.addChild(includeListNode);
-    specNode.addChild(moduleListNode);
-    return specNode;
-  }
+  { return ret; }
 }
 
-ParseNode IncludeList():
+Map<String, KbModule> IncludeList(IncludeProvider ip):
 {
-  ParseNode retNode = new ParseNode("INCLUDES");
-  ParseNode includeNode;
+  Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  Map<String, KbModule> added = null;
+  String includeLine = null;
 }
 {
   (
-    includeNode = Include()
-    {
-      retNode.addChild(includeNode);
-    }
+    added = Include(ip)
+    { ret.putAll(added); }
   )*
-  { return retNode; }
+  { return ret; }
 }
 
-ParseNode Include():
+Map<String, KbModule> Include(IncludeProvider ip):
 {
-  Token begToken;
   Token pathToken;
-  ParseNode retNode = new ParseNode("INCLUDE");
 }
 {
-  //begToken = "#include"
   pathToken = <INCLUDE_LITERAL>
-  {
-    retNode.setProperty("PATH", pathToken.toString());
-    return retNode;
-  }
+  { return ip.parseInclude(pathToken.toString()); }
 }
 
-ParseNode ModuleList():
+Map<String, KbModule> ModuleList(Map<String, KbModule> includes):
 {
-  ParseNode retNode = new ParseNode("MODULES");
-  ParseNode moduleNode;
+  Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  KbModule module = null;
 }
 {
   (
-    moduleNode = Module()
-    {
-      retNode.addChild(moduleNode);
+    module = Module(includes)
+    { 
+      ret.put(module.getModuleName(), module); 
+      includes.put(module.getModuleName(), module);
     }
   )*
-  { return retNode; }
+  { return ret; }
 }
 
-ParseNode Module():
+KbModule Module(Map<String, KbModule> includes):
 {
-  ParseNode retNode = new ParseNode("MODULE");
-  ParseNode elementNode;
-  Token srvToken;
-  Token nameToken;
-  Token t;
+  KbModule ret = null;
+  String comment = null;
+  Token srvToken = null;
+  Token nameToken = null;
+  KbModuleComp comp = null;
 }
 {
-  { srvToken = null; }
   "module"
   {
-    if (lastComment != null)
-	    retNode.setProperty("comment", lastComment);
+	comment = trim(lastComment);
     lastComment = null;
   }
   [
@@ -198,112 +251,102 @@ ParseNode Module():
     ":"
   ]
   nameToken = <S_IDENTIFIER>
+  { ret = new KbModule(srvToken == null ? null : srvToken.toString(), nameToken.toString(), comment); }
   "{"
   (
     (      (
-        elementNode = Typedef()
+        comp = Typedef(ret, includes)
       )
       |
       (
-        elementNode = Funcdef()
+        comp = Funcdef(ret, includes)
       )
 	  |
-	  (		elementNode = Auth()
+	  (		comp = Auth()
 	  )
 	)
-	t = ";"
+	";"
     {
       lastComment = null;
-      //elementNode.addChild(getEndPlaceNode(t));
-      retNode.addChild(elementNode);
+      ret.addModuleComponent(comp);
     }  )*
   "}"
-  ";"  {
-    if (srvToken != null)
-	    retNode.setProperty("service", srvToken.toString()); 
-    retNode.setProperty("name", nameToken.toString()); 
-    return retNode;
-  }
+  ";"  { return ret; }
 }
 
-ParseNode Typedef():
+KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes):
 {
-  ParseNode node = new ParseNode("TYPEDEF");
-  ParseNode typeNode;
-  Token t;
+  String comment;
+  KbType type;
+  Token name;
 }
 {
   "typedef"
   {
-    if (lastComment != null)
-	    node.setProperty("comment", lastComment);
+	comment = trim(lastComment);
     lastComment = null;
   }
-  typeNode = Type()
-  t = <S_IDENTIFIER>
-  {
-    node.addChild(typeNode);
-    node.setProperty("name", t.toString());
-    //node.addChild(getEndPlaceNode(t));
-    return node;
-  }
+  type = Type(curModule, includes)
+  name = <S_IDENTIFIER>
+  { return new KbTypedef(curModule.getModuleName(), name.toString(), type, comment); }
 }
 
-ParseNode Type():
-{  ParseNode node = new ParseNode("TYPE");
-  ParseNode subNode;
-  Token t;
-  Token moduleToken;
-  Token varToken;
+KbType Type(KbModule curModule, Map<String, KbModule> includes):
+{  KbType ret = null;
+  Token t = null;
+  KbType subType;
+  KbType subType2;
+  KbParameter tupleElem;
+  KbStructItem structItem;
+  Token moduleToken = null;
+  Token typeToken = null;
 }
 {
-  {
-    t = null;    moduleToken = null;
-    varToken = null;
-  }
   (
   	(
-  	  t = "string"  	)
+  	  t = "string"
+  	  { ret = new KbScalar(t.toString()); }  	)
 	|   	(
   	  t = "int"
+  	  { ret = new KbScalar(t.toString()); }
   	)
 	| 
   	(
   	  t = "float"
+  	  { ret = new KbScalar(t.toString()); }
   	)
 	| 
   	(
   	  t = "UnspecifiedObject"
+  	  { ret = new KbUnspecifiedObject(); }
   	)
 	| 
     (
-      t = "list"
-      "<" subNode = Type()
-      { node.addChild(subNode); }
-      ">"
+      t = "list" "<" subType = Type(curModule, includes) ">"
+      { ret = new KbList(subType); }
     )
   	|
-  	(  	  t = "mapping"
-  	  "<" subNode = Type()
-      { node.addChild(subNode); }
-  	  "," Type()
-      { node.addChild(subNode); }
-  	  ">"
+  	(  	  t = "mapping" "<" subType = Type(curModule, includes) "," 
+  	  subType2 = Type(curModule, includes) ">"
+      { ret = new KbMapping(subType, subType2); }
   	)
   	|
   	(
   	  t = "tuple"
-  	  "<" subNode = Param()
-      { node.addChild(subNode); }
-  	  ("," subNode = Param()
-      { node.addChild(subNode); }
+      { ret = new KbTuple(); }
+  	  "<" tupleElem = OptNameParam(curModule, includes)
+  	  { ((KbTuple)ret).addElement(tupleElem); }
+  	  (
+  	  	"," tupleElem = OptNameParam(curModule, includes)
+      	{ ((KbTuple)ret).addElement(tupleElem); }
   	  )* ">"
   	)
 	|
 	(	  t = "structure"
 	  "{"
-	  (		  subNode = StructItem() ";"
-          { node.addChild(subNode); }
+	  { ret = new KbStruct(); }
+	  (		  structItem = StructItem(curModule, includes) ";"
+          { ((KbStruct)ret).getItems().add(structItem); }
 	  )*
 	  "}"	)
 	|
@@ -313,32 +356,40 @@ ParseNode Type():
     	moduleToken = <S_IDENTIFIER>
     	"."
   	  ]
-	  varToken = <S_IDENTIFIER>
+	  typeToken = <S_IDENTIFIER>
 	)
   )  {
-    node.setProperty("kind", t == null ? "ref" : t.toString());
-    if (t == null) {		if (moduleToken != null)
-			node.setProperty("module", moduleToken.toString());
-		node.setProperty("ref", varToken.toString());
-    }    return node;
+    if (ret == null) {
+    	String module = moduleToken == null ? null : moduleToken.toString();
+    	KbModule refModule = null;
+    	if (module == null || module.equals(curModule.getModuleName())) {
+    		refModule = curModule;
+    	} else {
+    		refModule = includes.get(module);
+    		if (refModule == null)
+    			throw new IllegalStateException("Can not find module with name: " + module);
+    	}
+    	String type = typeToken.toString();
+    	ret = refModule.getNameToType().get(type);
+    	if (ret == null)
+    		throw new IllegalStateException("Can not find type: " + module + "." + type);
+    }
+    return ret;
   }
 }
 
-ParseNode StructItem():
-{  ParseNode node = new ParseNode("STRUCT_ITEM");
-  ParseNode typeNode;
-  Token t;
+KbStructItem StructItem(KbModule curModule, Map<String, KbModule> includes):
+{  KbType type;
+  Token name;
 }
-{	typeNode = Type()
-	t = <S_IDENTIFIER>
-  { node.addChild(typeNode); }
-  { node.setProperty("name", t.toString()); }
-  { return node; }
+{
+  type = Type(curModule, includes)
+  name = <S_IDENTIFIER>
+  { return new KbStructItem(type, name.toString()); }
 }
 
-ParseNode Auth():
+KbAuthdef Auth():
 {
-  ParseNode node = new ParseNode("AUTH");
   Token t;
 }
 {
@@ -355,72 +406,98 @@ ParseNode Auth():
 	  t = "none"
     )
   )
-  { node.setProperty("kind", t.toString()); }
-  { return node; }
+  { return new KbAuthdef(t.toString()); }
 }
 
-ParseNode Funcdef():
+KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes):
 {
-  ParseNode node = new ParseNode("FUNCDEF");
-  ParseNode args;
-  ParseNode ret;
-  ParseNode auth;
-  Token t;
+  KbFuncdef ret = null;
+  String comment = null;
+  Token name;
+  List<KbParameter> args;
+  List<KbParameter> rets;
+  KbAuthdef auth;
 }
 {
   "funcdef"
   {
-    if (lastComment != null)
-	    node.setProperty("comment", lastComment);
+	comment = trim(lastComment);
     lastComment = null;
   }
-  t = <S_IDENTIFIER>
+  name = <S_IDENTIFIER>
   "("
-  args = Params()
-  { node.addChild(args); }
+  { ret = new KbFuncdef(name.toString(), comment); }
+  args = OptNameParams(curModule, includes)
+  { ret.getParameters().addAll(args); }
   ")"
   "returns"
   "("
-  ret = Params()
-  { node.addChild(ret); }
+  rets = OptNameParams(curModule, includes)
+  { ret.getReturnType().addAll(rets); }
   ")"
   [ auth = Auth()
-  { node.addChild(auth); }
+  	{ ret.setAuthentication(auth.getType()); }
   ]
-  { node.setProperty("name", t.toString());
-    return node;
-  }
+  { return ret; }
 }
 
-ParseNode Params():
+List<KbParameter> Params(KbModule curModule, Map<String, KbModule> includes):
 {
-  ParseNode node = new ParseNode("PARAMS");
-  ParseNode paramNode;
+  List<KbParameter> ret = new ArrayList<KbParameter>();
+  KbParameter param;
 }
 {
   [
-  	paramNode = Param()
-  	{ node.addChild(paramNode); }
+  	param = Param(curModule, includes)
+  	{ ret.add(param); }
     (
       ","
-  	  paramNode = Param()
-	  { node.addChild(paramNode); }
+  	  param = Param(curModule, includes)
+  	{ ret.add(param); }
     )*
   ]
-  { return node; }
+  { return ret; }
 }
 
-ParseNode Param():
+KbParameter Param(KbModule curModule, Map<String, KbModule> includes):
 {
-  ParseNode node = new ParseNode("PARAM");
-  ParseNode type;
-  Token name = null;
+  KbType type;
+  Token name;
 }
 {
-  type = Type()
-  { node.addChild(type); }
-  [ name = <S_IDENTIFIER>
-    { node.setProperty("name", name.toString()); }
+  type = Type(curModule, includes)
+  name = <S_IDENTIFIER>
+  { return new KbParameter(type, name.toString()); }
+}
+
+List<KbParameter> OptNameParams(KbModule curModule, Map<String, KbModule> includes):
+{
+  List<KbParameter> ret = new ArrayList<KbParameter>();
+  KbParameter param;
+}
+{
+  [
+  	param = OptNameParam(curModule, includes)
+  	{ ret.add(param); }
+    (
+      ","
+  	  param = OptNameParam(curModule, includes)
+  	{ ret.add(param); }
+    )*
   ]
-  { return node; }
+  { return ret; }
+}
+
+KbParameter OptNameParam(KbModule curModule, Map<String, KbModule> includes):
+{
+  KbType type;
+  Token nameToken;
+  String name = null;
+}
+{
+  type = Type(curModule, includes)
+  [ nameToken = <S_IDENTIFIER>
+    { name = nameToken.toString(); }
+  ]
+  { return new KbParameter(type, name); }
 }

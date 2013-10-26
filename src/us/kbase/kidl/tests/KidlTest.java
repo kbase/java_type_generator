@@ -1,7 +1,9 @@
 package us.kbase.kidl.tests;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -11,9 +13,6 @@ import java.util.Map;
 import junit.framework.Assert;
 
 import org.junit.Test;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 
 import us.kbase.kidl.KbModule;
 import us.kbase.kidl.KbModuleComp;
@@ -137,6 +136,25 @@ public class KidlTest {
 		} catch (Exception ex) {
 			Assert.assertTrue(ex.getMessage().contains("bebebe"));
 		}
+	}
+	
+	@Test
+	public void testTemp() throws Exception {
+		File workDir = prepareWorkDir();
+		File input = new File("../WorkspaceDeluxe/workspace.spec");
+		//File input = new File("src/us/kbase/scripts/tests/test1.spec.properties");
+		File specFile = new File(workDir, "Test.spec");
+		BufferedReader br = new BufferedReader(new FileReader(input));
+		PrintWriter pw = new PrintWriter(specFile);
+		while (true) {
+			String l = br.readLine();
+			if (l == null)
+				break;
+			pw.println(l);
+		}
+		br.close();
+		pw.close();
+		KidlParser.parseSpec(specFile, workDir, null);
 	}
 	
 	protected KbModule getModule(List<KbService> srvList) {

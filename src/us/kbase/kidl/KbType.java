@@ -6,4 +6,6 @@ package us.kbase.kidl;
  * @author rsutormin
  */
 public interface KbType {
+	public String getName();
+	public Object toJson();
 }

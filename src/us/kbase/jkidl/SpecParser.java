@@ -3,6 +3,28 @@
 package us.kbase.jkidl;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
+import us.kbase.kidl.KbAuthdef;
+import us.kbase.kidl.KbFuncdef;
+import us.kbase.kidl.KbList;
+import us.kbase.kidl.KbMapping;
+import us.kbase.kidl.KbModule;
+import us.kbase.kidl.KbModuleComp;
+import us.kbase.kidl.KbParameter;
+import us.kbase.kidl.KbScalar;
+import us.kbase.kidl.KbStruct;
+import us.kbase.kidl.KbStructItem;
+import us.kbase.kidl.KbTuple;
+import us.kbase.kidl.KbType;
+import us.kbase.kidl.KbTypedef;
+import us.kbase.kidl.KbUnspecifiedObject;
 
 @SuppressWarnings({"unused", "serial"})
 public class SpecParser implements SpecParserConstants {
@@ -22,8 +44,11 @@ public class SpecParser implements SpecParserConstants {
             System.out.println("File " + fileName + " not found.");
             return;
         }
-        ParseNode root = p.SpecStatement();
-        root.printTreeInfo();
+        IncludeProvider ip = new StaticIncludeProvider();
+        Map<?,?> root = parseAsJson(p, ip);
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
+                mapper.writeValue(System.out, root);
         }
 
         public ParseNode getBeginPlaceNode(Token t) {
@@ -40,20 +65,59 @@ public class SpecParser implements SpecParserConstants {
         return node;
         }
 
-  final public ParseNode SpecStatement() throws ParseException {ParseNode specNode = new ParseNode("SPEC");
-  ParseNode includeListNode;
-  ParseNode moduleListNode;
-    includeListNode = IncludeList();
-    moduleListNode = ModuleList();
+    public static Map<?,?> parseAsJson(SpecParser p, IncludeProvider ip) throws ParseException {
+        Map<String, KbModule> root = p.SpecStatement(ip);
+        Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
+        for (KbModule module : root.values()) {
+                List<Object> modList = ret.get(module.getServiceName());
+                if (modList == null) {
+                        modList = new ArrayList<Object>();
+                        ret.put(module.getServiceName(), modList);
+                }
+                modList.add(module.toJson());
+        }
+        return ret;
+    }
+
+    private static String trim(String comment) {
+        if (comment == null)
+                return "";
+        StringBuilder sb = new StringBuilder(comment.trim());
+        if (sb.substring(0, 2).equals("/*"))
+                sb.delete(0, 2);
+        if (sb.substring(sb.length() - 2, sb.length()).equals("*/"))
+                sb.delete(sb.length() - 2, sb.length());
+        while (sb.length() > 0) {
+                char ch = sb.charAt(0);
+                if (ch == ' ' || ch == '\u005ct' || ch == '\u005cr' || ch == '\u005cn') {
+                        sb.delete(0, 1);
+                } else {
+                        break;
+                }
+        }
+        while (sb.length() > 0) {
+                char ch = sb.charAt(sb.length() - 1);
+                if (ch == ' ' || ch == '\u005ct' || ch == '\u005cr' || ch == '\u005cn') {
+                        sb.delete(sb.length() - 1, sb.length());
+                } else {
+                        break;
+                }
+        }
+        return sb.toString();
+    }
+
+  final public Map<String, KbModule> SpecStatement(IncludeProvider ip) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  Map<String, KbModule> includes = null;
+    includes = IncludeList(ip);
+    ret = ModuleList(includes);
     jj_consume_token(0);
-specNode.addChild(includeListNode);
-    specNode.addChild(moduleListNode);
-    {if ("" != null) return specNode;}
+{if ("" != null) return ret;}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode IncludeList() throws ParseException {ParseNode retNode = new ParseNode("INCLUDES");
-  ParseNode includeNode;
+  final public Map<String, KbModule> IncludeList(IncludeProvider ip) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  Map<String, KbModule> added = null;
+  String includeLine = null;
     label_1:
     while (true) {
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
@@ -65,25 +129,21 @@ specNode.addChild(includeListNode);
         jj_la1[0] = jj_gen;
         break label_1;
       }
-      includeNode = Include();
-retNode.addChild(includeNode);
+      added = Include(ip);
+ret.putAll(added);
     }
-{if ("" != null) return retNode;}
+{if ("" != null) return ret;}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode Include() throws ParseException {Token begToken;
-  Token pathToken;
-  ParseNode retNode = new ParseNode("INCLUDE");
-    //begToken = "#include"
-      pathToken = jj_consume_token(INCLUDE_LITERAL);
-retNode.setProperty("PATH", pathToken.toString());
-    {if ("" != null) return retNode;}
+  final public Map<String, KbModule> Include(IncludeProvider ip) throws ParseException {Token pathToken;
+    pathToken = jj_consume_token(INCLUDE_LITERAL);
+{if ("" != null) return ip.parseInclude(pathToken.toString());}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode ModuleList() throws ParseException {ParseNode retNode = new ParseNode("MODULES");
-  ParseNode moduleNode;
+  final public Map<String, KbModule> ModuleList(Map<String, KbModule> includes) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  KbModule module = null;
     label_2:
     while (true) {
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
@@ -95,22 +155,21 @@ retNode.setProperty("PATH", pathToken.toString());
         jj_la1[1] = jj_gen;
         break label_2;
       }
-      moduleNode = Module();
-retNode.addChild(moduleNode);
+      module = Module(includes);
+ret.put(module.getModuleName(), module);
+      includes.put(module.getModuleName(), module);
     }
-{if ("" != null) return retNode;}
+{if ("" != null) return ret;}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode Module() throws ParseException {ParseNode retNode = new ParseNode("MODULE");
-  ParseNode elementNode;
-  Token srvToken;
-  Token nameToken;
-  Token t;
-srvToken = null;
+  final public KbModule Module(Map<String, KbModule> includes) throws ParseException {KbModule ret = null;
+  String comment = null;
+  Token srvToken = null;
+  Token nameToken = null;
+  KbModuleComp comp = null;
     jj_consume_token(T_module);
-if (lastComment != null)
-            retNode.setProperty("comment", lastComment);
+comment = trim(lastComment);
     lastComment = null;
     if (jj_2_1(2147483647)) {
       srvToken = jj_consume_token(S_IDENTIFIER);
@@ -119,6 +178,7 @@ if (lastComment != null)
       ;
     }
     nameToken = jj_consume_token(S_IDENTIFIER);
+ret = new KbModule(srvToken == null ? null : srvToken.toString(), nameToken.toString(), comment);
     jj_consume_token(T_figure_open_bracket);
     label_3:
     while (true) {
@@ -135,15 +195,15 @@ if (lastComment != null)
       }
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
       case T_typedef:{
-        elementNode = Typedef();
+        comp = Typedef(ret, includes);
         break;
         }
       case T_funcdef:{
-        elementNode = Funcdef();
+        comp = Funcdef(ret, includes);
         break;
         }
       case T_auth:{
-        elementNode = Auth();
+        comp = Auth();
         break;
         }
       default:
@@ -151,85 +211,81 @@ if (lastComment != null)
         jj_consume_token(-1);
         throw new ParseException();
       }
-      t = jj_consume_token(T_semicolon);
+      jj_consume_token(T_semicolon);
 lastComment = null;
-      //elementNode.addChild(getEndPlaceNode(t));
-      retNode.addChild(elementNode);
+      ret.addModuleComponent(comp);
     }
     jj_consume_token(T_figure_close_bracket);
     jj_consume_token(T_semicolon);
-if (srvToken != null)
-            retNode.setProperty("service", srvToken.toString());
-    retNode.setProperty("name", nameToken.toString());
-    {if ("" != null) return retNode;}
+{if ("" != null) return ret;}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode Typedef() throws ParseException {ParseNode node = new ParseNode("TYPEDEF");
-  ParseNode typeNode;
-  Token t;
+  final public KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes) throws ParseException {String comment;
+  KbType type;
+  Token name;
     jj_consume_token(T_typedef);
-if (lastComment != null)
-            node.setProperty("comment", lastComment);
+comment = trim(lastComment);
     lastComment = null;
-    typeNode = Type();
-    t = jj_consume_token(S_IDENTIFIER);
-node.addChild(typeNode);
-    node.setProperty("name", t.toString());
-    //node.addChild(getEndPlaceNode(t));
-    {if ("" != null) return node;}
+    type = Type(curModule, includes);
+    name = jj_consume_token(S_IDENTIFIER);
+{if ("" != null) return new KbTypedef(curModule.getModuleName(), name.toString(), type, comment);}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode Type() throws ParseException {ParseNode node = new ParseNode("TYPE");
-  ParseNode subNode;
-  Token t;
-  Token moduleToken;
-  Token varToken;
-t = null;
-    moduleToken = null;
-    varToken = null;
+  final public KbType Type(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbType ret = null;
+  Token t = null;
+  KbType subType;
+  KbType subType2;
+  KbParameter tupleElem;
+  KbStructItem structItem;
+  Token moduleToken = null;
+  Token typeToken = null;
     switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
     case T_string:{
       t = jj_consume_token(T_string);
+ret = new KbScalar(t.toString());
       break;
       }
     case T_int:{
       t = jj_consume_token(T_int);
+ret = new KbScalar(t.toString());
       break;
       }
     case T_float:{
       t = jj_consume_token(T_float);
+ret = new KbScalar(t.toString());
       break;
       }
     case T_unobj:{
       t = jj_consume_token(T_unobj);
+ret = new KbUnspecifiedObject();
       break;
       }
     case T_list:{
       t = jj_consume_token(T_list);
       jj_consume_token(38);
-      subNode = Type();
-node.addChild(subNode);
+      subType = Type(curModule, includes);
       jj_consume_token(39);
+ret = new KbList(subType);
       break;
       }
     case T_mapping:{
       t = jj_consume_token(T_mapping);
       jj_consume_token(38);
-      subNode = Type();
-node.addChild(subNode);
+      subType = Type(curModule, includes);
       jj_consume_token(T_comma);
-      Type();
-node.addChild(subNode);
+      subType2 = Type(curModule, includes);
       jj_consume_token(39);
+ret = new KbMapping(subType, subType2);
       break;
       }
     case T_tuple:{
       t = jj_consume_token(T_tuple);
+ret = new KbTuple();
       jj_consume_token(38);
-      subNode = Param();
-node.addChild(subNode);
+      tupleElem = OptNameParam(curModule, includes);
+((KbTuple)ret).addElement(tupleElem);
       label_4:
       while (true) {
         switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
@@ -242,8 +298,8 @@ node.addChild(subNode);
           break label_4;
         }
         jj_consume_token(T_comma);
-        subNode = Param();
-node.addChild(subNode);
+        tupleElem = OptNameParam(curModule, includes);
+((KbTuple)ret).addElement(tupleElem);
       }
       jj_consume_token(39);
       break;
@@ -251,6 +307,7 @@ node.addChild(subNode);
     case T_structure:{
       t = jj_consume_token(T_structure);
       jj_consume_token(T_figure_open_bracket);
+ret = new KbStruct();
       label_5:
       while (true) {
         switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
@@ -270,9 +327,9 @@ node.addChild(subNode);
           jj_la1[5] = jj_gen;
           break label_5;
         }
-        subNode = StructItem();
+        structItem = StructItem(curModule, includes);
         jj_consume_token(T_semicolon);
-node.addChild(subNode);
+((KbStruct)ret).getItems().add(structItem);
       }
       jj_consume_token(T_figure_close_bracket);
       break;
@@ -284,7 +341,7 @@ node.addChild(subNode);
       } else {
         ;
       }
-      varToken = jj_consume_token(S_IDENTIFIER);
+      typeToken = jj_consume_token(S_IDENTIFIER);
       break;
       }
     default:
@@ -292,29 +349,34 @@ node.addChild(subNode);
       jj_consume_token(-1);
       throw new ParseException();
     }
-node.setProperty("kind", t == null ? "ref" : t.toString());
-    if (t == null) {
-                if (moduleToken != null)
-                        node.setProperty("module", moduleToken.toString());
-                node.setProperty("ref", varToken.toString());
+if (ret == null) {
+        String module = moduleToken == null ? null : moduleToken.toString();
+        KbModule refModule = null;
+        if (module == null || module.equals(curModule.getModuleName())) {
+                refModule = curModule;
+        } else {
+                refModule = includes.get(module);
+                if (refModule == null)
+                        {if (true) throw new IllegalStateException("Can not find module with name: " + module);}
+        }
+        String type = typeToken.toString();
+        ret = refModule.getNameToType().get(type);
+        if (ret == null)
+                {if (true) throw new IllegalStateException("Can not find type: " + module + "." + type);}
     }
-    {if ("" != null) return node;}
+    {if ("" != null) return ret;}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode StructItem() throws ParseException {ParseNode node = new ParseNode("STRUCT_ITEM");
-  ParseNode typeNode;
-  Token t;
-    typeNode = Type();
-    t = jj_consume_token(S_IDENTIFIER);
-node.addChild(typeNode);
-node.setProperty("name", t.toString());
-{if ("" != null) return node;}
+  final public KbStructItem StructItem(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbType type;
+  Token name;
+    type = Type(curModule, includes);
+    name = jj_consume_token(S_IDENTIFIER);
+{if ("" != null) return new KbStructItem(type, name.toString());}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode Auth() throws ParseException {ParseNode node = new ParseNode("AUTH");
-  Token t;
+  final public KbAuthdef Auth() throws ParseException {Token t;
     jj_consume_token(T_auth);
     switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
     case T_required:{
@@ -334,47 +396,46 @@ node.setProperty("name", t.toString());
       jj_consume_token(-1);
       throw new ParseException();
     }
-node.setProperty("kind", t.toString());
-{if ("" != null) return node;}
+{if ("" != null) return new KbAuthdef(t.toString());}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode Funcdef() throws ParseException {ParseNode node = new ParseNode("FUNCDEF");
-  ParseNode args;
-  ParseNode ret;
-  ParseNode auth;
-  Token t;
+  final public KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbFuncdef ret = null;
+  String comment = null;
+  Token name;
+  List<KbParameter> args;
+  List<KbParameter> rets;
+  KbAuthdef auth;
     jj_consume_token(T_funcdef);
-if (lastComment != null)
-            node.setProperty("comment", lastComment);
+comment = trim(lastComment);
     lastComment = null;
-    t = jj_consume_token(S_IDENTIFIER);
+    name = jj_consume_token(S_IDENTIFIER);
     jj_consume_token(T_round_open_bracket);
-    args = Params();
-node.addChild(args);
+ret = new KbFuncdef(name.toString(), comment);
+    args = OptNameParams(curModule, includes);
+ret.getParameters().addAll(args);
     jj_consume_token(T_round_close_bracket);
     jj_consume_token(T_returns);
     jj_consume_token(T_round_open_bracket);
-    ret = Params();
-node.addChild(ret);
+    rets = OptNameParams(curModule, includes);
+ret.getReturnType().addAll(rets);
     jj_consume_token(T_round_close_bracket);
     switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
     case T_auth:{
       auth = Auth();
-node.addChild(auth);
+ret.setAuthentication(auth.getType());
       break;
       }
     default:
       jj_la1[8] = jj_gen;
       ;
     }
-node.setProperty("name", t.toString());
-    {if ("" != null) return node;}
+{if ("" != null) return ret;}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode Params() throws ParseException {ParseNode node = new ParseNode("PARAMS");
-  ParseNode paramNode;
+  final public List<KbParameter> Params(KbModule curModule, Map<String, KbModule> includes) throws ParseException {List<KbParameter> ret = new ArrayList<KbParameter>();
+  KbParameter param;
     switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
     case T_string:
     case T_int:
@@ -385,8 +446,8 @@ node.setProperty("name", t.toString());
     case T_structure:
     case T_tuple:
     case S_IDENTIFIER:{
-      paramNode = Param();
-node.addChild(paramNode);
+      param = Param(curModule, includes);
+ret.add(param);
       label_6:
       while (true) {
         switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
@@ -399,8 +460,8 @@ node.addChild(paramNode);
           break label_6;
         }
         jj_consume_token(T_comma);
-        paramNode = Param();
-node.addChild(paramNode);
+        param = Param(curModule, includes);
+ret.add(param);
       }
       break;
       }
@@ -408,26 +469,72 @@ node.addChild(paramNode);
       jj_la1[10] = jj_gen;
       ;
     }
-{if ("" != null) return node;}
+{if ("" != null) return ret;}
     throw new Error("Missing return statement in function");
   }
 
-  final public ParseNode Param() throws ParseException {ParseNode node = new ParseNode("PARAM");
-  ParseNode type;
-  Token name = null;
-    type = Type();
-node.addChild(type);
+  final public KbParameter Param(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbType type;
+  Token name;
+    type = Type(curModule, includes);
+    name = jj_consume_token(S_IDENTIFIER);
+{if ("" != null) return new KbParameter(type, name.toString());}
+    throw new Error("Missing return statement in function");
+  }
+
+  final public List<KbParameter> OptNameParams(KbModule curModule, Map<String, KbModule> includes) throws ParseException {List<KbParameter> ret = new ArrayList<KbParameter>();
+  KbParameter param;
     switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case T_string:
+    case T_int:
+    case T_float:
+    case T_unobj:
+    case T_list:
+    case T_mapping:
+    case T_structure:
+    case T_tuple:
     case S_IDENTIFIER:{
-      name = jj_consume_token(S_IDENTIFIER);
-node.setProperty("name", name.toString());
+      param = OptNameParam(curModule, includes);
+ret.add(param);
+      label_7:
+      while (true) {
+        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+        case T_comma:{
+          ;
+          break;
+          }
+        default:
+          jj_la1[11] = jj_gen;
+          break label_7;
+        }
+        jj_consume_token(T_comma);
+        param = OptNameParam(curModule, includes);
+ret.add(param);
+      }
       break;
       }
     default:
-      jj_la1[11] = jj_gen;
+      jj_la1[12] = jj_gen;
       ;
     }
-{if ("" != null) return node;}
+{if ("" != null) return ret;}
+    throw new Error("Missing return statement in function");
+  }
+
+  final public KbParameter OptNameParam(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbType type;
+  Token nameToken;
+  String name = null;
+    type = Type(curModule, includes);
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case S_IDENTIFIER:{
+      nameToken = jj_consume_token(S_IDENTIFIER);
+name = nameToken.toString();
+      break;
+      }
+    default:
+      jj_la1[13] = jj_gen;
+      ;
+    }
+{if ("" != null) return new KbParameter(type, name);}
     throw new Error("Missing return statement in function");
   }
 
@@ -472,7 +579,7 @@ node.setProperty("name", name.toString());
   private Token jj_scanpos, jj_lastpos;
   private int jj_la;
   private int jj_gen;
-  final private int[] jj_la1 = new int[12];
+  final private int[] jj_la1 = new int[14];
   static private int[] jj_la1_0;
   static private int[] jj_la1_1;
   static {
@@ -480,10 +587,10 @@ node.setProperty("name", name.toString());
       jj_la1_init_1();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x0,0x200,0xc400,0xc400,0x8000000,0xff0000,0xff0000,0x3800,0x400,0x8000000,0xff0000,0x0,};
+      jj_la1_0 = new int[] {0x0,0x200,0xc400,0xc400,0x8000000,0xff0000,0xff0000,0x3800,0x400,0x8000000,0xff0000,0x8000000,0xff0000,0x0,};
    }
    private static void jj_la1_init_1() {
-      jj_la1_1 = new int[] {0x20,0x0,0x0,0x0,0x0,0x2,0x2,0x0,0x0,0x0,0x2,0x2,};
+      jj_la1_1 = new int[] {0x20,0x0,0x0,0x0,0x0,0x2,0x2,0x0,0x0,0x0,0x2,0x0,0x2,0x2,};
    }
   final private JJCalls[] jj_2_rtns = new JJCalls[2];
   private boolean jj_rescan = false;
@@ -500,7 +607,7 @@ node.setProperty("name", name.toString());
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 12; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -515,7 +622,7 @@ node.setProperty("name", name.toString());
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 12; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -526,7 +633,7 @@ node.setProperty("name", name.toString());
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 12; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -537,7 +644,7 @@ node.setProperty("name", name.toString());
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 12; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -547,7 +654,7 @@ node.setProperty("name", name.toString());
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 12; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -557,7 +664,7 @@ node.setProperty("name", name.toString());
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 12; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -675,7 +782,7 @@ node.setProperty("name", name.toString());
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 14; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {

@@ -2,6 +2,7 @@ package us.kbase.kidl;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 public class KbScalar extends KbBasicType {
 	public enum Type {
@@ -12,6 +13,12 @@ public class KbScalar extends KbBasicType {
 	private String javaStyleType;
 	private String jsonStyleType;
 	private Set<String> idReferences;
+	
+	public KbScalar() {}
+	
+	public KbScalar(String scalarType) {
+		this.scalarType = Type.valueOf(scalarType + "Type");
+	}
 	
 	public KbScalar loadFromMap(Map<?,?> data) throws KidlParseException {
 		scalarType = Type.valueOf(Utils.prop(data, "scalar_type") + "Type");
@@ -25,6 +32,12 @@ public class KbScalar extends KbBasicType {
 	
 	public Type getScalarType() {
 		return scalarType;
+	}
+	
+	@Override
+	public String getName() {
+		String ret = scalarType.toString();
+		return ret.substring(0, ret.length() - 4);
 	}
 	
 	@Override
@@ -62,5 +75,13 @@ public class KbScalar extends KbBasicType {
 	
 	public Set<String> getIdReferences() {
 		return idReferences;
+	}
+	
+	@Override
+	public Object toJson() {
+		Map<String, Object> ret = new TreeMap<String, Object>();
+		ret.put("!", "Bio::KBase::KIDL::KBT::Scalar");
+		ret.put("scalar_type", getName());
+		return ret;
 	}
 }

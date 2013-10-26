@@ -4,10 +4,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class KbTuple extends KbBasicType {
-	private List<String> elementNames = null;
-	private List<KbType> elementTypes = null;
+	private List<String> elementNames = new ArrayList<String>();
+	private List<KbType> elementTypes = new ArrayList<KbType>();
+	private String name = null;
+	private String comment = null;
 	
 	public KbTuple() {}
 	
@@ -17,6 +20,17 @@ public class KbTuple extends KbBasicType {
 			elementNames.add(null);
 		elementNames = Collections.unmodifiableList(elementNames);
 		elementTypes = Collections.unmodifiableList(types);
+	}
+
+	public void addElement(KbParameter elem) {
+		addElement(elem.getType(), elem.getName());
+	}
+	
+	public void addElement(KbType type, String name) {
+		if (name == null)
+			name = "e_" + (elementNames.size() + 1);
+		elementTypes.add(type);
+		elementNames.add(name);
 	}
 	
 	public KbTuple loadFromMap(Map<?,?> data) throws KidlParseException {
@@ -41,5 +55,40 @@ public class KbTuple extends KbBasicType {
 	@Override
 	public String getJavaStyleName() {
 		return "Tuple";
+	}
+
+	public String getComment() {
+		return comment;
+	}
+	
+	public void setComment(String comment) {
+		this.comment = comment;
+	}
+	
+	@Override
+	public String getName() {
+		if (name == null)
+			throw new IllegalStateException("Property name was not set for tuple");
+		return name;
+	}
+	
+	public void setName(String name) {
+		this.name = name;
+	}
+	
+	@Override
+	public Object toJson() {
+		Map<String, Object> ret = new TreeMap<String, Object>();
+		ret.put("!", "Bio::KBase::KIDL::KBT::Tuple");
+		if (comment != null)
+			ret.put("comment", comment);
+		ret.put("element_names", elementNames);
+		List<Object> elementTypeList = new ArrayList<Object>();
+		for (KbType type : elementTypes)
+			elementTypeList.add(type.toJson());
+		ret.put("element_types", elementTypeList);
+		if (name != null)
+			ret.put("name", name);
+		return ret;
 	}
 }

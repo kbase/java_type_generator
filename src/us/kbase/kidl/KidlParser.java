@@ -1,7 +1,9 @@
 package us.kbase.kidl;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -9,6 +11,10 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import us.kbase.jkidl.IncludeProvider;
+import us.kbase.jkidl.SpecParser;
+import us.kbase.jkidl.StaticIncludeProvider;
 
 public class KidlParser {
 
@@ -20,26 +26,38 @@ public class KidlParser {
 			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn) throws KidlParseException {
 		return parseSpec(specFile, tempDir, modelToTypeJsonSchemaReturn, null);
 	}
-	
+
 	public static List<KbService> parseSpec(File specFile, File tempDir, 
 			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, String kbTop) throws KidlParseException {
-		if (tempDir == null)
-			tempDir = new File(".");
-		File workDir = new File(tempDir, "temp_" + System.currentTimeMillis());
-		workDir.mkdir();
-		File bashFile = new File(workDir, "comp_server.sh");
-		File specDir = specFile.getAbsoluteFile().getParentFile();
-		File xmlFile = new File(workDir, "parsing_file.xml");
-		if (kbTop == null)
-			kbTop = System.getenv("KB_TOP");
-		String compileTypespecDir = "";
-		if (kbTop != null && kbTop.trim().length() > 0) {
-			compileTypespecDir = kbTop + "/bin/";
-		} else {
-			System.out.println("WARNING: KB_TOP environment variable is not defined, " +
-					"so compile_typespec is supposed to be in PATH");
-		}
+		return parseSpec(specFile, tempDir, modelToTypeJsonSchemaReturn, kbTop, false);
+	}
+	
+	public static List<KbService> parseSpec(File specFile, File tempDir, 
+			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, String kbTop, boolean internal) throws KidlParseException {
+		File workDir = null;
 		try {
+			Map<?,?> map = null;
+			if (internal) {
+		        SpecParser p = new SpecParser(new DataInputStream(new FileInputStream(specFile)));
+		        IncludeProvider ip = new StaticIncludeProvider();
+		        map = SpecParser.parseAsJson(p, ip);
+			} else {
+			if (tempDir == null)
+				tempDir = new File(".");
+			workDir = new File(tempDir, "temp_" + System.currentTimeMillis());
+			workDir.mkdir();
+			File bashFile = new File(workDir, "comp_server.sh");
+			File specDir = specFile.getAbsoluteFile().getParentFile();
+			File xmlFile = new File(workDir, "parsing_file.xml");
+			if (kbTop == null)
+				kbTop = System.getenv("KB_TOP");
+			String compileTypespecDir = "";
+			if (kbTop != null && kbTop.trim().length() > 0) {
+				compileTypespecDir = kbTop + "/bin/";
+			} else {
+				System.out.println("WARNING: KB_TOP environment variable is not defined, " +
+						"so compile_typespec is supposed to be in PATH");
+			}
 			PrintWriter pw = new PrintWriter(bashFile);
 			pw.println("#!/bin/bash");
 			boolean createJsonSchemas = modelToTypeJsonSchemaReturn != null;
@@ -76,7 +94,8 @@ public class KidlParser {
 					caption = "Parsing file wasn't created";
 				throw new KidlParseException(caption + ", here is KIDL output:\n" + errText);
 			}
-			Map<?,?> map = SpecXmlHelper.parseXml(xmlFile);
+			map = SpecXmlHelper.parseXml(xmlFile);
+			//			
 			if (createJsonSchemas) {
 				File schemasRoot = new File(workDir, "jsonschema");
 				if (schemasRoot.exists())
@@ -105,13 +124,15 @@ public class KidlParser {
 						modelToTypeJsonSchemaReturn.put(moduleDir.getName(), type2schema);
 					}
 			}
+			}
 			return KbService.loadFromMap(map);
 		} catch (KidlParseException ex) {
 			throw ex;
 		} catch (Exception ex) {
 			throw new KidlParseException("Error during parsing spec-file: " + ex.getMessage(), ex);
 		} finally {
-			deleteRecursively(workDir);			
+			if (workDir != null)
+				deleteRecursively(workDir);			
 		}
 	}
 	

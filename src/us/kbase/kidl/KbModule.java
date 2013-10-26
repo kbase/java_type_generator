@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 public class KbModule {
 	private String moduleName;
@@ -14,7 +15,68 @@ public class KbModule {
 	private List<KbModuleComp> moduleComponents;
 	private List<KbTypeInfo> typeInfoList;
 	private Map<String, KbType> nameToType;
+	private KbAnnotations annotations;
+	private String lastAuthTempMode = "none";
 	private List<?> data = null;
+	
+	public KbModule() {
+	}
+	
+	public KbModule(String serviceName, String moduleName, String comment) {
+		this.serviceName = serviceName == null ? moduleName : serviceName;
+		this.moduleName = moduleName;
+		this.comment = comment == null ? "" : comment;
+		this.options = new ArrayList<String>();
+		this.moduleComponents = new ArrayList<KbModuleComp>();
+		this.typeInfoList = new ArrayList<KbTypeInfo>();
+		this.nameToType = new LinkedHashMap<String, KbType>();
+		checkInTypeMap(new KbScalar("int"));
+		checkInTypeMap(new KbScalar("float"));
+		checkInTypeMap(new KbScalar("string"));
+		checkInTypeMap(new KbUnspecifiedObject());
+		annotations = new KbAnnotations();
+	}
+	
+	private void checkInTypeMap(KbType type) {
+		this.nameToType.put(type.getName(), type);
+	}
+	
+	public void addModuleComponent(KbModuleComp comp) {
+		moduleComponents.add(comp);
+		if (comp instanceof KbAuthdef) {
+			lastAuthTempMode = ((KbAuthdef)comp).getType();
+		} else if (comp instanceof KbTypedef) {
+			KbTypedef typeDef = (KbTypedef)comp;
+			nameToType.put(typeDef.getName(), typeDef);
+		} else if (lastAuthTempMode != null) {
+			KbFuncdef func = (KbFuncdef)comp;
+			if (func.getAuthentication() == null)
+				func.setAuthentication(lastAuthTempMode);
+		}
+	}
+	
+	public Object toJson() {
+		List<Object> ret = new ArrayList<Object>();
+		Map<String, Object> main = new TreeMap<String, Object>();
+		main.put("!", "Bio::KBase::KIDL::KBT::DefineModule");
+		main.put("annotations", annotations.toJson());
+		if (comment != null)
+			main.put("comment", comment);
+		List<Object> comps = new ArrayList<Object>();
+		for (KbModuleComp comp : moduleComponents)
+			comps.add(comp.toJson());
+		main.put("module_components", comps);
+		main.put("module_name", moduleName);
+		main.put("options", options);
+		main.put("service_name", serviceName);
+		ret.add(main);
+		ret.add(new ArrayList<Object>());
+		Map<String, Object> thirdPart = new TreeMap<String, Object>();
+		for (Map.Entry<String, KbType> entry : nameToType.entrySet())
+			thirdPart.put(entry.getKey(), entry.getValue().toJson());
+		ret.add(thirdPart);
+		return ret;
+	}
 	
 	public void loadFromList(List<?> data) throws KidlParseException {
 		this.data = data;
