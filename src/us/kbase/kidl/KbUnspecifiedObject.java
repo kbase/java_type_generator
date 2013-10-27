@@ -15,7 +15,7 @@ public class KbUnspecifiedObject extends KbBasicType {
 	}
 	
 	@Override
-	public Object toJson() {
+	public Object toJson(ObjectUsageInfo oui) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::UnspecifiedObject");
 		return ret;

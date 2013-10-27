@@ -1,5 +1,6 @@
 package us.kbase.jkidl;
 
+import java.io.StringReader;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -15,7 +16,7 @@ public class StaticIncludeProvider implements IncludeProvider {
 	}
 	
 	@Override
-	public Map<String, KbModule> parseInclude(String includeLine) {
+	public Map<String, KbModule> parseInclude(String includeLine) throws ParseException {
 		String moduleName = includeLine.trim();
 		if (moduleName.startsWith("#include"))
 			moduleName = moduleName.substring(8).trim();
@@ -32,6 +33,7 @@ public class StaticIncludeProvider implements IncludeProvider {
 		String ret = moduleNameToSpec.get(moduleName);
 		if (ret == null)
 			throw new IllegalStateException("Can not find included module [" + moduleName + "] from line: " + includeLine);
-		return null;
+        SpecParser p = new SpecParser(new StringReader(ret));
+		return p.SpecStatement(this);
 	}
 }

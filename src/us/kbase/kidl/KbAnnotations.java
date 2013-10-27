@@ -7,11 +7,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.TreeMap;
 
 public class KbAnnotations {
-	private Set<String> optional = null;
-	private Set<String> idReferences = null;
+	private List<String> optional = null;
+	private List<String> idReferences = null;
 	private Map<String, Object> unknown = new HashMap<String, Object>();
 	
 	@SuppressWarnings("unchecked")
@@ -19,11 +20,9 @@ public class KbAnnotations {
 		for (Map.Entry<?, ?> enrty : data.entrySet()) {
 			String key = enrty.getKey().toString();
 			if (key.equals("optional")) {
-				optional = new LinkedHashSet<String>();
-				optional.addAll((List<String>)enrty.getValue());
+				optional = (List<String>)enrty.getValue();
 			} else if (key.equals("id_reference")) {
-				idReferences = new LinkedHashSet<String>();
-				idReferences.addAll((List<String>)enrty.getValue());
+				idReferences = (List<String>)enrty.getValue();
 			} else if (key.equals("unknown_annotations")) {
 				unknown.putAll((Map<String, Object>)enrty.getValue());
 			} else {
@@ -33,18 +32,49 @@ public class KbAnnotations {
 			}
 		}
 		if (optional != null)
-			optional = Collections.unmodifiableSet(optional);
+			optional = Collections.unmodifiableList(optional);
 		if (idReferences != null)
-			idReferences = Collections.unmodifiableSet(idReferences);
+			idReferences = Collections.unmodifiableList(idReferences);
 		unknown = Collections.unmodifiableMap(unknown);
 		return this;
 	}
 	
-	public Set<String> getOptional() {
+	public KbAnnotations loadFromComment(String comment) {
+		List<List<String>> lines = new ArrayList<List<String>>();
+		StringTokenizer st = new StringTokenizer(comment, "\r\n");
+		while (st.hasMoreTokens()) {
+			String line = st.nextToken();
+			StringTokenizer st2 = new StringTokenizer(line, " \t");
+			List<String> words = new ArrayList<String>();
+			while (st2.hasMoreTokens())
+				words.add(st2.nextToken());
+			lines.add(words);
+		}
+		for (int pos = 0; pos < lines.size(); pos++) {
+			if (lines.get(pos).size() == 0)
+				continue;
+			List<String> words = lines.get(pos);
+			String annType = words.get(0);
+			if (!annType.startsWith("@"))
+				continue;
+			annType = annType.substring(1);
+			List<String> value = words.subList(1, words.size());
+			if (annType.equals("optional")) {
+				optional = value;
+			} else if (annType.equals("id_reference")) {
+				idReferences = value;
+			} else {
+				unknown.put(annType, value);
+			}
+		}
+		return this;
+	}
+	
+	public List<String> getOptional() {
 		return optional;
 	}
 	
-	public Set<String> getIdReferences() {
+	public List<String> getIdReferences() {
 		return idReferences;
 	}
 	
@@ -52,12 +82,14 @@ public class KbAnnotations {
 		return unknown;
 	}
 	
-	public Object toJson() {
+	public Object toJson(boolean searchable) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		if (optional != null)
 			ret.put("optional", new ArrayList<String>(optional));
 		if (idReferences != null)
 			ret.put("id_reference", new ArrayList<String>(idReferences));
+		if (searchable)
+			ret.put("searchable_ws_subset", new HashMap<String, Object>());
 		ret.put("unknown_annotations", unknown);
 		return ret;
 	}

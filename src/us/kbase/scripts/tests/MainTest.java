@@ -13,6 +13,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -25,6 +26,9 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import us.kbase.kidl.KbFuncdef;
+import us.kbase.kidl.KbService;
+import us.kbase.kidl.KidlParser;
+import us.kbase.kidl.tests.KidlTest;
 import us.kbase.scripts.JavaData;
 import us.kbase.scripts.JavaFunc;
 import us.kbase.scripts.JavaModule;
@@ -315,7 +319,7 @@ public class MainTest extends Assert {
 		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 		return serverOutDir;
 	}
-
+	
 	protected static JavaData prepareJavaCode(int testNum, File workDir,
 			String testPackage, File libDir, File binDir, Integer defaultUrlPort,
 			boolean needJavaServerCorrection) throws Exception,
@@ -327,14 +331,12 @@ public class MainTest extends Assert {
 		String gwtPackageName = getGwtPackageName(testNum);
 		URL defaultUrl = defaultUrlPort == null ? null :
 			new URL("http://localhost:" + defaultUrlPort);
-		parsingData = JavaTypeGenerator.processSpec(
-				new File(workDir, testFileName), workDir, srcDir, testPackage,
-				true, libDir, gwtPackageName, defaultUrl);
+		parsingData = processSpec(workDir, testPackage, libDir, testFileName,
+				srcDir, gwtPackageName, defaultUrl);
 		if (needJavaServerCorrection)
 			javaServerCorrection(srcDir, testPackage, parsingData);
-		parsingData = JavaTypeGenerator.processSpec(
-				new File(workDir, testFileName), workDir, srcDir, testPackage,
-				true, libDir, gwtPackageName, defaultUrl);
+		parsingData = processSpec(workDir, testPackage, libDir, testFileName,
+				srcDir, gwtPackageName, defaultUrl);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
         cpUrls.add(binDir.toURI().toURL());
@@ -355,6 +357,28 @@ public class MainTest extends Assert {
     	for (JavaModule module : parsingData.getModules())
     		docPackages.add(testPackage + "." + module.getModulePackage());
     	runJavaDoc(workDir, srcDir, classPath, docDir, docPackages.toArray(new String[docPackages.size()]));
+		return parsingData;
+	}
+
+	public static JavaData processSpec(File workDir, String testPackage,
+			File libDir, String testFileName, File srcDir,
+			String gwtPackageName, URL defaultUrl) throws Exception {
+		File specFile = new File(workDir, testFileName);
+		Map<String, Map<String, String>> origSchemas = new LinkedHashMap<String, Map<String, String>>();
+		long time1 = System.currentTimeMillis();
+		Map<?,?> origMap = KidlParser.parseSpecExt(specFile, workDir, origSchemas, null);
+		time1 = System.currentTimeMillis() - time1;
+		Map<String, Map<String, String>> intSchemas = new LinkedHashMap<String, Map<String, String>>();
+		long time2 = System.currentTimeMillis();
+		Map<?,?> intMap = KidlParser.parseSpecInt(specFile, workDir, intSchemas);
+		time2 = System.currentTimeMillis() - time2;
+		System.out.println("Compilation time: " + time1 + " vs " + time2);
+		Assert.assertTrue(KidlTest.compareJson(origMap, intMap, "Parsing result for " + testFileName));
+		Assert.assertTrue(KidlTest.compareJsonSchemas(origSchemas, intSchemas, "Json schema for " + testFileName));
+		List<KbService> services = KidlParser.parseSpec(specFile, workDir);
+		JavaData parsingData = JavaTypeGenerator.processSpec(
+				services, workDir, srcDir, testPackage,
+				true, libDir, gwtPackageName, defaultUrl);
 		return parsingData;
 	}
 

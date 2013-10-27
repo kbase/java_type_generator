@@ -56,15 +56,19 @@ public class KbModule {
 	}
 	
 	public Object toJson() {
+		ObjectUsageInfo oui = new ObjectUsageInfo();
+		for (KbModuleComp comp : moduleComponents)
+			if (comp instanceof KbTypedef)
+				collectInfo((KbTypedef)comp, oui);
 		List<Object> ret = new ArrayList<Object>();
 		Map<String, Object> main = new TreeMap<String, Object>();
 		main.put("!", "Bio::KBase::KIDL::KBT::DefineModule");
-		main.put("annotations", annotations.toJson());
+		main.put("annotations", annotations.toJson(false));
 		if (comment != null)
 			main.put("comment", comment);
 		List<Object> comps = new ArrayList<Object>();
 		for (KbModuleComp comp : moduleComponents)
-			comps.add(comp.toJson());
+			comps.add(comp.toJson(oui));
 		main.put("module_components", comps);
 		main.put("module_name", moduleName);
 		main.put("options", options);
@@ -73,9 +77,29 @@ public class KbModule {
 		ret.add(new ArrayList<Object>());
 		Map<String, Object> thirdPart = new TreeMap<String, Object>();
 		for (Map.Entry<String, KbType> entry : nameToType.entrySet())
-			thirdPart.put(entry.getKey(), entry.getValue().toJson());
+			thirdPart.put(entry.getKey(), entry.getValue().toJson(oui));
 		ret.add(thirdPart);
 		return ret;
+	}
+	
+	private void collectInfo(KbType type, ObjectUsageInfo oui) {
+		if (type instanceof KbScalar) {
+			if (((KbScalar)type).getScalarType() == KbScalar.Type.stringType)
+				oui.setStringScalarsUsedInTypedefs(true);
+		} else if (type instanceof KbList) {
+			collectInfo(((KbList)type).getElementType(), oui);
+		} else if (type instanceof KbMapping) {
+			collectInfo(((KbMapping)type).getKeyType(), oui);
+			collectInfo(((KbMapping)type).getValueType(), oui);
+		} else if (type instanceof KbTypedef) {
+			collectInfo(((KbTypedef)type).getAliasType(), oui);
+		} else if (type instanceof KbTuple) {
+			for (KbType iType : ((KbTuple)type).getElementTypes())
+				collectInfo(iType, oui);
+		} else if (type instanceof KbStruct) {
+			for (KbStructItem item : ((KbStruct)type).getItems())
+				collectInfo(item.getItemType(), oui);
+		}
 	}
 	
 	public void loadFromList(List<?> data) throws KidlParseException {

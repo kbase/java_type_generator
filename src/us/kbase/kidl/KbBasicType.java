@@ -11,7 +11,7 @@ public abstract class KbBasicType implements KbType {
 	public static KbBasicType createFromMap(Map<?,?> data, KbAnnotations annFromTypeDef) throws KidlParseException {
 		String typeName = Utils.getPerlSimpleType(data);
 		if (typeName.equals("Scalar")) {
-			return new KbScalar().loadFromMap(data);
+			return new KbScalar().loadFromMap(data, annFromTypeDef);
 		} else if (typeName.equals("List")) {
 			return new KbList().loadFromMap(data);
 		} else if (typeName.equals("Struct")) {

@@ -7,5 +7,5 @@ package us.kbase.kidl;
  */
 public interface KbType {
 	public String getName();
-	public Object toJson();
+	public Object toJson(ObjectUsageInfo oui);
 }

@@ -76,23 +76,24 @@ public class KbFuncdef implements KbModuleComp {
 		return data;
 	}
 	
-	private List<Object> toJson(List<KbParameter> list) {
+	private List<Object> toJson(List<KbParameter> list, ObjectUsageInfo oui) {
 		List<Object> ret = new ArrayList<Object>();
 		for (KbParameter param : list)
-			ret.add(param.toJson());
+			ret.add(param.toJson(oui));
 		return ret;
 	}
 	
 	@Override
-	public Object toJson() {
+	public Object toJson(ObjectUsageInfo oui) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Funcdef");
+		ret.put("annotations", new KbAnnotations().toJson(false));
 		ret.put("async", async ? "1" : "0");
 		ret.put("authentication", authentication);
 		ret.put("comment", comment);
 		ret.put("name", name);
-		ret.put("parameters", toJson(parameters));
-		ret.put("return_type", toJson(returnType));
+		ret.put("parameters", toJson(parameters, oui));
+		ret.put("return_type", toJson(returnType, oui));
 		return ret;
 	}
 }

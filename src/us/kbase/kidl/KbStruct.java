@@ -2,6 +2,8 @@ package us.kbase.kidl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,14 +22,20 @@ public class KbStruct extends KbBasicType {
 	
 	public KbStruct loadFromMap(Map<?,?> data, KbAnnotations annFromTypeDef) throws KidlParseException {
 		name = Utils.prop(data, "name");
-		annotations = annFromTypeDef;
-		Set<String> optional = annotations == null ? null : annotations.getOptional();
 		items = new ArrayList<KbStructItem>();
-		for (Map<?,?> itemProps : Utils.getListOfMapProp(data, "items")) {
-			items.add(new KbStructItem().loadFromMap(itemProps, optional));
-		}
+		for (Map<?,?> itemProps : Utils.getListOfMapProp(data, "items"))
+			items.add(new KbStructItem().loadFromMap(itemProps));
+		utilizeAnnotations(annFromTypeDef);
 		items = Collections.unmodifiableList(items);
 		return this;
+	}
+	
+	void utilizeAnnotations(KbAnnotations ann) {
+		annotations = ann;
+		Set<String> optional = ann == null || ann.getOptional() == null ? null : 
+			new LinkedHashSet<String>(ann.getOptional());
+		for (KbStructItem item : items)
+			item.utilizeAnnotation(optional);
 	}
 	
 	@Override
@@ -69,14 +77,17 @@ public class KbStruct extends KbBasicType {
 	}
 	
 	@Override
-	public Object toJson() {
+	public Object toJson(ObjectUsageInfo oui) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Struct");
-		if (comment != null)
+		Map<String, Object> ann = new HashMap<String, Object>();
+		ann.put("searchable_ws_subset", new HashMap<String, Object>());
+		ret.put("annotations", ann);
+		if (comment != null && comment.length() > 0)
 			ret.put("comment", comment);
 		List<Object> itemList = new ArrayList<Object>();
 		for (KbStructItem item : items)
-			itemList.add(item.toJson());
+			itemList.add(item.toJson(oui));
 		ret.put("items", itemList);
 		if (module != null)
 			ret.put("module", module);

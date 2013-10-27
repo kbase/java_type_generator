@@ -12,7 +12,7 @@ public class KbAuthdef implements KbModuleComp {
 	}
 
 	@Override
-	public Object toJson() {
+	public Object toJson(ObjectUsageInfo oui) {
 		return "auth_default" + type;
 	}
 }

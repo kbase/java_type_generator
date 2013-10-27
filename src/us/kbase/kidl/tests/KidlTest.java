@@ -6,6 +6,10 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +17,12 @@ import java.util.Map;
 import junit.framework.Assert;
 
 import org.junit.Test;
+
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import us.kbase.kidl.KbModule;
 import us.kbase.kidl.KbModuleComp;
@@ -38,16 +48,192 @@ public class KidlTest {
 		return workDir;
 	}
 
+	private static List<String> getLines(String text) throws Exception {
+		BufferedReader br = new BufferedReader(new StringReader(text));
+		List<String> ret = new ArrayList<String>();
+		while (true) {
+			String l = br.readLine();
+			if (l == null)
+				break;
+			ret.add(l);
+		}
+		br.close();
+		return ret;
+	}
+	
+	public static void showDiff(String origText, String newText) throws Exception {
+		List<String> origLn = getLines(origText);
+		List<String> newLn = getLines(newText);
+		int origWidth = 0;
+		for (String l : origLn)
+			if (origWidth < l.length())
+				origWidth = l.length();
+		int maxSize = Math.max(origLn.size(), newLn.size());
+		for (int pos = 0; pos < maxSize; pos++) {
+			String origL = pos < origLn.size() ? origLn.get(pos) : "";
+			String newL = pos < newLn.size() ? newLn.get(pos) : "";
+			String sep = origL.equals(newL) ? "   " : " * ";
+			char[] gap = new char[origWidth - origL.length()];
+			Arrays.fill(gap, ' ');
+			System.out.println(origL + new String(gap) + sep + newL);
+		}
+	}
+	
 	@Test
 	public void testJsonSchemas() throws Exception {
-		File workDir = prepareWorkDir();
-		File specFile = prepareSpec(workDir,
-				"module Test {\ntypedef structure {\nint val1;\nfloat val2;\n} my_struct;\n};");
-		Map<String, Map<String, String>> schemas = new HashMap<String, Map<String, String>>();
-		KidlParser.parseSpec(specFile, workDir, schemas);
-		String schema = schemas.get("Test").get("my_struct");
-		Assert.assertNotNull(schema);
-		System.out.println(schema);
+		String[] tests = {
+				"module Test1 {\n" +
+				"  typedef list<int> test1;\n" +
+				"};",				
+				"module Test2 {\n" +
+				"  typedef list<string> test1;\n" +
+				"};",				
+				"module Test3 {\n" +
+				"  typedef mapping<string, int> test1;\n" +
+				"};",
+				"module Test4 {\n" +
+				"  typedef list<tuple<string, int>> test1;\n" +
+				"};",				
+				"module Test5 {\n" +
+				"  typedef structure {string val1; int val2; } test1;\n" +
+				"};",				
+				"module Test6 {\n" +
+				"  /*\n" +
+				"  . @id_reference Test.testA\n" +
+				"  */\n" +
+				"  typedef string test1;\n" +
+				"  typedef list<string> test2;\n" +
+				"  typedef mapping<string,int> test3;\n" +
+				"  typedef tuple<int,string,float> test4;\n" +
+				"  typedef list<mapping<string,int>> test5;\n" +
+				"  typedef list<tuple<int,string,float>> test6;\n" +
+				"  typedef mapping<string,list<int>> test7;\n" +
+				"  typedef mapping<string,tuple<int,string,float>> test8;\n" +
+				"  typedef tuple<list<float>,mapping<string,int>> test9;\n" +
+				"  /*\n" +
+				"  @optional var3\n" +
+				"  . @ws_searchable val1\n" +
+				"  . @ws_searchable keys_of val4\n" +
+				"  */\n" +
+				"  typedef structure {\n" +
+				"    int val2;\n" +
+				"    float val1;\n" +
+				"    list<string> var3;\n" +
+				"    mapping<string,int> var4;\n" +
+				"    tuple<int,string,float> var5;\n" +
+				"    UnspecifiedObject val6;\n" +
+				"  } testA;\n" +
+				"  typedef list<testA> testB;\n" +
+				"  typedef mapping<string,testA> testC;\n" +
+				"  typedef tuple<testA,testA,testA> testD;\n" +
+				"  typedef structure {\n" +
+				"    testA val1;\n" +
+				"    test1 id;\n" +
+				"  } testE;\n" +
+				"};",
+				"module Test7 {\n" +
+				"  /*		  line1  \n" +
+				"  line2 \n" +
+				"    line3  	*/\n" +
+				"  typedef string test1;\n" +
+				"};",								
+				"module Test8 {\n" +
+				"  /* line1  \n" +
+				"	   line2 \n" +
+				"  */\n" +
+				"  typedef string test1;\n" +
+				"};",								
+				"module Test9 {\n" +
+				"  /*	\n" +
+				"	\n" +
+				"   line1	r\n" +
+				"    line2\n" +
+				"         line3\n" +
+				" line4\n" +
+				"   line5\n" +
+				"  */\n" +
+				"  typedef string test1;\n" +
+				"};",								
+				"module Test10 {\n" +
+				"  /*\n" +
+				"    line1  \n" +
+				"		\n" +
+				"     line2  \n" +
+				"	\n" +
+				"  */\n" +
+				"  typedef string test1;\n" +
+				"};",								
+		};
+		boolean ok = true;
+		for (int testNum = 0; testNum < tests.length; testNum++) {
+			File workDir = prepareWorkDir();
+			File specFile = prepareSpec(workDir, tests[testNum]);
+			Map<String, Map<String, String>> schemas1 = new HashMap<String, Map<String, String>>();
+			Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, null);
+			Map<String, Map<String, String>> schemas2 = new HashMap<String, Map<String, String>>();
+			Map<?,?> parse2 = KidlParser.parseSpecInt(specFile, workDir, schemas2);
+			ok = ok & compareJson(parse1, parse2, "Parsing result for test #" + (testNum + 1));
+			ok = ok & compareJsonSchemas(schemas1, schemas2, "Json schema for test #" + (testNum + 1));
+		}
+		Assert.assertTrue(ok);
+	}
+
+	public static boolean compareJsonSchemas(Map<String, Map<String, String>> schemas1,
+			Map<String, Map<String, String>> schemas2, String header) throws IOException,
+			JsonParseException, JsonMappingException, JsonGenerationException,
+			Exception {
+		boolean ok = true;
+		Assert.assertEquals(schemas1.keySet(), schemas2.keySet());
+		for (String moduleName : schemas1.keySet()) {
+			Assert.assertEquals(schemas1.get(moduleName).keySet(), schemas2.get(moduleName).keySet());
+			for (Map.Entry<String, String> entry : schemas1.get(moduleName).entrySet()) {
+				String schema1 = rewriteJson(entry.getValue());
+				String schema2 = schemas2.get(moduleName).get(entry.getKey());
+				if (!schema1.equals(schema2)) {
+					ok = false;
+					System.out.println(header + " (" + moduleName + "." + entry.getKey() + "):");
+					System.out.println("--------------------------------------------------------");
+					showDiff(schema1, schema2);
+					System.out.println();
+					System.out.println("*");
+				}
+			}
+		}
+		return ok;
+	}
+
+	public static boolean compareJson(Map<?, ?> parse1, Map<?, ?> parse2, String header)
+			throws JsonGenerationException, JsonMappingException, IOException,
+			Exception {
+		boolean ok = true;
+		String parse1text = writeJson(parse1);
+		String parse2text = writeJson(parse2);
+		if (!parse1text.equals(parse2text)) {
+			ok = false;
+        	System.out.println(header + " (original/internal):");
+        	System.out.println("--------------------------------------------------------");
+        	showDiff(parse1text, parse2text);
+        	System.out.println();
+		}
+		return ok;
+	}
+
+	public static String rewriteJson(String schema1) throws IOException, 
+	JsonParseException, JsonMappingException, JsonGenerationException {
+		ObjectMapper mapper = new ObjectMapper();
+		Map<?,?> schemaMap = mapper.readValue(schema1, Map.class);
+		schema1 = writeJson(schemaMap);
+		return schema1;
+	}
+	
+	private static String writeJson(Object obj) 
+			throws JsonGenerationException, JsonMappingException, IOException {
+		StringWriter sw = new StringWriter();
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
+		mapper.writeValue(sw, obj);
+		sw.close();
+		return sw.toString();
 	}
 
 	private static File prepareSpec(File workDir, String text) throws FileNotFoundException {

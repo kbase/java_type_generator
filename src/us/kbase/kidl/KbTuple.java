@@ -77,15 +77,15 @@ public class KbTuple extends KbBasicType {
 	}
 	
 	@Override
-	public Object toJson() {
+	public Object toJson(ObjectUsageInfo oui) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Tuple");
-		if (comment != null)
+		if (comment != null && comment.length() > 0)
 			ret.put("comment", comment);
 		ret.put("element_names", elementNames);
 		List<Object> elementTypeList = new ArrayList<Object>();
 		for (KbType type : elementTypes)
-			elementTypeList.add(type.toJson());
+			elementTypeList.add(type.toJson(oui));
 		ret.put("element_types", elementTypeList);
 		if (name != null)
 			ret.put("name", name);

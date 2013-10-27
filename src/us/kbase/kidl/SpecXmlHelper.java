@@ -17,14 +17,15 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+@SuppressWarnings("unchecked")
 public class SpecXmlHelper {
-	public static Map<?,?> parseXml(File parsingFile) 
+	public static Map<String,Object> parseXml(File parsingFile) 
 			throws ParserConfigurationException, SAXException, IOException, KidlParseException {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = dbf.newDocumentBuilder();
         Document document = builder.parse(parsingFile);
         Node mainNode = document.getDocumentElement();
-        return (Map<?,?>)processMap(getSubNodes(mainNode).get(0), new HashMap<String, Object>()).get("parsed_data");
+        return (Map<String,Object>)processMap(getSubNodes(mainNode).get(0), new HashMap<String, Object>()).get("parsed_data");
 	}
 	
 	private static Object processChild(Node parNode, Map<String, Object> memRefs) throws KidlParseException {
@@ -47,12 +48,12 @@ public class SpecXmlHelper {
 		return ret;
 	}
 	
-	private static Map<?,?> processMap(Node mapNode, Map<String, Object> memRefs) throws KidlParseException {
+	private static Map<String,Object> processMap(Node mapNode, Map<String, Object> memRefs) throws KidlParseException {
 		if (!mapNode.getNodeName().equals("hashref"))
 			return null;
 		String memRef = extractMemRef(mapNode);
 		if (memRef != null && memRefs.containsKey(memRef)) 
-			return (Map<?,?>)memRefs.get(memRef);
+			return (Map<String,Object>)memRefs.get(memRef);
 		Map<String, Object> ret = new LinkedHashMap<String, Object>();
 		if (mapNode.getAttributes().getNamedItem("blessed_package") != null) {
 			ret.put("!", mapNode.getAttributes().getNamedItem("blessed_package").getNodeValue());

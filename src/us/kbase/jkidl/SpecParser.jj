@@ -75,41 +75,14 @@ public class SpecParser {
         Map<String, KbModule> root = p.SpecStatement(ip);
         Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
         for (KbModule module : root.values()) {
-        	List<Object> modList = ret.get(module.getServiceName());
-        	if (modList == null) {
-        		modList = new ArrayList<Object>();
-        		ret.put(module.getServiceName(), modList);
-        	}
-        	modList.add(module.toJson());
+                List<Object> modList = ret.get(module.getServiceName());
+                if (modList == null) {
+                        modList = new ArrayList<Object>();
+                        ret.put(module.getServiceName(), modList);
+                }
+                modList.add(module.toJson());
         }
         return ret;
-    }
-
-    private static String trim(String comment) {
-    	if (comment == null)
-    		return "";
-    	StringBuilder sb = new StringBuilder(comment.trim());
-    	if (sb.substring(0, 2).equals("/*"))
-    		sb.delete(0, 2);
-    	if (sb.substring(sb.length() - 2, sb.length()).equals("*/"))
-    		sb.delete(sb.length() - 2, sb.length());
-    	while (sb.length() > 0) {
-    		char ch = sb.charAt(0);
-    		if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
-    			sb.delete(0, 1);
-    		} else {
-    			break;
-    		}
-    	}
-    	while (sb.length() > 0) {
-    		char ch = sb.charAt(sb.length() - 1);
-    		if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
-    			sb.delete(sb.length() - 1, sb.length());
-    		} else {
-    			break;
-    		}
-    	}
-    	return sb.toString();
     }
 }
 
@@ -242,7 +215,7 @@ KbModule Module(Map<String, KbModule> includes):
 {
   "module"
   {
-	comment = trim(lastComment);
+	comment = Utils.trim(lastComment);
     lastComment = null;
   }
   [
@@ -283,7 +256,7 @@ KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes):
 {
   "typedef"
   {
-	comment = trim(lastComment);
+	comment = Utils.trim(lastComment);
     lastComment = null;
   }
   type = Type(curModule, includes)
@@ -421,7 +394,7 @@ KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes):
 {
   "funcdef"
   {
-	comment = trim(lastComment);
+	comment = Utils.trim(lastComment);
     lastComment = null;
   }
   name = <S_IDENTIFIER>

@@ -39,11 +39,11 @@ public class KbMapping extends KbBasicType {
 	}
 	
 	@Override
-	public Object toJson() {
+	public Object toJson(ObjectUsageInfo oui) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Mapping");
-		ret.put("key_type", keyType.toJson());
-		ret.put("value_type", valueType.toJson());
+		ret.put("key_type", keyType.toJson(oui));
+		ret.put("value_type", valueType.toJson(oui));
 		return ret;
 	}
 }

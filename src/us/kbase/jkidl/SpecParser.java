@@ -79,33 +79,6 @@ public class SpecParser implements SpecParserConstants {
         return ret;
     }
 
-    private static String trim(String comment) {
-        if (comment == null)
-                return "";
-        StringBuilder sb = new StringBuilder(comment.trim());
-        if (sb.substring(0, 2).equals("/*"))
-                sb.delete(0, 2);
-        if (sb.substring(sb.length() - 2, sb.length()).equals("*/"))
-                sb.delete(sb.length() - 2, sb.length());
-        while (sb.length() > 0) {
-                char ch = sb.charAt(0);
-                if (ch == ' ' || ch == '\u005ct' || ch == '\u005cr' || ch == '\u005cn') {
-                        sb.delete(0, 1);
-                } else {
-                        break;
-                }
-        }
-        while (sb.length() > 0) {
-                char ch = sb.charAt(sb.length() - 1);
-                if (ch == ' ' || ch == '\u005ct' || ch == '\u005cr' || ch == '\u005cn') {
-                        sb.delete(sb.length() - 1, sb.length());
-                } else {
-                        break;
-                }
-        }
-        return sb.toString();
-    }
-
   final public Map<String, KbModule> SpecStatement(IncludeProvider ip) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
   Map<String, KbModule> includes = null;
     includes = IncludeList(ip);
@@ -169,7 +142,7 @@ ret.put(module.getModuleName(), module);
   Token nameToken = null;
   KbModuleComp comp = null;
     jj_consume_token(T_module);
-comment = trim(lastComment);
+comment = Utils.trim(lastComment);
     lastComment = null;
     if (jj_2_1(2147483647)) {
       srvToken = jj_consume_token(S_IDENTIFIER);
@@ -225,7 +198,7 @@ lastComment = null;
   KbType type;
   Token name;
     jj_consume_token(T_typedef);
-comment = trim(lastComment);
+comment = Utils.trim(lastComment);
     lastComment = null;
     type = Type(curModule, includes);
     name = jj_consume_token(S_IDENTIFIER);
@@ -407,7 +380,7 @@ if (ret == null) {
   List<KbParameter> rets;
   KbAuthdef auth;
     jj_consume_token(T_funcdef);
-comment = trim(lastComment);
+comment = Utils.trim(lastComment);
     lastComment = null;
     name = jj_consume_token(S_IDENTIFIER);
     jj_consume_token(T_round_open_bracket);
