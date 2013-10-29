@@ -80,9 +80,11 @@ public class KbStruct extends KbBasicType {
 	public Object toJson(ObjectUsageInfo oui) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Struct");
-		Map<String, Object> ann = new HashMap<String, Object>();
-		ann.put("searchable_ws_subset", new HashMap<String, Object>());
-		ret.put("annotations", ann);
+		if (annotations == null || annotations.getSearchable() == null) {
+			Map<String, Object> ann = new HashMap<String, Object>();
+			ann.put("searchable_ws_subset", new HashMap<String, Object>());
+			ret.put("annotations", ann);
+		}
 		if (comment != null && comment.length() > 0)
 			ret.put("comment", comment);
 		List<Object> itemList = new ArrayList<Object>();

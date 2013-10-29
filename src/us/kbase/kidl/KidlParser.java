@@ -121,24 +121,28 @@ public class KidlParser {
 		} else if (type instanceof KbScalar) {
 			KbScalar sc = (KbScalar)type;
 			ret.put("type", sc.getJsonStyleName());
-			ret.put("original-type", sc.getName());
+			ret.put("original-type", "kidl-" + sc.getName());
+			if (sc.getIdReference() != null) {
+				KbAnnotationId idRef = sc.getIdReference();
+				ret.put("id-reference", idRef.toJsonSchema());
+			}
 		} else if (type instanceof KbUnspecifiedObject) {
 			ret.put("type", "object");
-			ret.put("original-type", "UnspecifiedObject");
+			ret.put("original-type", "kidl-UnspecifiedObject");
 		} else if (type instanceof KbList) {
 			KbList ls = (KbList)type;
 			ret.put("type", "array");
-			ret.put("original-type", "list");
+			ret.put("original-type", "kidl-list");
 			ret.put("items", createJsonSchema(ls.getElementType(), true));
 		} else if (type instanceof KbMapping) {
 			KbMapping mp = (KbMapping)type;
 			ret.put("type", "object");
-			ret.put("original-type", "mapping");
+			ret.put("original-type", "kidl-mapping");
 			ret.put("additionalProperties", createJsonSchema(mp.getValueType(), true));
 		} else if (type instanceof KbTuple) {
 			KbTuple tp = (KbTuple)type;
 			ret.put("type", "array");
-			ret.put("original-type", "tuple");
+			ret.put("original-type", "kidl-tuple");
 			ret.put("maxItems", tp.getElementTypes().size());
 			ret.put("minItems", tp.getElementTypes().size());
 			List<Object> items = new ArrayList<Object>();
@@ -148,7 +152,7 @@ public class KidlParser {
 		} else if (type instanceof KbStruct) {
 			KbStruct st = (KbStruct)type;
 			ret.put("type", "object");
-			ret.put("original-type", "structure");
+			ret.put("original-type", "kidl-structure");
 			Map<String, Object> props = new LinkedHashMap<String, Object>();
 			for (KbStructItem item : st.getItems())
 				props.put(item.getName(), createJsonSchema(item.getItemType(), true));
@@ -159,6 +163,10 @@ public class KidlParser {
 				if (!item.isOptional())
 					reqList.add(item.getName());
 			ret.put("required", reqList);
+			if (st.getAnnotations() != null && st.getAnnotations().getSearchable() != null) {
+				KbAnnotationSearch search = st.getAnnotations().getSearchable();
+				ret.put("searchable-ws-subset", search.toJsonSchema());
+			}
 		}
 		return ret;
 	}

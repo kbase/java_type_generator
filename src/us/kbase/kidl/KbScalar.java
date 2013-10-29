@@ -1,9 +1,7 @@
 package us.kbase.kidl;
 
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 public class KbScalar extends KbBasicType {
@@ -14,7 +12,7 @@ public class KbScalar extends KbBasicType {
 	private Type scalarType;
 	private String javaStyleType;
 	private String jsonStyleType;
-	private Set<String> idReferences;
+	private KbAnnotationId idReference;
 	
 	public KbScalar() {}
 	
@@ -39,8 +37,7 @@ public class KbScalar extends KbBasicType {
 
 	void utilizeAnnotations(KbAnnotations ann) {
 		if (ann != null)
-			idReferences = ann.getIdReferences() == null ? null : 
-				new LinkedHashSet<String>(ann.getIdReferences());
+			idReference = ann.getIdReference();
 	}
 	
 	public Type getScalarType() {
@@ -86,8 +83,8 @@ public class KbScalar extends KbBasicType {
 		}
 	}
 	
-	public Set<String> getIdReferences() {
-		return idReferences;
+	public KbAnnotationId getIdReference() {
+		return idReference;
 	}
 	
 	@Override

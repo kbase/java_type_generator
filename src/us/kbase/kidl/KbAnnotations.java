@@ -3,16 +3,15 @@ package us.kbase.kidl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
 
 public class KbAnnotations {
 	private List<String> optional = null;
-	private List<String> idReferences = null;
+	private KbAnnotationId idReference = null;
+	private KbAnnotationSearch searchableWsSubset = null;
 	private Map<String, Object> unknown = new HashMap<String, Object>();
 	
 	@SuppressWarnings("unchecked")
@@ -21,8 +20,12 @@ public class KbAnnotations {
 			String key = enrty.getKey().toString();
 			if (key.equals("optional")) {
 				optional = (List<String>)enrty.getValue();
-			} else if (key.equals("id_reference")) {
-				idReferences = (List<String>)enrty.getValue();
+			} else if (key.equals("id")) {
+				idReference = new KbAnnotationId();
+				idReference.loadFromMap((Map<String, Object>)enrty.getValue());
+			} else if (key.equals("searchable_ws_subset")) {
+				searchableWsSubset = new KbAnnotationSearch();
+				searchableWsSubset.loadFromMap((Map<String, Object>)enrty.getValue());
 			} else if (key.equals("unknown_annotations")) {
 				unknown.putAll((Map<String, Object>)enrty.getValue());
 			} else {
@@ -33,13 +36,11 @@ public class KbAnnotations {
 		}
 		if (optional != null)
 			optional = Collections.unmodifiableList(optional);
-		if (idReferences != null)
-			idReferences = Collections.unmodifiableList(idReferences);
 		unknown = Collections.unmodifiableMap(unknown);
 		return this;
 	}
 	
-	public KbAnnotations loadFromComment(String comment) {
+	public KbAnnotations loadFromComment(String comment, KbTypedef caller) {
 		List<List<String>> lines = new ArrayList<List<String>>();
 		StringTokenizer st = new StringTokenizer(comment, "\r\n");
 		while (st.hasMoreTokens()) {
@@ -61,8 +62,12 @@ public class KbAnnotations {
 			List<String> value = words.subList(1, words.size());
 			if (annType.equals("optional")) {
 				optional = value;
-			} else if (annType.equals("id_reference")) {
-				idReferences = value;
+			} else if (annType.equals("id")) {
+				idReference = new KbAnnotationId();
+				if (value.size() > 0)
+					idReference.loadFromComment(value);
+			} else if (annType.equals("searchable")) {
+				searchableWsSubset = new KbAnnotationSearch().loadFromComment(value, caller);
 			} else {
 				unknown.put(annType, value);
 			}
@@ -74,8 +79,12 @@ public class KbAnnotations {
 		return optional;
 	}
 	
-	public List<String> getIdReferences() {
-		return idReferences;
+	public KbAnnotationId getIdReference() {
+		return idReference;
+	}
+	
+	public KbAnnotationSearch getSearchable() {
+		return searchableWsSubset;
 	}
 	
 	public Map<String, Object> getUnknown() {
@@ -86,10 +95,13 @@ public class KbAnnotations {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		if (optional != null)
 			ret.put("optional", new ArrayList<String>(optional));
-		if (idReferences != null)
-			ret.put("id_reference", new ArrayList<String>(idReferences));
-		if (searchable)
-			ret.put("searchable_ws_subset", new HashMap<String, Object>());
+		if (idReference != null)
+			ret.put("id", idReference.toJson());
+		if (searchable) {
+			Object searchableJson = searchableWsSubset == null ?
+					new HashMap<String, Object>() : searchableWsSubset.toJson();
+			ret.put("searchable_ws_subset", searchableJson);
+		}
 		ret.put("unknown_annotations", unknown);
 		return ret;
 	}

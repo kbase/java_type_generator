@@ -22,7 +22,7 @@ public class KbTypedef implements KbModuleComp, KbType {
 		this.name = name;
 		this.aliasType = aliasType;
 		this.comment = comment == null ? "" : comment;
-		this.annotations = new KbAnnotations().loadFromComment(this.comment);
+		this.annotations = new KbAnnotations().loadFromComment(this.comment, this);
 		if (aliasType instanceof KbScalar) {
 			((KbScalar)aliasType).utilizeAnnotations(annotations);
 		} else if (aliasType instanceof KbTuple) {

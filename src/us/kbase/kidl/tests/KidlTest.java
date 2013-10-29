@@ -20,6 +20,7 @@ import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -98,9 +99,6 @@ public class KidlTest {
 				"  typedef structure {string val1; int val2; } test1;\n" +
 				"};",				
 				"module Test6 {\n" +
-				"  /*\n" +
-				"  . @id_reference Test.testA\n" +
-				"  */\n" +
 				"  typedef string test1;\n" +
 				"  typedef list<string> test2;\n" +
 				"  typedef mapping<string,int> test3;\n" +
@@ -112,8 +110,6 @@ public class KidlTest {
 				"  typedef tuple<list<float>,mapping<string,int>> test9;\n" +
 				"  /*\n" +
 				"  @optional var3\n" +
-				"  . @ws_searchable val1\n" +
-				"  . @ws_searchable keys_of val4\n" +
 				"  */\n" +
 				"  typedef structure {\n" +
 				"    int val2;\n" +
@@ -163,6 +159,46 @@ public class KidlTest {
 				"  */\n" +
 				"  typedef string test1;\n" +
 				"};",								
+				"module Test11 {\n" +
+				"  /*\n" +
+				"  @id ws Test11.test2\n" +
+				"  */\n" +
+				"  typedef string test1;\n" +
+				"  typedef structure {\n" +
+				"    int val1;\n" +
+				"    float val2;\n" +
+				"    string val3;\n" +
+				"  } test2;\n" +
+				"  /*\n" +
+				"  @id kb\n" +
+				"  */\n" +
+				"  typedef string test3;\n" +
+				"  /*\n" +
+				"  @id external src1 src2\n" +
+				"  */\n" +
+				"  typedef string test4;\n" +
+				"  /*\n" +
+				"  @id shock\n" +
+				"  */\n" +
+				"  typedef string test5;\n" +
+				"};",
+				"module Test12 {\n" +
+				"  typedef structure {\n" +
+				"    string val1;\n" +
+				"    mapping<string,string> val2;\n" +
+				"  } test2;\n" +
+				"  /*\n" +
+				"  @searchable ws_subset val1 val2 keys_of(val3,val6) val4.val1 val4.val2 keys_of(val4.val2) val5.(val1,val2) val6.val1\n" +
+				"  */\n" +
+				"  typedef structure {\n" +
+				"    string val1;\n" +
+				"    list<string> val2;\n" +
+				"    mapping<string,string> val3;\n" +
+				"    test2 val4;\n" +
+				"    list<test2> val5;\n" +
+				"    mapping<string,test2> val6;\n" +
+				"  } test1;\n" +
+				"};",
 		};
 		boolean ok = true;
 		for (int testNum = 0; testNum < tests.length; testNum++) {
@@ -188,7 +224,7 @@ public class KidlTest {
 			Assert.assertEquals(schemas1.get(moduleName).keySet(), schemas2.get(moduleName).keySet());
 			for (Map.Entry<String, String> entry : schemas1.get(moduleName).entrySet()) {
 				String schema1 = rewriteJson(entry.getValue());
-				String schema2 = schemas2.get(moduleName).get(entry.getKey());
+				String schema2 = rewriteJson(schemas2.get(moduleName).get(entry.getKey()));
 				if (!schema1.equals(schema2)) {
 					ok = false;
 					System.out.println(header + " (" + moduleName + "." + entry.getKey() + "):");
@@ -218,12 +254,17 @@ public class KidlTest {
 		return ok;
 	}
 
+	/**
+	 * Method sorts keys in maps inside JSON.
+	 */
 	public static String rewriteJson(String schema1) throws IOException, 
 	JsonParseException, JsonMappingException, JsonGenerationException {
 		ObjectMapper mapper = new ObjectMapper();
-		Map<?,?> schemaMap = mapper.readValue(schema1, Map.class);
-		schema1 = writeJson(schemaMap);
-		return schema1;
+		mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
+		TreeNode schemaTree = mapper.readTree(schema1);
+		Object schemaMap = mapper.treeToValue(schemaTree, Object.class);
+		mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
+		return mapper.writeValueAsString(schemaMap);
 	}
 	
 	private static String writeJson(Object obj) 
@@ -279,12 +320,12 @@ public class KidlTest {
 		File specFile = prepareSpec(workDir, "" +
 				"module Test {\n" +
 				"  /*\n" +
-				"   @id_reference Test.my_struct\n" +
+				"   @id ws Test.my_struct\n" +
 				"  */\n" +
 				"  typedef string full_ref;\n" +
 				"  \n" +
 				"  /*\n" +
-				"   @id_reference\n" +
+				"   @id ws\n" +
 				"  */\n" +
 				"  typedef string just_ref;\n" +
 				"  \n" +
@@ -304,7 +345,7 @@ public class KidlTest {
 				System.out.println(typedef.getName() + ": " + typedef.getData());
 				Assert.assertEquals(KbScalar.class, typedef.getAliasType().getClass());
 				KbScalar type = (KbScalar)typedef.getAliasType();
-				System.out.println("IdReferences: " + type.getIdReferences());
+				//System.out.println("IdReferences: " + type.getIdReferences());
 			}
 		}
 	}
