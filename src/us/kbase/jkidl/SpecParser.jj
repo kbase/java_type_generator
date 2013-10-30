@@ -31,6 +31,7 @@ import us.kbase.kidl.KbTuple;
 import us.kbase.kidl.KbType;
 import us.kbase.kidl.KbTypedef;
 import us.kbase.kidl.KbUnspecifiedObject;
+import us.kbase.kidl.KidlParseException;
 
 @SuppressWarnings({"unused", "serial"})
 public class SpecParser {
@@ -83,6 +84,14 @@ public class SpecParser {
                 modList.add(module.toJson());
         }
         return ret;
+    }
+    
+    public void generateParseException(KidlParseException t) throws ParseException {
+    	generateParseException(t.getMessage());
+    }
+
+    public void generateParseException(String message) throws ParseException {
+    	throw new ParseException("Error at line " + token.beginLine + ", column " + token.beginColumn + ": " + message);
     }
 }
 
@@ -185,7 +194,13 @@ Map<String, KbModule> Include(IncludeProvider ip):
 }
 {
   pathToken = <INCLUDE_LITERAL>
-  { return ip.parseInclude(pathToken.toString()); }
+  {
+  	try {
+	    return ip.parseInclude(pathToken.toString()); 
+	} catch (KidlParseException ex) {
+		generateParseException(ex);
+	}
+  }
 }
 
 Map<String, KbModule> ModuleList(Map<String, KbModule> includes):
@@ -261,7 +276,13 @@ KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes):
   }
   type = Type(curModule, includes)
   name = <S_IDENTIFIER>
-  { return new KbTypedef(curModule.getModuleName(), name.toString(), type, comment); }
+  { 
+  	try {
+	  	return new KbTypedef(curModule.getModuleName(), name.toString(), type, comment); 
+	} catch (KidlParseException ex) {
+		generateParseException(ex);
+	}
+  }
 }
 
 KbType Type(KbModule curModule, Map<String, KbModule> includes):
@@ -340,12 +361,12 @@ KbType Type(KbModule curModule, Map<String, KbModule> includes):
     	} else {
     		refModule = includes.get(module);
     		if (refModule == null)
-    			throw new IllegalStateException("Can not find module with name: " + module);
+    			generateParseException("Can not find module: " + module);
     	}
     	String type = typeToken.toString();
     	ret = refModule.getNameToType().get(type);
     	if (ret == null)
-    		throw new IllegalStateException("Can not find type: " + module + "." + type);
+    		generateParseException("Can not find type: " + (module == null ? "" : (module + ".")) + type);
     }
     return ret;
   }

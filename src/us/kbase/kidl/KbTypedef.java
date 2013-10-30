@@ -17,7 +17,7 @@ public class KbTypedef implements KbModuleComp, KbType {
 	
 	public KbTypedef() {}
 	
-	public KbTypedef(String module, String name, KbType aliasType, String comment) {
+	public KbTypedef(String module, String name, KbType aliasType, String comment) throws KidlParseException {
 		this.module = module;
 		this.name = name;
 		this.aliasType = aliasType;

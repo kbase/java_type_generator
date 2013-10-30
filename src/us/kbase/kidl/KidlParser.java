@@ -21,11 +21,14 @@ import javax.xml.parsers.ParserConfigurationException;
 
 import org.xml.sax.SAXException;
 
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import us.kbase.jkidl.FileIncludeProvider;
 import us.kbase.jkidl.IncludeProvider;
+import us.kbase.jkidl.ParseException;
 import us.kbase.jkidl.SpecParser;
 
 public class KidlParser {
@@ -72,9 +75,15 @@ public class KidlParser {
 	}
 	
 	public static Map<?,?> parseSpecInt(File specFile, File tempDir, 
-			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, IncludeProvider ip) throws Exception {
+			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, IncludeProvider ip) 
+					throws KidlParseException, JsonGenerationException, JsonMappingException, IOException {
         SpecParser p = new SpecParser(new DataInputStream(new FileInputStream(specFile)));
-        Map<String, KbModule> root = p.SpecStatement(ip);
+        Map<String, KbModule> root;
+		try {
+			root = p.SpecStatement(ip);
+		} catch (ParseException e) {
+			throw new KidlParseException(e.getMessage());
+		}
         Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
         for (KbModule module : root.values()) {
         	List<Object> modList = ret.get(module.getServiceName());

@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import us.kbase.kidl.KbModule;
+import us.kbase.kidl.KidlParseException;
 
 public class StaticIncludeProvider implements IncludeProvider {
 	private Map<String, String> moduleNameToSpec = new LinkedHashMap<String, String>();
@@ -16,7 +17,7 @@ public class StaticIncludeProvider implements IncludeProvider {
 	}
 	
 	@Override
-	public Map<String, KbModule> parseInclude(String includeLine) throws ParseException {
+	public Map<String, KbModule> parseInclude(String includeLine) throws KidlParseException {
 		String moduleName = includeLine.trim();
 		if (moduleName.startsWith("#include"))
 			moduleName = moduleName.substring(8).trim();
@@ -32,8 +33,12 @@ public class StaticIncludeProvider implements IncludeProvider {
 			moduleName = moduleName.substring(0, moduleName.indexOf('.')).trim();
 		String ret = moduleNameToSpec.get(moduleName);
 		if (ret == null)
-			throw new IllegalStateException("Can not find included module [" + moduleName + "] from line: " + includeLine);
+			throw new KidlParseException("Can not find included module [" + moduleName + "] from line: " + includeLine);
         SpecParser p = new SpecParser(new StringReader(ret));
-		return p.SpecStatement(this);
+		try {
+			return p.SpecStatement(this);
+		} catch (ParseException e) {
+			throw new KidlParseException("Error parsing spec-document of module [" + moduleName + "]: " + e.getMessage());
+		}
 	}
 }

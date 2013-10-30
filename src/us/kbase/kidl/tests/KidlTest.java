@@ -32,6 +32,7 @@ import us.kbase.kidl.KbService;
 import us.kbase.kidl.KbStruct;
 import us.kbase.kidl.KbStructItem;
 import us.kbase.kidl.KbTypedef;
+import us.kbase.kidl.KidlParseException;
 import us.kbase.kidl.KidlParser;
 
 public class KidlTest {
@@ -188,15 +189,15 @@ public class KidlTest {
 				"    mapping<string,string> val2;\n" +
 				"  } test2;\n" +
 				"  /*\n" +
-				"  @searchable ws_subset val1 val2 keys_of(val3,val6) val4.val1 val4.val2 keys_of(val4.val2) val5.(val1,val2) val6.val1\n" +
+				"  @searchable ws_subset val1 val2 val2.[*] keys_of(val3,val6.[*],val6.[*].*.val2) val4.val1 val4.val2.* keys_of(val4.val2) val5.[*].(val1,val2.*) val6.[*].*.val1\n" +
 				"  */\n" +
 				"  typedef structure {\n" +
 				"    string val1;\n" +
 				"    list<string> val2;\n" +
-				"    mapping<string,string> val3;\n" +
+				"    mapping<string,list<string>> val3;\n" +
 				"    test2 val4;\n" +
 				"    list<test2> val5;\n" +
-				"    mapping<string,test2> val6;\n" +
+				"    list<mapping<string,test2>> val6;\n" +
 				"  } test1;\n" +
 				"};",
 		};
@@ -345,13 +346,15 @@ public class KidlTest {
 				System.out.println(typedef.getName() + ": " + typedef.getData());
 				Assert.assertEquals(KbScalar.class, typedef.getAliasType().getClass());
 				KbScalar type = (KbScalar)typedef.getAliasType();
-				//System.out.println("IdReferences: " + type.getIdReferences());
+				String actualRefList = "" + type.getIdReference().getValidTypedefNamesForWs();
+				String expectedRefList = typedef.getName().startsWith("full_") ? "[Test.my_struct]" : "[]";
+				Assert.assertEquals(expectedRefList, actualRefList);
 			}
 		}
 	}
 
 	@Test
-	public void testSyntaxError() throws IOException {
+	public void testSyntaxError() throws Exception {
 		File workDir = prepareWorkDir();
 		File specFile = prepareSpec(workDir, "" +
 				"module Test {\n" +
@@ -360,8 +363,119 @@ public class KidlTest {
 		try {
 			KidlParser.parseSpec(specFile, workDir, null);
 			Assert.fail();
-		} catch (Exception ex) {
+		} catch (KidlParseException ex) {
 			Assert.assertTrue(ex.getMessage().contains("bebebe"));
+		}
+		String[][] specAndResult = {
+				{ "" +
+						"#include <nothing.types>\n" +
+						"module Test {\n" +
+						"};",
+						"Can not find included spec-file"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  typedef ;\n" +
+						"};",
+						"Encountered \" \";\" "
+				},
+				{ "" +
+						"module Test {\n" +
+						"  typedef test0 test1;\n" +
+						"};",
+						"Can not find type: test0"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  typedef Test0.test0 test1;\n" +
+						"};",
+						"Can not find module: Test0"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  /* @id */\n" +
+						"  typedef int test1;\n" +
+						"};",
+						"Id annotations without type are not supported"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  /* @searchable */\n" +
+						"  typedef int test1;\n" +
+						"};",
+						"without type"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  /* @searchable ws_subset test1 */\n" +
+						"  typedef int test1;\n" +
+						"};",
+						"only for structures"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  /* @optional val1 val2 val3 */\n" +
+						"  typedef structure {\n" +
+						"    int val1;\n" +
+						"  } test1;\n" +
+						"};",
+						"[val2, val3]"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  /* @searchable ws_subset val2 */\n" +
+						"  typedef structure {\n" +
+						"    int val1;\n" +
+						"  } test1;\n" +
+						"};",
+						"Can not match path val2 in searchable annotation to any field"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  /* @searchable ws_subset val1.val2 */\n" +
+						"  typedef structure {\n" +
+						"    int val1;\n" +
+						"  } test1;\n" +
+						"};",
+						"structure"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  /* @searchable ws_subset val1.[*] */\n" +
+						"  typedef structure {\n" +
+						"    int val1;\n" +
+						"  } test1;\n" +
+						"};",
+						"to a list"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  /* @searchable ws_subset val1.([*].val2,val3) */\n" +
+						"  typedef structure {\n" +
+						"    list<int> val1;\n" +
+						"  } test1;\n" +
+						"};",
+						"val1.[*].val2 in searchable annotation to a structure"
+				},
+				{ "" +
+						"module Test {\n" +
+						"  /* @searchable ws_subset keys_of(val1) */\n" +
+						"  typedef structure {\n" +
+						"    int val1;\n" +
+						"  } test1;\n" +
+						"};",
+						"to a mapping"
+				},
+		};
+		for (int testNum = 0; testNum < specAndResult.length; testNum++) {
+			specFile = prepareSpec(workDir, specAndResult[testNum][0]);
+			try {
+				KidlParser.parseSpec(specFile, workDir, null, null, true);
+				Assert.fail();
+			} catch (KidlParseException ex) {
+				Assert.assertTrue("Actual message for test #" + (testNum + 1) + ": " + ex.getMessage(), 
+						ex.getMessage().contains(specAndResult[testNum][1]));
+			}
 		}
 	}
 	

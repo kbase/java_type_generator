@@ -27,6 +27,8 @@ public class KbStructItem {
 
 	void utilizeAnnotation(Set<String> optionalFields) {
 		optional = optionalFields != null && optionalFields.contains(name);
+		if (optional)
+			optionalFields.remove(name);
 	}
 	
 	public String getName() {

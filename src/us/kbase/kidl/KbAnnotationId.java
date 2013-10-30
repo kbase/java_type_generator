@@ -15,7 +15,9 @@ public class KbAnnotationId {
 	public static final String TYPE_EXTERNAL = "external";
 	public static final String TYPE_SHOCK = "shock";
 
-	void loadFromComment(List<String> words) {
+	void loadFromComment(List<String> words) throws KidlParseException {
+		if (words.size() == 0)
+			throw new KidlParseException("Id annotations without type are not supported");
 		type = words.get(0);
 		words = words.subList(1, words.size());
 		if (type.equals(TYPE_WS)) {

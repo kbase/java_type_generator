@@ -30,12 +30,15 @@ public class KbStruct extends KbBasicType {
 		return this;
 	}
 	
-	void utilizeAnnotations(KbAnnotations ann) {
+	void utilizeAnnotations(KbAnnotations ann) throws KidlParseException {
 		annotations = ann;
 		Set<String> optional = ann == null || ann.getOptional() == null ? null : 
 			new LinkedHashSet<String>(ann.getOptional());
 		for (KbStructItem item : items)
 			item.utilizeAnnotation(optional);
+		if (optional != null && optional.size() > 0)
+			throw new KidlParseException("Can not find field(s) from optional annotation in structure: " + 
+					optional);
 	}
 	
 	@Override

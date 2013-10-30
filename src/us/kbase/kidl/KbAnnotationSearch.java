@@ -6,8 +6,8 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class KbAnnotationSearch {
-	private Subset fields;  //= new Subset();
-	private Subset keys;  //= new Subset();
+	private Subset fields = new Subset();
+	private Subset keys = new Subset();
 	
 	public KbAnnotationSearch() {}
 	
@@ -15,18 +15,20 @@ public class KbAnnotationSearch {
 	void loadFromMap(Map<String, Object> data) {
 		Map<String, Object> map1 = (Map<String, Object>)data.get("fields");
 		if (map1 != null)
-			fields = new Subset().loadFromMap(map1);
+			fields.loadFromMap(map1);
 		Map<String, Object> map2 = (Map<String, Object>)data.get("keys");
 		if (map2 != null)
-			keys = new Subset().loadFromMap(map2);
+			keys.loadFromMap(map2);
 	}
 	
-	KbAnnotationSearch loadFromComment(List<String> words, KbTypedef caller) {
-		if (words.size() == 0 || !words.get(0).equals("ws_subset"))
-			return this;
-		if (!(caller.getAliasType() instanceof KbStruct))
-			return this;
-		KbStruct type = (KbStruct)caller.getAliasType();
+	KbAnnotationSearch loadFromComment(List<String> words, KbTypedef caller) throws KidlParseException {
+		if (words.size() == 0)
+			throw new KidlParseException("Searchable annotations without type are not supported");
+		if (!words.get(0).equals("ws_subset"))
+			throw new KidlParseException("Searchable annotations of type " + words.get(0) + " are not supported");
+		KbType type = resolveTypedefs(caller);
+		if (!(type instanceof KbStruct))
+			throw new KidlParseException("Searchable annotation should be used only for structures");
 		words = new ArrayList<String>(words.subList(1, words.size()));
 		for (int i = 1; i < words.size();) {
 			String w1 = words.get(i - 1);
@@ -43,13 +45,9 @@ public class KbAnnotationSearch {
 		}
 		for (String word : words) {
 			if (word.startsWith("keys_of(") && word.endsWith(")")) {
-				if (keys == null)
-					keys = new Subset();
-				keys.loadFromComment(word.substring(8, word.length() - 1), type, true);
+				keys.loadFromComment("", word.substring(8, word.length() - 1), type, true);
 			} else {
-				if (fields == null)
-					fields = new Subset();
-				fields.loadFromComment(word, type, false);
+				fields.loadFromComment("", word, type, false);
 			}
 		}
 		return this;
@@ -73,9 +71,14 @@ public class KbAnnotationSearch {
 		return ret;
 	}
 
+	private static KbType resolveTypedefs(KbType type) {
+		if (type instanceof KbTypedef) 
+			return resolveTypedefs(((KbTypedef)type).getAliasType());
+		return type;
+	}
+	
 	@SuppressWarnings("serial")
 	public static class Subset extends TreeMap<String, Subset> {
-		private boolean isMapping = false;
 		
 		@SuppressWarnings("unchecked")
 		public Subset loadFromMap(Map<String, Object> data) {
@@ -88,8 +91,6 @@ public class KbAnnotationSearch {
 		}
 		
 		public Object toJson() {
-			if (isMapping)
-				return "";
 			Map<String, Object> ret = new TreeMap<String, Object>();
 			for (Map.Entry<String, Subset> entry : entrySet()) {
 				ret.put(entry.getKey(), entry.getValue().toJson());
@@ -98,18 +99,10 @@ public class KbAnnotationSearch {
 		}
 
 		public Object toJsonSchema() {
-			Map<String, Object> ret = new TreeMap<String, Object>();
-			for (Map.Entry<String, Subset> entry : entrySet()) {
-				ret.put(entry.getKey(), entry.getValue().toJsonSchema());
-			}
-			return ret;
+			return toJson();
 		}
 
-		void loadFromComment(String text, KbStruct type, boolean forKeys) {
-			loadFromComment(text, type, forKeys, false);
-		}
-		
-		void loadFromComment(String text, KbStruct type, boolean forKeys, boolean internal) {
+		void loadFromComment(String historyPrefix, String text, KbType type, boolean keys) throws KidlParseException {
 			List<String> commaParts = new ArrayList<String>();
 			while (true) {
 				int commaPos = indexOfRoundBrackets(text, ',');
@@ -125,16 +118,24 @@ public class KbAnnotationSearch {
 				int dotPos = indexOfRoundBrackets(commaPart, '.');
 				String key = dotPos > 0 ? commaPart.substring(0, dotPos) : commaPart;
 				KbType itemType = null;
-				for (KbStructItem item : type.getItems()) {
-					if (item.getName().equals(key)) {
-						itemType = resolveTypedefs(item.getItemType());
-						break;
+				if (key.equals("*")) {
+					checkSubsetType(historyPrefix, key, KbMapping.class, type);
+					itemType = resolveTypedefs(((KbMapping)type).getValueType());
+				} else if (key.equals("[*]")) {
+					checkSubsetType(historyPrefix, key, KbList.class, type);
+					itemType = resolveTypedefs(((KbList)type).getElementType());
+				} else {
+					checkSubsetType(historyPrefix, key, KbStruct.class, type);
+					for (KbStructItem item : ((KbStruct)type).getItems()) {
+						if (item.getName().equals(key)) {
+							itemType = resolveTypedefs(item.getItemType());
+							break;
+						}
 					}
+					if (itemType == null)
+						throw new KidlParseException("Can not match path " + historyPrefix + key +
+								" in searchable annotation to any field in actual structure");
 				}
-				if (itemType == null)
-					continue;
-				if (itemType instanceof KbMapping)
-					key = "mapping." + key;
 				Subset value = get(key);
 				if (value == null)
 					value = new Subset();
@@ -142,32 +143,42 @@ public class KbAnnotationSearch {
 					String leftPart = commaPart.substring(dotPos + 1);
 					if (leftPart.startsWith("(") && leftPart.endsWith(")"))
 						leftPart = leftPart.substring(1, leftPart.length() - 1);
-					KbStruct inner = digInto(itemType);
-					if (inner == null)
-						continue;
-					value.loadFromComment(leftPart, inner, forKeys, true);
-				} else if (itemType instanceof KbMapping) {
-					value.isMapping = (!forKeys) || (!internal);
+					value.loadFromComment(historyPrefix + key + ".", leftPart, itemType, keys);
+				} else {
+					if (keys) {
+						checkSubsetType(historyPrefix, key, KbMapping.class, itemType);
+					}
 				}
 				put(key, value);
 			}
 		}
-		
-		private KbType resolveTypedefs(KbType type) {
-			if (type instanceof KbTypedef) 
-				return resolveTypedefs(((KbTypedef)type).getAliasType());
-			return type;
+
+		private void checkSubsetType(String historyPrefix, String key,
+				Class<? extends KbType> expectedType, KbType actualType) throws KidlParseException {
+			if (!(actualType.getClass().equals(expectedType)))
+				throw new KidlParseException("Can not match path " + historyPrefix + key + 
+						" in searchable annotation to a " + getTypeSimpleName(expectedType) + 
+						", actual type is " + getTypeSimpleName(actualType.getClass()));
 		}
-		
-		private KbStruct digInto(KbType type) {
-			type = resolveTypedefs(type);
-			if (type instanceof KbStruct)
-				return (KbStruct)type;
-			if (type instanceof KbList)
-				return digInto(((KbList)type).getElementType());
-			if (type instanceof KbMapping)
-				return digInto(((KbMapping)type).getValueType());
-			return null;
+				
+		private String getTypeSimpleName(Class<? extends KbType> type) {
+			if (type.equals(KbScalar.class)) {
+				return "scalar";
+			} else if (type.equals(KbList.class)) {
+				return "list";
+			} else if (type.equals(KbMapping.class)) {
+				return "mapping";
+			} else if (type.equals(KbTuple.class)) {
+				return "tuple";
+			} else if (type.equals(KbStruct.class)) {
+				return "structure";
+			} else if (type.equals(KbUnspecifiedObject.class)) {
+				return "UnspecifiedObject";
+			} else if (type.equals(KbTypedef.class)) {
+				return "typedef";
+			} else {
+				return type.getSimpleName();
+			}
 		}
 		
 		private int indexOfRoundBrackets(String text, char ch) {

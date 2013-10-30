@@ -25,6 +25,7 @@ import us.kbase.kidl.KbTuple;
 import us.kbase.kidl.KbType;
 import us.kbase.kidl.KbTypedef;
 import us.kbase.kidl.KbUnspecifiedObject;
+import us.kbase.kidl.KidlParseException;
 
 @SuppressWarnings({"unused", "serial"})
 public class SpecParser implements SpecParserConstants {
@@ -79,6 +80,14 @@ public class SpecParser implements SpecParserConstants {
         return ret;
     }
 
+    public void generateParseException(KidlParseException t) throws ParseException {
+        generateParseException(t.getMessage());
+    }
+
+    public void generateParseException(String message) throws ParseException {
+        throw new ParseException("Error at line " + token.beginLine + ", column " + token.beginColumn + ": " + message);
+    }
+
   final public Map<String, KbModule> SpecStatement(IncludeProvider ip) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
   Map<String, KbModule> includes = null;
     includes = IncludeList(ip);
@@ -111,7 +120,11 @@ ret.putAll(added);
 
   final public Map<String, KbModule> Include(IncludeProvider ip) throws ParseException {Token pathToken;
     pathToken = jj_consume_token(INCLUDE_LITERAL);
-{if ("" != null) return ip.parseInclude(pathToken.toString());}
+try {
+            {if ("" != null) return ip.parseInclude(pathToken.toString());}
+        } catch (KidlParseException ex) {
+                generateParseException(ex);
+        }
     throw new Error("Missing return statement in function");
   }
 
@@ -202,7 +215,11 @@ comment = Utils.trim(lastComment);
     lastComment = null;
     type = Type(curModule, includes);
     name = jj_consume_token(S_IDENTIFIER);
-{if ("" != null) return new KbTypedef(curModule.getModuleName(), name.toString(), type, comment);}
+try {
+                {if ("" != null) return new KbTypedef(curModule.getModuleName(), name.toString(), type, comment);}
+        } catch (KidlParseException ex) {
+                generateParseException(ex);
+        }
     throw new Error("Missing return statement in function");
   }
 
@@ -330,12 +347,12 @@ if (ret == null) {
         } else {
                 refModule = includes.get(module);
                 if (refModule == null)
-                        {if (true) throw new IllegalStateException("Can not find module with name: " + module);}
+                        generateParseException("Can not find module: " + module);
         }
         String type = typeToken.toString();
         ret = refModule.getNameToType().get(type);
         if (ret == null)
-                {if (true) throw new IllegalStateException("Can not find type: " + module + "." + type);}
+                generateParseException("Can not find type: " + (module == null ? "" : (module + ".")) + type);
     }
     {if ("" != null) return ret;}
     throw new Error("Missing return statement in function");

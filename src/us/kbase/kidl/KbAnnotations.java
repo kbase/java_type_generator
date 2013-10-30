@@ -40,7 +40,7 @@ public class KbAnnotations {
 		return this;
 	}
 	
-	public KbAnnotations loadFromComment(String comment, KbTypedef caller) {
+	public KbAnnotations loadFromComment(String comment, KbTypedef caller) throws KidlParseException {
 		List<List<String>> lines = new ArrayList<List<String>>();
 		StringTokenizer st = new StringTokenizer(comment, "\r\n");
 		while (st.hasMoreTokens()) {
@@ -64,11 +64,11 @@ public class KbAnnotations {
 				optional = value;
 			} else if (annType.equals("id")) {
 				idReference = new KbAnnotationId();
-				if (value.size() > 0)
-					idReference.loadFromComment(value);
+				idReference.loadFromComment(value);
 			} else if (annType.equals("searchable")) {
 				searchableWsSubset = new KbAnnotationSearch().loadFromComment(value, caller);
 			} else {
+				// TODO: Probably we should throw an exception here
 				unknown.put(annType, value);
 			}
 		}
