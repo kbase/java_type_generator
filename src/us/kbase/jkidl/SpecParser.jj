@@ -36,6 +36,7 @@ import us.kbase.kidl.KidlParseException;
 @SuppressWarnings({"unused", "serial"})
 public class SpecParser {
 	static String lastComment;
+	static int lastCommentEndLine;
   
     public static void main(String args[]) throws Exception {
         String fileName = null;
@@ -56,20 +57,6 @@ public class SpecParser {
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
 		mapper.writeValue(System.out, root);
-  	}
-
-  	public ParseNode getBeginPlaceNode(Token t) {
-    	ParseNode node = new ParseNode("BEG_PLACE");
-   	 	node.setProperty("LINE",""+t.beginLine);
-    	node.setProperty("COLUMN",""+t.beginColumn);
-    	return node;
-  	}
-  	
-  	public ParseNode getEndPlaceNode(Token t) {
-    	ParseNode node = new ParseNode("END_PLACE");
-    	node.setProperty("LINE",""+t.endLine);
-    	node.setProperty("COLUMN",""+t.endColumn);
-    	return node;
   	}
 
     public static Map<?,?> parseAsJson(SpecParser p, IncludeProvider ip) throws ParseException {
@@ -93,6 +80,16 @@ public class SpecParser {
     public void generateParseException(String message) throws ParseException {
     	throw new ParseException("Error at line " + token.beginLine + ", column " + token.beginColumn + ": " + message);
     }
+
+    public String getLastComment(Token first) {
+    	String comment = lastComment;
+    	lastComment = null;
+    	if (comment == null)
+    		return "";
+    	//if (first.beginLine > lastCommentEndLine + 1)
+    	//	return "";
+    	return Utils.trim(comment);
+    }
 }
 
 PARSER_END(SpecParser)
@@ -112,6 +109,7 @@ SKIP:
   "*/"
   {
     SpecParser.lastComment = "/*" + image;
+    SpecParser.lastCommentEndLine = input_stream.line;
   }
   : DEFAULT
 }
@@ -221,6 +219,7 @@ Map<String, KbModule> ModuleList(Map<String, KbModule> includes):
 
 KbModule Module(Map<String, KbModule> includes):
 {
+  Token first = null;
   KbModule ret = null;
   String comment = null;
   Token srvToken = null;
@@ -228,10 +227,9 @@ KbModule Module(Map<String, KbModule> includes):
   KbModuleComp comp = null;
 }
 {
-  "module"
+  first = "module"
   {
-	comment = Utils.trim(lastComment);
-    lastComment = null;
+	comment = getLastComment(first);
   }
   [
     LOOKAHEAD (<S_IDENTIFIER> ":")
@@ -264,15 +262,15 @@ KbModule Module(Map<String, KbModule> includes):
 
 KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes):
 {
+  Token first;
   String comment;
   KbType type;
   Token name;
 }
 {
-  "typedef"
+  first = "typedef"
   {
-	comment = Utils.trim(lastComment);
-    lastComment = null;
+	comment = getLastComment(first);
   }
   type = Type(curModule, includes)
   name = <S_IDENTIFIER>
@@ -320,8 +318,8 @@ KbType Type(KbModule curModule, Map<String, KbModule> includes):
       { ret = new KbList(subType); }
     )
   	|
-  	(  	  t = "mapping" "<" subType = Type(curModule, includes) "," 
-  	  subType2 = Type(curModule, includes) ">"
+  	(  	  t = "mapping" "<" subType = Type(curModule, includes) [<S_IDENTIFIER>] "," 
+  	  subType2 = Type(curModule, includes) [<S_IDENTIFIER>] ">"
       { ret = new KbMapping(subType, subType2); }
   	)
   	|
@@ -405,6 +403,7 @@ KbAuthdef Auth():
 
 KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes):
 {
+  Token first;
   KbFuncdef ret = null;
   String comment = null;
   Token name;
@@ -413,10 +412,9 @@ KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes):
   KbAuthdef auth;
 }
 {
-  "funcdef"
+  first = "funcdef"
   {
-	comment = Utils.trim(lastComment);
-    lastComment = null;
+	comment = getLastComment(first);
   }
   name = <S_IDENTIFIER>
   "("

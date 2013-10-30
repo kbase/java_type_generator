@@ -30,6 +30,7 @@ import us.kbase.kidl.KidlParseException;
 @SuppressWarnings({"unused", "serial"})
 public class SpecParser implements SpecParserConstants {
         static String lastComment;
+        static int lastCommentEndLine;
 
     public static void main(String args[]) throws Exception {
         String fileName = null;
@@ -52,20 +53,6 @@ public class SpecParser implements SpecParserConstants {
                 mapper.writeValue(System.out, root);
         }
 
-        public ParseNode getBeginPlaceNode(Token t) {
-        ParseNode node = new ParseNode("BEG_PLACE");
-                node.setProperty("LINE",""+t.beginLine);
-        node.setProperty("COLUMN",""+t.beginColumn);
-        return node;
-        }
-
-        public ParseNode getEndPlaceNode(Token t) {
-        ParseNode node = new ParseNode("END_PLACE");
-        node.setProperty("LINE",""+t.endLine);
-        node.setProperty("COLUMN",""+t.endColumn);
-        return node;
-        }
-
     public static Map<?,?> parseAsJson(SpecParser p, IncludeProvider ip) throws ParseException {
         Map<String, KbModule> root = p.SpecStatement(ip);
         Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
@@ -86,6 +73,16 @@ public class SpecParser implements SpecParserConstants {
 
     public void generateParseException(String message) throws ParseException {
         throw new ParseException("Error at line " + token.beginLine + ", column " + token.beginColumn + ": " + message);
+    }
+
+    public String getLastComment(Token first) {
+        String comment = lastComment;
+        lastComment = null;
+        if (comment == null)
+                return "";
+        //if (first.beginLine > lastCommentEndLine + 1)
+        //	return "";
+        return Utils.trim(comment);
     }
 
   final public Map<String, KbModule> SpecStatement(IncludeProvider ip) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
@@ -149,14 +146,14 @@ ret.put(module.getModuleName(), module);
     throw new Error("Missing return statement in function");
   }
 
-  final public KbModule Module(Map<String, KbModule> includes) throws ParseException {KbModule ret = null;
+  final public KbModule Module(Map<String, KbModule> includes) throws ParseException {Token first = null;
+  KbModule ret = null;
   String comment = null;
   Token srvToken = null;
   Token nameToken = null;
   KbModuleComp comp = null;
-    jj_consume_token(T_module);
-comment = Utils.trim(lastComment);
-    lastComment = null;
+    first = jj_consume_token(T_module);
+comment = getLastComment(first);
     if (jj_2_1(2147483647)) {
       srvToken = jj_consume_token(S_IDENTIFIER);
       jj_consume_token(T_colon);
@@ -207,12 +204,12 @@ lastComment = null;
     throw new Error("Missing return statement in function");
   }
 
-  final public KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes) throws ParseException {String comment;
+  final public KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes) throws ParseException {Token first;
+  String comment;
   KbType type;
   Token name;
-    jj_consume_token(T_typedef);
-comment = Utils.trim(lastComment);
-    lastComment = null;
+    first = jj_consume_token(T_typedef);
+comment = getLastComment(first);
     type = Type(curModule, includes);
     name = jj_consume_token(S_IDENTIFIER);
 try {
@@ -264,8 +261,26 @@ ret = new KbList(subType);
       t = jj_consume_token(T_mapping);
       jj_consume_token(38);
       subType = Type(curModule, includes);
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case S_IDENTIFIER:{
+        jj_consume_token(S_IDENTIFIER);
+        break;
+        }
+      default:
+        jj_la1[4] = jj_gen;
+        ;
+      }
       jj_consume_token(T_comma);
       subType2 = Type(curModule, includes);
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case S_IDENTIFIER:{
+        jj_consume_token(S_IDENTIFIER);
+        break;
+        }
+      default:
+        jj_la1[5] = jj_gen;
+        ;
+      }
       jj_consume_token(39);
 ret = new KbMapping(subType, subType2);
       break;
@@ -284,7 +299,7 @@ ret = new KbTuple();
           break;
           }
         default:
-          jj_la1[4] = jj_gen;
+          jj_la1[6] = jj_gen;
           break label_4;
         }
         jj_consume_token(T_comma);
@@ -314,7 +329,7 @@ ret = new KbStruct();
           break;
           }
         default:
-          jj_la1[5] = jj_gen;
+          jj_la1[7] = jj_gen;
           break label_5;
         }
         structItem = StructItem(curModule, includes);
@@ -335,7 +350,7 @@ ret = new KbStruct();
       break;
       }
     default:
-      jj_la1[6] = jj_gen;
+      jj_la1[8] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -382,7 +397,7 @@ if (ret == null) {
       break;
       }
     default:
-      jj_la1[7] = jj_gen;
+      jj_la1[9] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -390,15 +405,15 @@ if (ret == null) {
     throw new Error("Missing return statement in function");
   }
 
-  final public KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbFuncdef ret = null;
+  final public KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes) throws ParseException {Token first;
+  KbFuncdef ret = null;
   String comment = null;
   Token name;
   List<KbParameter> args;
   List<KbParameter> rets;
   KbAuthdef auth;
-    jj_consume_token(T_funcdef);
-comment = Utils.trim(lastComment);
-    lastComment = null;
+    first = jj_consume_token(T_funcdef);
+comment = getLastComment(first);
     name = jj_consume_token(S_IDENTIFIER);
     jj_consume_token(T_round_open_bracket);
 ret = new KbFuncdef(name.toString(), comment);
@@ -417,7 +432,7 @@ ret.setAuthentication(auth.getType());
       break;
       }
     default:
-      jj_la1[8] = jj_gen;
+      jj_la1[10] = jj_gen;
       ;
     }
 {if ("" != null) return ret;}
@@ -446,7 +461,7 @@ ret.add(param);
           break;
           }
         default:
-          jj_la1[9] = jj_gen;
+          jj_la1[11] = jj_gen;
           break label_6;
         }
         jj_consume_token(T_comma);
@@ -456,7 +471,7 @@ ret.add(param);
       break;
       }
     default:
-      jj_la1[10] = jj_gen;
+      jj_la1[12] = jj_gen;
       ;
     }
 {if ("" != null) return ret;}
@@ -493,7 +508,7 @@ ret.add(param);
           break;
           }
         default:
-          jj_la1[11] = jj_gen;
+          jj_la1[13] = jj_gen;
           break label_7;
         }
         jj_consume_token(T_comma);
@@ -503,7 +518,7 @@ ret.add(param);
       break;
       }
     default:
-      jj_la1[12] = jj_gen;
+      jj_la1[14] = jj_gen;
       ;
     }
 {if ("" != null) return ret;}
@@ -521,7 +536,7 @@ name = nameToken.toString();
       break;
       }
     default:
-      jj_la1[13] = jj_gen;
+      jj_la1[15] = jj_gen;
       ;
     }
 {if ("" != null) return new KbParameter(type, name);}
@@ -544,17 +559,17 @@ name = nameToken.toString();
     finally { jj_save(1, xla); }
   }
 
-  private boolean jj_3_2()
- {
-    if (jj_scan_token(S_IDENTIFIER)) return true;
-    if (jj_scan_token(T_dot)) return true;
-    return false;
-  }
-
   private boolean jj_3_1()
  {
     if (jj_scan_token(S_IDENTIFIER)) return true;
     if (jj_scan_token(T_colon)) return true;
+    return false;
+  }
+
+  private boolean jj_3_2()
+ {
+    if (jj_scan_token(S_IDENTIFIER)) return true;
+    if (jj_scan_token(T_dot)) return true;
     return false;
   }
 
@@ -569,7 +584,7 @@ name = nameToken.toString();
   private Token jj_scanpos, jj_lastpos;
   private int jj_la;
   private int jj_gen;
-  final private int[] jj_la1 = new int[14];
+  final private int[] jj_la1 = new int[16];
   static private int[] jj_la1_0;
   static private int[] jj_la1_1;
   static {
@@ -577,10 +592,10 @@ name = nameToken.toString();
       jj_la1_init_1();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x0,0x200,0xc400,0xc400,0x8000000,0xff0000,0xff0000,0x3800,0x400,0x8000000,0xff0000,0x8000000,0xff0000,0x0,};
+      jj_la1_0 = new int[] {0x0,0x200,0xc400,0xc400,0x0,0x0,0x8000000,0xff0000,0xff0000,0x3800,0x400,0x8000000,0xff0000,0x8000000,0xff0000,0x0,};
    }
    private static void jj_la1_init_1() {
-      jj_la1_1 = new int[] {0x20,0x0,0x0,0x0,0x0,0x2,0x2,0x0,0x0,0x0,0x2,0x0,0x2,0x2,};
+      jj_la1_1 = new int[] {0x20,0x0,0x0,0x0,0x2,0x2,0x0,0x2,0x2,0x0,0x0,0x0,0x2,0x0,0x2,0x2,};
    }
   final private JJCalls[] jj_2_rtns = new JJCalls[2];
   private boolean jj_rescan = false;
@@ -597,7 +612,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -612,7 +627,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -623,7 +638,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -634,7 +649,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -644,7 +659,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -654,7 +669,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -772,7 +787,7 @@ name = nameToken.toString();
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 14; i++) {
+    for (int i = 0; i < 16; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {

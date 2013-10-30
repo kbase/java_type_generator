@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -70,14 +72,22 @@ public class KidlTest {
 		for (String l : origLn)
 			if (origWidth < l.length())
 				origWidth = l.length();
+		if (origWidth > 100)
+			origWidth = 100;
 		int maxSize = Math.max(origLn.size(), newLn.size());
 		for (int pos = 0; pos < maxSize; pos++) {
 			String origL = pos < origLn.size() ? origLn.get(pos) : "";
 			String newL = pos < newLn.size() ? newLn.get(pos) : "";
-			String sep = origL.equals(newL) ? "   " : " * ";
-			char[] gap = new char[origWidth - origL.length()];
-			Arrays.fill(gap, ' ');
-			System.out.println(origL + new String(gap) + sep + newL);
+			boolean eq = origL.equals(newL);
+			if (origL.length() > origWidth) {
+				System.out.println("/" + (eq ? " " : "*") +origL);
+				System.out.println("\\" + (eq ? " " : "*") + newL);
+			} else {
+				String sep = eq ? "   " : " * ";
+				char[] gap = new char[origWidth - origL.length()];
+				Arrays.fill(gap, ' ');
+				System.out.println(origL + new String(gap) + sep + newL);
+			}
 		}
 	}
 	
@@ -99,6 +109,10 @@ public class KidlTest {
 				"module Test5 {\n" +
 				"  typedef structure {string val1; int val2; } test1;\n" +
 				"};",				
+				"/*\n" +
+				"  test\n" +
+				"*/\n" +
+				"\n" +
 				"module Test6 {\n" +
 				"  typedef string test1;\n" +
 				"  typedef list<string> test2;\n" +
@@ -215,6 +229,26 @@ public class KidlTest {
 		Assert.assertTrue(ok);
 	}
 
+	@Test
+	public void testJsonSchemas2() throws Exception {
+		boolean ok = true;
+		for (int testNum = 1; testNum <= 20; testNum++) {
+			if (testNum == 9) {
+				continue;
+			}
+			File workDir = prepareWorkDir();
+			InputStream is = this.getClass().getResourceAsStream("spec." + testNum + ".properties");
+			File specFile = prepareSpec(workDir, is);
+			Map<String, Map<String, String>> schemas1 = new HashMap<String, Map<String, String>>();
+			Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, null);
+			Map<String, Map<String, String>> schemas2 = new HashMap<String, Map<String, String>>();
+			Map<?,?> parse2 = KidlParser.parseSpecInt(specFile, workDir, schemas2);
+			ok = ok & compareJson(parse1, parse2, "Parsing result for test #" + (testNum + 1));
+			ok = ok & compareJsonSchemas(schemas1, schemas2, "Json schema for test #" + (testNum + 1));
+		}
+		Assert.assertTrue(ok);
+	}
+
 	public static boolean compareJsonSchemas(Map<String, Map<String, String>> schemas1,
 			Map<String, Map<String, String>> schemas2, String header) throws IOException,
 			JsonParseException, JsonMappingException, JsonGenerationException,
@@ -285,6 +319,21 @@ public class KidlTest {
 		pw.close();
 		return specFile;
 	}
+
+	private static File prepareSpec(File workDir, InputStream is) throws IOException {
+		File specFile = new File(workDir, "Test.spec");
+		PrintWriter pw = new PrintWriter(specFile);
+		BufferedReader br = new BufferedReader(new InputStreamReader(is));
+		while (true) {
+			String l = br.readLine();
+			if (l == null)
+				break;
+			pw.println(l);
+		}
+		br.close();
+		pw.close();
+		return specFile;
+	}
 	
 	@Test
 	public void testOptionalAnnotation() throws Exception {
@@ -343,7 +392,6 @@ public class KidlTest {
 			Assert.assertEquals(KbTypedef.class, cmpList.get(i).getClass());
 			KbTypedef typedef = (KbTypedef)cmpList.get(i);
 			if (typedef.getName().endsWith("_ref")) {
-				System.out.println(typedef.getName() + ": " + typedef.getData());
 				Assert.assertEquals(KbScalar.class, typedef.getAliasType().getClass());
 				KbScalar type = (KbScalar)typedef.getAliasType();
 				String actualRefList = "" + type.getIdReference().getValidTypedefNamesForWs();
@@ -477,25 +525,6 @@ public class KidlTest {
 						ex.getMessage().contains(specAndResult[testNum][1]));
 			}
 		}
-	}
-	
-	@Test
-	public void testTemp() throws Exception {
-		File workDir = prepareWorkDir();
-		File input = new File("../WorkspaceDeluxe/workspace.spec");
-		//File input = new File("src/us/kbase/scripts/tests/test1.spec.properties");
-		File specFile = new File(workDir, "Test.spec");
-		BufferedReader br = new BufferedReader(new FileReader(input));
-		PrintWriter pw = new PrintWriter(specFile);
-		while (true) {
-			String l = br.readLine();
-			if (l == null)
-				break;
-			pw.println(l);
-		}
-		br.close();
-		pw.close();
-		KidlParser.parseSpec(specFile, workDir, null);
 	}
 	
 	protected KbModule getModule(List<KbService> srvList) {

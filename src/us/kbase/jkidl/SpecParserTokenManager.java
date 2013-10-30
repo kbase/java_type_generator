@@ -1046,6 +1046,7 @@ void SkipLexicalActions(Token matchedToken)
       case 6 :
          image.append(input_stream.GetSuffix(jjimageLen + (lengthOfMatch = jjmatchedPos + 1)));
     SpecParser.lastComment = "/*" + image;
+    SpecParser.lastCommentEndLine = input_stream.line;
          break;
       default :
          break;

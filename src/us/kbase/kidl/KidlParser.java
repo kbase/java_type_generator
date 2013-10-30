@@ -249,6 +249,22 @@ public class KidlParser {
 					Map<String, Object> moduleProps = (Map<String, Object>)module.get(0);
 					String moduleName = moduleProps.get("module_name").toString();
 					moduleNames.add(moduleName);
+					List<Object> components = (List<Object>)moduleProps.get("module_components");
+					for (Object cmp : components) {
+						if (!(cmp instanceof Map))
+							continue;
+						Map<String, Object> comp = (Map<String, Object>)cmp;
+						if (comp.get("!").equals("Bio::KBase::KIDL::KBT::Typedef")) {
+							Map<String, Object> ann = (Map<String, Object>)comp.get("annotations");
+							if (ann == null)
+								ann = new TreeMap<String, Object>();
+							if (ann.get("searchable_ws_subset") == null)
+								ann.put("searchable_ws_subset", new TreeMap<String, Object>());
+							if (ann.get("unknown_annotations") == null)
+								ann.put("unknown_annotations", new TreeMap<String, Object>());
+							comp.put("annotations", ann);
+						}
+					}
 				}
 			}
 			if (createJsonSchemas) {
