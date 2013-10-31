@@ -1,5 +1,8 @@
 package us.kbase.kidl;
 
+/**
+ * Class represents authentication module component or function modifier in spec-file.
+ */
 public class KbAuthdef implements KbModuleComp {
 	private String type;
 	

@@ -1,10 +1,11 @@
 package us.kbase.kidl;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * Named (artificial) type.
+ * Class represents type definition (or named type) in spec-file.
  * @author rsutormin
  */
 public class KbTypedef implements KbModuleComp, KbType {
@@ -48,7 +49,6 @@ public class KbTypedef implements KbModuleComp, KbType {
 		return this;
 	}
 	
-	@Override
 	public String getName() {
 		return name;
 	}
@@ -92,6 +92,18 @@ public class KbTypedef implements KbModuleComp, KbType {
 		ret.put("comment", comment);
 		ret.put("module", module);
 		ret.put("name", name);
+		return ret;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public Object toJsonSchema(boolean inner) {
+		Map<String, Object> ret = new LinkedHashMap<String, Object>();
+		if (!inner) {
+			ret.put("id", getName());
+			ret.put("description", getComment());
+		}
+		ret.putAll((Map<String, Object>)getAliasType().toJsonSchema(true));
 		return ret;
 	}
 }

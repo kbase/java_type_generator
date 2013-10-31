@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
 
+/**
+ * Class represents comment annotations started with symbol @.
+ */
 public class KbAnnotations {
 	private List<String> optional = null;
 	private KbAnnotationId idReference = null;
@@ -61,12 +64,16 @@ public class KbAnnotations {
 			annType = annType.substring(1);
 			List<String> value = words.subList(1, words.size());
 			if (annType.equals("optional")) {
-				optional = value;
+				if (optional == null)
+					optional = new ArrayList<String>();
+				optional.addAll(value);
 			} else if (annType.equals("id")) {
 				idReference = new KbAnnotationId();
 				idReference.loadFromComment(value);
 			} else if (annType.equals("searchable")) {
-				searchableWsSubset = new KbAnnotationSearch().loadFromComment(value, caller);
+				if (searchableWsSubset == null)
+					searchableWsSubset = new KbAnnotationSearch();
+				searchableWsSubset.loadFromComment(value, caller);
 			} else {
 				// TODO: Probably we should throw an exception here
 				unknown.put(annType, value);

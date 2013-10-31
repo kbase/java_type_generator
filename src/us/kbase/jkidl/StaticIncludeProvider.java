@@ -7,6 +7,9 @@ import java.util.Map;
 import us.kbase.kidl.KbModule;
 import us.kbase.kidl.KidlParseException;
 
+/**
+ * Memory implementation of {@link IncludeProvider}.
+ */
 public class StaticIncludeProvider implements IncludeProvider {
 	private Map<String, String> moduleNameToSpec = new LinkedHashMap<String, String>();
 

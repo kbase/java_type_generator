@@ -17,6 +17,9 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+/**
+ * Class helps to transform data from xml (which is output from perl KIDL parser) into JSON format.
+ */
 @SuppressWarnings("unchecked")
 public class SpecXmlHelper {
 	public static Map<String,Object> parseXml(File parsingFile) 

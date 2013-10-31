@@ -137,7 +137,8 @@ public class KidlTest {
 				"  typedef mapping<string,testA> testC;\n" +
 				"  typedef tuple<testA,testA,testA> testD;\n" +
 				"  /*\n" +
-				"  @optional val1 id\n" +
+				"  @optional val1\n" +
+				"  @optional id\n" +
 				"  */\n" +
 				"  typedef structure {\n" +
 				"    testA val1;\n" +
@@ -178,7 +179,7 @@ public class KidlTest {
 				"};",								
 				"module Test11 {\n" +
 				"  /*\n" +
-				"  @id ws Test11.test2\n" +
+				"  @id ws Test11.test2 Test11.test2b\n" +
 				"  */\n" +
 				"  typedef string test1;\n" +
 				"  typedef mapping<test1, float> id_map;\n" +
@@ -202,6 +203,9 @@ public class KidlTest {
 				"  @id shock\n" +
 				"  */\n" +
 				"  typedef string test5;\n" +
+				"  typedef structure {\n" +
+				"    int val1;\n" +
+				"  } test2b;\n" +
 				"};",
 				"module Test12 {\n" +
 				"  typedef structure {\n" +
@@ -209,7 +213,8 @@ public class KidlTest {
 				"    mapping<string,string> val2;\n" +
 				"  } test2;\n" +
 				"  /*\n" +
-				"  @searchable ws_subset val1 val2 val2.[*] keys_of(val3,val6.[*],val6.[*].*.val2) val4.val1 val4.val2.* keys_of(val4.val2) val5.[*].(val1,val2.*) val6.[*].*.val1\n" +
+				"  @searchable ws_subset val1 val2 val2.[*] keys_of(val3,val6.[*],val6.[*].*.val2) val4.val1 val4.val2.*\n" +
+				"  @searchable ws_subset keys_of(val4.val2) val5.[*].(val1,val2.*),val6.[*].*.val1\n" +
 				"  */\n" +
 				"  typedef structure {\n" +
 				"    string val1;\n" +
@@ -223,10 +228,19 @@ public class KidlTest {
 				"module Test13 {\n" +
 				"};\n" +
 				"module A {\n" +
-				"};"
+				"};",
+				"module Test14 {\n" +  // This test is ignored
+				"  /*************************************\n" +
+				"  Common comment dividing group of types\n" +
+				"  *************************************/\n" +
+				"  /* Real comment for type1 */\n" +
+				"  typedef string test1;\n" +
+				"};",								
 		};
 		boolean ok = true;
 		for (int testNum = 0; testNum < tests.length; testNum++) {
+			if (testNum + 1 == 14)
+				continue;
 			File workDir = prepareWorkDir();
 			File specFile = prepareSpec(workDir, tests[testNum]);
 			Map<String, Map<String, String>> schemas1 = new HashMap<String, Map<String, String>>();

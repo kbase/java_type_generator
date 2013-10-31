@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Class represents function definition in spec-file.
+ */
 public class KbFuncdef implements KbModuleComp {
 	private String name;
 	private boolean async;

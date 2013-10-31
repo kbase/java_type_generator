@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Class represents kind of comment annotation called 'id'.
+ */
 public class KbAnnotationId {
 	private String type;
 	private List<String> sources;

@@ -1,9 +1,13 @@
 package us.kbase.kidl;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Class represents scalar in spec-file.
+ */
 public class KbScalar extends KbBasicType {
 	public enum Type {
 		intType, stringType, floatType, boolType;
@@ -18,14 +22,10 @@ public class KbScalar extends KbBasicType {
 	
 	public KbScalar(String scalarType) {
 		this.scalarType = Type.valueOf(scalarType + "Type");
-		javaStyleType = getJavaStyleType();
-		jsonStyleType = getJsonStyleType();
 	}
 	
 	public KbScalar loadFromMap(Map<?,?> data, KbAnnotations annFromTypeDef) throws KidlParseException {
 		scalarType = Type.valueOf(Utils.prop(data, "scalar_type") + "Type");
-		javaStyleType = getJavaStyleType();
-		jsonStyleType = getJsonStyleType();
 		KbAnnotations ann = null;
 		if (data.containsKey("annotations")) 
 			ann = new KbAnnotations().loadFromMap(Utils.propMap(data, "annotations"));
@@ -44,18 +44,19 @@ public class KbScalar extends KbBasicType {
 		return scalarType;
 	}
 	
-	@Override
-	public String getName() {
+	public String getSpecName() {
 		String ret = scalarType.toString();
 		return ret.substring(0, ret.length() - 4);
 	}
 	
 	@Override
 	public String getJavaStyleName() {
+		if (javaStyleType == null)
+			javaStyleType = buildJavaStyleName();
 		return javaStyleType;
 	}
 	
-	private String getJavaStyleType() {
+	private String buildJavaStyleName() {
 		switch (scalarType) {
 			case stringType: return "String";
 			case intType: return "Long";
@@ -70,10 +71,12 @@ public class KbScalar extends KbBasicType {
 	}
 
 	public String getJsonStyleName() {
+		if (jsonStyleType == null)
+			jsonStyleType = buildJsonStyleName();
 		return jsonStyleType;
 	}
 	
-	private String getJsonStyleType() {
+	private String buildJsonStyleName() {
 		switch (scalarType) {
 			case stringType: return "string";
 			case intType: return "integer";
@@ -93,7 +96,19 @@ public class KbScalar extends KbBasicType {
 		ret.put("!", "Bio::KBase::KIDL::KBT::Scalar");
 		if (scalarType == Type.stringType && oui.isStringScalarsUsedInTypedefs())
 			ret.put("annotations", new HashMap<String, Object>());
-		ret.put("scalar_type", getName());
+		ret.put("scalar_type", getSpecName());
+		return ret;
+	}
+	
+	@Override
+	public Object toJsonSchema(boolean inner) {
+		Map<String, Object> ret = new LinkedHashMap<String, Object>();
+		ret.put("type", getJsonStyleName());
+		ret.put("original-type", "kidl-" + getSpecName());
+		if (getIdReference() != null) {
+			KbAnnotationId idRef = getIdReference();
+			ret.put("id-reference", idRef.toJsonSchema());
+		}
 		return ret;
 	}
 }

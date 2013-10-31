@@ -7,6 +7,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Class represents module in spec file. It consists of 3 blocks in parsing structure:
+ * properties, type info, name to type map.
+ */
 public class KbModule {
 	private String moduleName;
 	private String serviceName;
@@ -30,15 +34,11 @@ public class KbModule {
 		this.moduleComponents = new ArrayList<KbModuleComp>();
 		this.typeInfoList = new ArrayList<KbTypeInfo>();
 		this.nameToType = new LinkedHashMap<String, KbType>();
-		checkInTypeMap(new KbScalar("int"));
-		checkInTypeMap(new KbScalar("float"));
-		checkInTypeMap(new KbScalar("string"));
-		checkInTypeMap(new KbUnspecifiedObject());
+		nameToType.put("int", new KbScalar("int"));
+		nameToType.put("float", new KbScalar("float"));
+		nameToType.put("string", new KbScalar("string"));
+		nameToType.put("UnspecifiedObject", new KbUnspecifiedObject());
 		annotations = new KbAnnotations();
-	}
-	
-	private void checkInTypeMap(KbType type) {
-		this.nameToType.put(type.getName(), type);
 	}
 	
 	public void addModuleComponent(KbModuleComp comp) {

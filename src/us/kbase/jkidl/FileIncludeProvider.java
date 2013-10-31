@@ -9,6 +9,9 @@ import java.util.Map;
 import us.kbase.kidl.KbModule;
 import us.kbase.kidl.KidlParseException;
 
+/**
+ * File implementation of {@link IncludeProvider}.
+ */
 public class FileIncludeProvider implements IncludeProvider {
 	private File dir;
 	

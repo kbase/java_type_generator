@@ -4,6 +4,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+/**
+ * Class represents structure item in spec-file.
+ */
 public class KbStructItem {
 	private String name;
 	private boolean nullable;

@@ -33,10 +33,16 @@ import us.kbase.kidl.KbTypedef;
 import us.kbase.kidl.KbUnspecifiedObject;
 import us.kbase.kidl.KidlParseException;
 
+/**
+ * Do not change this file. It's automatically generated based on src/kbase/jkidl/SpecParser.jj
+ * using shell script in javacc/spec_javacc.sh . So please change parsing syntax and semantics
+ * in SpecParser.jj .
+ * @author rsutormin
+ */
 @SuppressWarnings({"unused", "serial"})
 public class SpecParser {
-	static String lastComment;
-	static int lastCommentEndLine;
+	static ThreadLocal<String> lastComment = new ThreadLocal<String>();
+	static ThreadLocal<Integer> lastCommentEndLine = new ThreadLocal<Integer>();
   
     public static void main(String args[]) throws Exception {
         String fileName = null;
@@ -82,11 +88,11 @@ public class SpecParser {
     }
 
     public String getLastComment(Token first) {
-    	String comment = lastComment;
-    	lastComment = null;
+    	String comment = lastComment.get();
+    	lastComment.set(null);
     	if (comment == null)
     		return "";
-    	//if (first.beginLine > lastCommentEndLine + 1)
+    	//if (first.beginLine > lastCommentEndLine.get() + 1)
     	//	return "";
     	return Utils.trim(comment);
     }
@@ -108,8 +114,8 @@ SKIP:
 {
   "*/"
   {
-    SpecParser.lastComment = "/*" + image;
-    SpecParser.lastCommentEndLine = input_stream.line;
+    SpecParser.lastComment.set("/*" + image);
+    SpecParser.lastCommentEndLine.set(input_stream.line);
   }
   : DEFAULT
 }
@@ -159,7 +165,9 @@ TOKEN:
 |   < INCLUDE_LITERAL: "#include" ([" ", "\t"])* "<" (~[">"])* ">">
 }
 
-
+/**
+ * Main parsing method. It iterates over includes and after that over modules.
+ */
 Map<String, KbModule> SpecStatement(IncludeProvider ip):
 {
   Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
@@ -172,6 +180,9 @@ Map<String, KbModule> SpecStatement(IncludeProvider ip):
   { return ret; }
 }
 
+/**
+ * Method iterates over includes.
+ */
 Map<String, KbModule> IncludeList(IncludeProvider ip):
 {
   Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
@@ -186,6 +197,9 @@ Map<String, KbModule> IncludeList(IncludeProvider ip):
   { return ret; }
 }
 
+/**
+ * Method parses one include line.
+ */
 Map<String, KbModule> Include(IncludeProvider ip):
 {
   Token pathToken;
@@ -201,6 +215,9 @@ Map<String, KbModule> Include(IncludeProvider ip):
   }
 }
 
+/**
+ * Method iterates over modules.
+ */
 Map<String, KbModule> ModuleList(Map<String, KbModule> includes):
 {
   Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
@@ -217,6 +234,10 @@ Map<String, KbModule> ModuleList(Map<String, KbModule> includes):
   { return ret; }
 }
 
+/**
+ * Method parses one module. So it iterates over module components (typedefs, funcdefs and auths).
+ * They are separated by semicolon.
+ */
 KbModule Module(Map<String, KbModule> includes):
 {
   Token first = null;
@@ -253,13 +274,17 @@ KbModule Module(Map<String, KbModule> includes):
 	)
 	";"
     {
-      lastComment = null;
+      lastComment.set(null);
       ret.addModuleComponent(comp);
     }  )*
   "}"
   ";"  { return ret; }
 }
 
+/**
+ * Method parses type definition (one of scalar, unspecified object, list, mapping, tuple, structure and 
+ * reference to another typedef).
+ */
 KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes):
 {
   Token first;
@@ -283,6 +308,11 @@ KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes):
   }
 }
 
+/**
+ * Method parses nameless type definition which can be used in typedefs, funcdefs and as part of 
+ * another type. This type can be one of scalar, unspecified object, list, mapping, tuple, structure and 
+ * reference to another typedef). Structure can't be type of funcdef parameter or part of another type. 
+ */
 KbType Type(KbModule curModule, Map<String, KbModule> includes):
 {  KbType ret = null;
   Token t = null;
@@ -370,6 +400,9 @@ KbType Type(KbModule curModule, Map<String, KbModule> includes):
   }
 }
 
+/**
+ * Element of structure. They are separated by semicolon.
+ */
 KbStructItem StructItem(KbModule curModule, Map<String, KbModule> includes):
 {  KbType type;
   Token name;
@@ -401,6 +434,9 @@ KbAuthdef Auth():
   { return new KbAuthdef(t.toString()); }
 }
 
+/**
+ * Method parses function definition.
+ */
 KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes):
 {
   Token first;
@@ -433,35 +469,9 @@ KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes):
   { return ret; }
 }
 
-List<KbParameter> Params(KbModule curModule, Map<String, KbModule> includes):
-{
-  List<KbParameter> ret = new ArrayList<KbParameter>();
-  KbParameter param;
-}
-{
-  [
-  	param = Param(curModule, includes)
-  	{ ret.add(param); }
-    (
-      ","
-  	  param = Param(curModule, includes)
-  	{ ret.add(param); }
-    )*
-  ]
-  { return ret; }
-}
-
-KbParameter Param(KbModule curModule, Map<String, KbModule> includes):
-{
-  KbType type;
-  Token name;
-}
-{
-  type = Type(curModule, includes)
-  name = <S_IDENTIFIER>
-  { return new KbParameter(type, name.toString()); }
-}
-
+/**
+ * Method parses input or return parameters of function and elements of tuple.
+ */
 List<KbParameter> OptNameParams(KbModule curModule, Map<String, KbModule> includes):
 {
   List<KbParameter> ret = new ArrayList<KbParameter>();
@@ -480,6 +490,9 @@ List<KbParameter> OptNameParams(KbModule curModule, Map<String, KbModule> includ
   { return ret; }
 }
 
+/**
+ * Method parses one input or return parameter of function and one element of tuple.
+ */
 KbParameter OptNameParam(KbModule curModule, Map<String, KbModule> includes):
 {
   KbType type;

@@ -27,10 +27,16 @@ import us.kbase.kidl.KbTypedef;
 import us.kbase.kidl.KbUnspecifiedObject;
 import us.kbase.kidl.KidlParseException;
 
+/**
+ * Do not change this file. It's automatically generated based on src/kbase/jkidl/SpecParser.jj
+ * using shell script in javacc/spec_javacc.sh . So please change parsing syntax and semantics
+ * in SpecParser.jj .
+ * @author rsutormin
+ */
 @SuppressWarnings({"unused", "serial"})
 public class SpecParser implements SpecParserConstants {
-        static String lastComment;
-        static int lastCommentEndLine;
+        static ThreadLocal<String> lastComment = new ThreadLocal<String>();
+        static ThreadLocal<Integer> lastCommentEndLine = new ThreadLocal<Integer>();
 
     public static void main(String args[]) throws Exception {
         String fileName = null;
@@ -76,15 +82,18 @@ public class SpecParser implements SpecParserConstants {
     }
 
     public String getLastComment(Token first) {
-        String comment = lastComment;
-        lastComment = null;
+        String comment = lastComment.get();
+        lastComment.set(null);
         if (comment == null)
                 return "";
-        //if (first.beginLine > lastCommentEndLine + 1)
+        //if (first.beginLine > lastCommentEndLine.get() + 1)
         //	return "";
         return Utils.trim(comment);
     }
 
+/**
+ * Main parsing method. It iterates over includes and after that over modules.
+ */
   final public Map<String, KbModule> SpecStatement(IncludeProvider ip) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
   Map<String, KbModule> includes = null;
     includes = IncludeList(ip);
@@ -94,6 +103,9 @@ public class SpecParser implements SpecParserConstants {
     throw new Error("Missing return statement in function");
   }
 
+/**
+ * Method iterates over includes.
+ */
   final public Map<String, KbModule> IncludeList(IncludeProvider ip) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
   Map<String, KbModule> added = null;
   String includeLine = null;
@@ -115,6 +127,9 @@ ret.putAll(added);
     throw new Error("Missing return statement in function");
   }
 
+/**
+ * Method parses one include line.
+ */
   final public Map<String, KbModule> Include(IncludeProvider ip) throws ParseException {Token pathToken;
     pathToken = jj_consume_token(INCLUDE_LITERAL);
 try {
@@ -125,6 +140,9 @@ try {
     throw new Error("Missing return statement in function");
   }
 
+/**
+ * Method iterates over modules.
+ */
   final public Map<String, KbModule> ModuleList(Map<String, KbModule> includes) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
   KbModule module = null;
     label_2:
@@ -146,6 +164,10 @@ ret.put(module.getModuleName(), module);
     throw new Error("Missing return statement in function");
   }
 
+/**
+ * Method parses one module. So it iterates over module components (typedefs, funcdefs and auths).
+ * They are separated by semicolon.
+ */
   final public KbModule Module(Map<String, KbModule> includes) throws ParseException {Token first = null;
   KbModule ret = null;
   String comment = null;
@@ -195,7 +217,7 @@ ret = new KbModule(srvToken == null ? null : srvToken.toString(), nameToken.toSt
         throw new ParseException();
       }
       jj_consume_token(T_semicolon);
-lastComment = null;
+lastComment.set(null);
       ret.addModuleComponent(comp);
     }
     jj_consume_token(T_figure_close_bracket);
@@ -204,6 +226,10 @@ lastComment = null;
     throw new Error("Missing return statement in function");
   }
 
+/**
+ * Method parses type definition (one of scalar, unspecified object, list, mapping, tuple, structure and 
+ * reference to another typedef).
+ */
   final public KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes) throws ParseException {Token first;
   String comment;
   KbType type;
@@ -220,6 +246,11 @@ try {
     throw new Error("Missing return statement in function");
   }
 
+/**
+ * Method parses nameless type definition which can be used in typedefs, funcdefs and as part of 
+ * another type. This type can be one of scalar, unspecified object, list, mapping, tuple, structure and 
+ * reference to another typedef). Structure can't be type of funcdef parameter or part of another type. 
+ */
   final public KbType Type(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbType ret = null;
   Token t = null;
   KbType subType;
@@ -373,6 +404,9 @@ if (ret == null) {
     throw new Error("Missing return statement in function");
   }
 
+/**
+ * Element of structure. They are separated by semicolon.
+ */
   final public KbStructItem StructItem(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbType type;
   Token name;
     type = Type(curModule, includes);
@@ -405,6 +439,9 @@ if (ret == null) {
     throw new Error("Missing return statement in function");
   }
 
+/**
+ * Method parses function definition.
+ */
   final public KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes) throws ParseException {Token first;
   KbFuncdef ret = null;
   String comment = null;
@@ -439,53 +476,9 @@ ret.setAuthentication(auth.getType());
     throw new Error("Missing return statement in function");
   }
 
-  final public List<KbParameter> Params(KbModule curModule, Map<String, KbModule> includes) throws ParseException {List<KbParameter> ret = new ArrayList<KbParameter>();
-  KbParameter param;
-    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-    case T_string:
-    case T_int:
-    case T_float:
-    case T_unobj:
-    case T_list:
-    case T_mapping:
-    case T_structure:
-    case T_tuple:
-    case S_IDENTIFIER:{
-      param = Param(curModule, includes);
-ret.add(param);
-      label_6:
-      while (true) {
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case T_comma:{
-          ;
-          break;
-          }
-        default:
-          jj_la1[11] = jj_gen;
-          break label_6;
-        }
-        jj_consume_token(T_comma);
-        param = Param(curModule, includes);
-ret.add(param);
-      }
-      break;
-      }
-    default:
-      jj_la1[12] = jj_gen;
-      ;
-    }
-{if ("" != null) return ret;}
-    throw new Error("Missing return statement in function");
-  }
-
-  final public KbParameter Param(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbType type;
-  Token name;
-    type = Type(curModule, includes);
-    name = jj_consume_token(S_IDENTIFIER);
-{if ("" != null) return new KbParameter(type, name.toString());}
-    throw new Error("Missing return statement in function");
-  }
-
+/**
+ * Method parses input or return parameters of function and elements of tuple.
+ */
   final public List<KbParameter> OptNameParams(KbModule curModule, Map<String, KbModule> includes) throws ParseException {List<KbParameter> ret = new ArrayList<KbParameter>();
   KbParameter param;
     switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
@@ -500,7 +493,7 @@ ret.add(param);
     case S_IDENTIFIER:{
       param = OptNameParam(curModule, includes);
 ret.add(param);
-      label_7:
+      label_6:
       while (true) {
         switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
         case T_comma:{
@@ -508,8 +501,8 @@ ret.add(param);
           break;
           }
         default:
-          jj_la1[13] = jj_gen;
-          break label_7;
+          jj_la1[11] = jj_gen;
+          break label_6;
         }
         jj_consume_token(T_comma);
         param = OptNameParam(curModule, includes);
@@ -518,13 +511,16 @@ ret.add(param);
       break;
       }
     default:
-      jj_la1[14] = jj_gen;
+      jj_la1[12] = jj_gen;
       ;
     }
 {if ("" != null) return ret;}
     throw new Error("Missing return statement in function");
   }
 
+/**
+ * Method parses one input or return parameter of function and one element of tuple.
+ */
   final public KbParameter OptNameParam(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbType type;
   Token nameToken;
   String name = null;
@@ -536,7 +532,7 @@ name = nameToken.toString();
       break;
       }
     default:
-      jj_la1[15] = jj_gen;
+      jj_la1[13] = jj_gen;
       ;
     }
 {if ("" != null) return new KbParameter(type, name);}
@@ -584,7 +580,7 @@ name = nameToken.toString();
   private Token jj_scanpos, jj_lastpos;
   private int jj_la;
   private int jj_gen;
-  final private int[] jj_la1 = new int[16];
+  final private int[] jj_la1 = new int[14];
   static private int[] jj_la1_0;
   static private int[] jj_la1_1;
   static {
@@ -592,10 +588,10 @@ name = nameToken.toString();
       jj_la1_init_1();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x0,0x200,0xc400,0xc400,0x0,0x0,0x8000000,0xff0000,0xff0000,0x3800,0x400,0x8000000,0xff0000,0x8000000,0xff0000,0x0,};
+      jj_la1_0 = new int[] {0x0,0x200,0xc400,0xc400,0x0,0x0,0x8000000,0xff0000,0xff0000,0x3800,0x400,0x8000000,0xff0000,0x0,};
    }
    private static void jj_la1_init_1() {
-      jj_la1_1 = new int[] {0x20,0x0,0x0,0x0,0x2,0x2,0x0,0x2,0x2,0x0,0x0,0x0,0x2,0x0,0x2,0x2,};
+      jj_la1_1 = new int[] {0x20,0x0,0x0,0x0,0x2,0x2,0x0,0x2,0x2,0x0,0x0,0x0,0x2,0x2,};
    }
   final private JJCalls[] jj_2_rtns = new JJCalls[2];
   private boolean jj_rescan = false;
@@ -612,7 +608,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -627,7 +623,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -638,7 +634,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -649,7 +645,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -659,7 +655,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -669,7 +665,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 16; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -787,7 +783,7 @@ name = nameToken.toString();
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 14; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {

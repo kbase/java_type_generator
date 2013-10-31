@@ -2,10 +2,14 @@ package us.kbase.kidl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Class represents tuple in spec-file.
+ */
 public class KbTuple extends KbBasicType {
 	private List<String> elementNames = new ArrayList<String>();
 	private List<KbType> elementTypes = new ArrayList<KbType>();
@@ -65,7 +69,6 @@ public class KbTuple extends KbBasicType {
 		this.comment = comment;
 	}
 	
-	@Override
 	public String getName() {
 		if (name == null)
 			throw new IllegalStateException("Property name was not set for tuple");
@@ -89,6 +92,20 @@ public class KbTuple extends KbBasicType {
 		ret.put("element_types", elementTypeList);
 		if (name != null)
 			ret.put("name", name);
+		return ret;
+	}
+
+	@Override
+	public Object toJsonSchema(boolean inner) {
+		Map<String, Object> ret = new LinkedHashMap<String, Object>();
+		ret.put("type", "array");
+		ret.put("original-type", "kidl-tuple");
+		ret.put("maxItems", getElementTypes().size());
+		ret.put("minItems", getElementTypes().size());
+		List<Object> items = new ArrayList<Object>();
+		for (KbType iType : getElementTypes())
+			items.add(iType.toJsonSchema(true));
+		ret.put("items", items);
 		return ret;
 	}
 }

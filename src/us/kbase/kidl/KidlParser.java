@@ -1,9 +1,7 @@
 package us.kbase.kidl;
 
 import java.io.BufferedReader;
-import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -32,6 +30,9 @@ import us.kbase.jkidl.IncludeProvider;
 import us.kbase.jkidl.ParseException;
 import us.kbase.jkidl.SpecParser;
 
+/**
+ * Wrapper for parser of spec-file.
+ */
 public class KidlParser {
 
 	public static List<KbService> parseSpec(File specFile, File tempDir) throws KidlParseException {
@@ -101,7 +102,7 @@ public class KidlParser {
         		for (KbModuleComp comp : entry.getValue().getModuleComponents())
         			if (comp instanceof KbTypedef) {
         				KbTypedef typedef = (KbTypedef)comp;
-        				Map<?,?> schemaMap = createJsonSchema(typedef);
+        				Object schemaMap = typedef.toJsonSchema(false);
                         ObjectMapper mapper = new ObjectMapper();
                         mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
                         StringWriter sw = new StringWriter();
@@ -114,85 +115,6 @@ public class KidlParser {
         	}
         }
         return ret;
-	}
-
-	private static Map<String, Object> createJsonSchema(KbType type) throws IOException {
-		return createJsonSchema(type, false);
-	}
-	
-	private static Map<String, Object> createJsonSchema(KbType type, boolean inner) throws IOException {
-		Map<String, Object> ret = new LinkedHashMap<String, Object>();
-		if (type instanceof KbTypedef) {
-			KbTypedef td = (KbTypedef)type;
-			if (!inner) {
-				ret.put("id", td.getName());
-				ret.put("description", td.getComment());
-			}
-			ret.putAll(createJsonSchema(td.getAliasType(), true));
-		} else if (type instanceof KbScalar) {
-			KbScalar sc = (KbScalar)type;
-			ret.put("type", sc.getJsonStyleName());
-			ret.put("original-type", "kidl-" + sc.getName());
-			if (sc.getIdReference() != null) {
-				KbAnnotationId idRef = sc.getIdReference();
-				ret.put("id-reference", idRef.toJsonSchema());
-			}
-		} else if (type instanceof KbUnspecifiedObject) {
-			ret.put("type", "object");
-			ret.put("original-type", "kidl-UnspecifiedObject");
-		} else if (type instanceof KbList) {
-			KbList ls = (KbList)type;
-			ret.put("type", "array");
-			ret.put("original-type", "kidl-list");
-			ret.put("items", createJsonSchema(ls.getElementType(), true));
-		} else if (type instanceof KbMapping) {
-			KbMapping mp = (KbMapping)type;
-			ret.put("type", "object");
-			ret.put("original-type", "kidl-mapping");
-			ret.put("additionalProperties", createJsonSchema(mp.getValueType(), true));
-			KbType keyType = resolveTypedefs(mp.getKeyType());
-			if (keyType instanceof KbScalar) {
-				KbScalar sc = (KbScalar)keyType;
-				if (sc.getIdReference() != null)
-					ret.put("id-reference", sc.getIdReference().toJsonSchema());
-			}
-		} else if (type instanceof KbTuple) {
-			KbTuple tp = (KbTuple)type;
-			ret.put("type", "array");
-			ret.put("original-type", "kidl-tuple");
-			ret.put("maxItems", tp.getElementTypes().size());
-			ret.put("minItems", tp.getElementTypes().size());
-			List<Object> items = new ArrayList<Object>();
-			for (KbType iType : tp.getElementTypes())
-				items.add(createJsonSchema(iType, true));
-			ret.put("items", items);
-		} else if (type instanceof KbStruct) {
-			KbStruct st = (KbStruct)type;
-			ret.put("type", "object");
-			ret.put("original-type", "kidl-structure");
-			Map<String, Object> props = new LinkedHashMap<String, Object>();
-			for (KbStructItem item : st.getItems())
-				props.put(item.getName(), createJsonSchema(item.getItemType(), true));
-			ret.put("properties", props);
-			ret.put("additionalProperties", true);
-			List<String> reqList = new ArrayList<>();
-			for (KbStructItem item : st.getItems())
-				if (!item.isOptional())
-					reqList.add(item.getName());
-			if (reqList.size() > 0)
-				ret.put("required", reqList);
-			if (st.getAnnotations() != null && st.getAnnotations().getSearchable() != null) {
-				KbAnnotationSearch search = st.getAnnotations().getSearchable();
-				ret.put("searchable-ws-subset", search.toJsonSchema());
-			}
-		}
-		return ret;
-	}
-	
-	private static KbType resolveTypedefs(KbType type) {
-		if (type instanceof KbTypedef) 
-			return resolveTypedefs(((KbTypedef)type).getAliasType());
-		return type;
 	}
 
 	@SuppressWarnings("unchecked")

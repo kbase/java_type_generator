@@ -3,12 +3,16 @@ package us.kbase.kidl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+/**
+ * Class represents structure in spec-file.
+ */
 public class KbStruct extends KbBasicType {
 	private String name;
 	private KbAnnotations annotations;
@@ -41,7 +45,6 @@ public class KbStruct extends KbBasicType {
 					optional);
 	}
 	
-	@Override
 	public String getName() {
 		return name;
 	}
@@ -98,6 +101,29 @@ public class KbStruct extends KbBasicType {
 			ret.put("module", module);
 		if (name != null)
 			ret.put("name", name);
+		return ret;
+	}
+
+	@Override
+	public Object toJsonSchema(boolean inner) {
+		Map<String, Object> ret = new LinkedHashMap<String, Object>();
+		ret.put("type", "object");
+		ret.put("original-type", "kidl-structure");
+		Map<String, Object> props = new LinkedHashMap<String, Object>();
+		for (KbStructItem item : getItems())
+			props.put(item.getName(), item.getItemType().toJsonSchema(true));
+		ret.put("properties", props);
+		ret.put("additionalProperties", true);
+		List<String> reqList = new ArrayList<>();
+		for (KbStructItem item : getItems())
+			if (!item.isOptional())
+				reqList.add(item.getName());
+		if (reqList.size() > 0)
+			ret.put("required", reqList);
+		if (getAnnotations() != null && getAnnotations().getSearchable() != null) {
+			KbAnnotationSearch search = getAnnotations().getSearchable();
+			ret.put("searchable-ws-subset", search.toJsonSchema());
+		}
 		return ret;
 	}
 }

@@ -5,6 +5,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Class represents group of modules with the same service name 
+ * (first optional part of module name before colon). If module
+ * name defined by one keyword without colon then service name
+ * is supposed to be equal to module name.
+ */
 public class KbService {
 	private String name;
 	private List<KbModule> modules;

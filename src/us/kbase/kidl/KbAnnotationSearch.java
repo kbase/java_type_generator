@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Class represents kind of comment annotation called 'searchable'.
+ */
 public class KbAnnotationSearch {
 	private Subset fields = new Subset();
 	private Subset keys = new Subset();

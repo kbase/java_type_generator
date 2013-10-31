@@ -1,8 +1,12 @@
 package us.kbase.kidl;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Class represents list in spec-file.
+ */
 public class KbList extends KbBasicType {
 	private KbType elementType;
 	
@@ -27,15 +31,19 @@ public class KbList extends KbBasicType {
 	}
 	
 	@Override
-	public String getName() {
-		throw new IllegalStateException("Method getName() is not supported for list");
-	}
-	
-	@Override
 	public Object toJson(ObjectUsageInfo oui) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::List");
 		ret.put("element_type", elementType.toJson(oui));
+		return ret;
+	}
+
+	@Override
+	public Object toJsonSchema(boolean inner) {
+		Map<String, Object> ret = new LinkedHashMap<String, Object>();
+		ret.put("type", "array");
+		ret.put("original-type", "kidl-list");
+		ret.put("items", getElementType().toJsonSchema(true));
 		return ret;
 	}
 }

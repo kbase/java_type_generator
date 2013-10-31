@@ -1,8 +1,12 @@
 package us.kbase.kidl;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
+/**
+ * Class represents mapping in spec-file.
+ */
 public class KbMapping extends KbBasicType {
 	private KbType keyType;
 	private KbType valueType;
@@ -32,18 +36,28 @@ public class KbMapping extends KbBasicType {
 	public String getJavaStyleName() {
 		return "Map";
 	}
-	
-	@Override
-	public String getName() {
-		throw new IllegalStateException("Method getName() is not supported for mapping");
-	}
-	
+		
 	@Override
 	public Object toJson(ObjectUsageInfo oui) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Mapping");
 		ret.put("key_type", keyType.toJson(oui));
 		ret.put("value_type", valueType.toJson(oui));
+		return ret;
+	}
+	
+	@Override
+	public Object toJsonSchema(boolean inner) {
+		Map<String, Object> ret = new LinkedHashMap<String, Object>();
+		ret.put("type", "object");
+		ret.put("original-type", "kidl-mapping");
+		ret.put("additionalProperties", getValueType().toJsonSchema(true));
+		KbType keyType = Utils.resolveTypedefs(getKeyType());
+		if (keyType instanceof KbScalar) {
+			KbScalar sc = (KbScalar)keyType;
+			if (sc.getIdReference() != null)
+				ret.put("id-reference", sc.getIdReference().toJsonSchema());
+		}
 		return ret;
 	}
 }

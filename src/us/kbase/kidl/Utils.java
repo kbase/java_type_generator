@@ -86,4 +86,10 @@ public class Utils {
 			throw new KidlParseException("Value for property [" + propName + "] is not integer: " + value);
 		}
 	}
+
+	public  static KbType resolveTypedefs(KbType type) {
+		if (type instanceof KbTypedef) 
+			return resolveTypedefs(((KbTypedef)type).getAliasType());
+		return type;
+	}
 }
