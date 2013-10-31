@@ -1,7 +1,8 @@
 package us.kbase.kidl;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
+import java.util.TreeMap;
 
 public class KbScalar extends KbBasicType {
 	public enum Type {
@@ -11,16 +12,32 @@ public class KbScalar extends KbBasicType {
 	private Type scalarType;
 	private String javaStyleType;
 	private String jsonStyleType;
-	private Set<String> idReferences;
+	private KbAnnotationId idReference;
 	
-	public KbScalar loadFromMap(Map<?,?> data) throws KidlParseException {
+	public KbScalar() {}
+	
+	public KbScalar(String scalarType) {
+		this.scalarType = Type.valueOf(scalarType + "Type");
+		javaStyleType = getJavaStyleType();
+		jsonStyleType = getJsonStyleType();
+	}
+	
+	public KbScalar loadFromMap(Map<?,?> data, KbAnnotations annFromTypeDef) throws KidlParseException {
 		scalarType = Type.valueOf(Utils.prop(data, "scalar_type") + "Type");
 		javaStyleType = getJavaStyleType();
 		jsonStyleType = getJsonStyleType();
-		if (data.containsKey("annotations"))
-			idReferences = new KbAnnotations().loadFromMap(
-					Utils.propMap(data, "annotations")).getIdReferences();
+		KbAnnotations ann = null;
+		if (data.containsKey("annotations")) 
+			ann = new KbAnnotations().loadFromMap(Utils.propMap(data, "annotations"));
+		if (ann == null)
+			ann = annFromTypeDef;
+		utilizeAnnotations(ann);
 		return this;
+	}
+
+	void utilizeAnnotations(KbAnnotations ann) {
+		if (ann != null)
+			idReference = ann.getIdReference();
 	}
 	
 	public Type getScalarType() {
@@ -28,17 +45,23 @@ public class KbScalar extends KbBasicType {
 	}
 	
 	@Override
+	public String getName() {
+		String ret = scalarType.toString();
+		return ret.substring(0, ret.length() - 4);
+	}
+	
+	@Override
 	public String getJavaStyleName() {
 		return javaStyleType;
 	}
 	
-	private String getJavaStyleType() throws KidlParseException {
+	private String getJavaStyleType() {
 		switch (scalarType) {
 			case stringType: return "String";
 			case intType: return "Long";
 			case floatType: return "Double";
 			case boolType : return "Boolean";
-			default: throw new KidlParseException("Unknown scalar type: " + scalarType);
+			default: throw new IllegalStateException("Unknown scalar type: " + scalarType);
 		}
 	}
 
@@ -50,17 +73,27 @@ public class KbScalar extends KbBasicType {
 		return jsonStyleType;
 	}
 	
-	private String getJsonStyleType() throws KidlParseException {
+	private String getJsonStyleType() {
 		switch (scalarType) {
 			case stringType: return "string";
 			case intType: return "integer";
 			case floatType: return "number";
 			case boolType: return "boolean";
-			default: throw new KidlParseException("Unknown scalar type: " + scalarType);
+			default: throw new IllegalStateException("Unknown scalar type: " + scalarType);
 		}
 	}
 	
-	public Set<String> getIdReferences() {
-		return idReferences;
+	public KbAnnotationId getIdReference() {
+		return idReference;
+	}
+	
+	@Override
+	public Object toJson(ObjectUsageInfo oui) {
+		Map<String, Object> ret = new TreeMap<String, Object>();
+		ret.put("!", "Bio::KBase::KIDL::KBT::Scalar");
+		if (scalarType == Type.stringType && oui.isStringScalarsUsedInTypedefs())
+			ret.put("annotations", new HashMap<String, Object>());
+		ret.put("scalar_type", getName());
+		return ret;
 	}
 }

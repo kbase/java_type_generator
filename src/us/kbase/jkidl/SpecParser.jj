@@ -1,0 +1,495 @@
+options{
+    IGNORE_CASE = false;
+    STATIC = false;
+    UNICODE_INPUT = true;
+}
+
+PARSER_BEGIN(SpecParser)
+
+package us.kbase.jkidl;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
+import us.kbase.kidl.KbAuthdef;
+import us.kbase.kidl.KbFuncdef;
+import us.kbase.kidl.KbList;
+import us.kbase.kidl.KbMapping;
+import us.kbase.kidl.KbModule;
+import us.kbase.kidl.KbModuleComp;
+import us.kbase.kidl.KbParameter;
+import us.kbase.kidl.KbScalar;
+import us.kbase.kidl.KbStruct;
+import us.kbase.kidl.KbStructItem;
+import us.kbase.kidl.KbTuple;
+import us.kbase.kidl.KbType;
+import us.kbase.kidl.KbTypedef;
+import us.kbase.kidl.KbUnspecifiedObject;
+import us.kbase.kidl.KidlParseException;
+
+@SuppressWarnings({"unused", "serial"})
+public class SpecParser {
+	static String lastComment;
+	static int lastCommentEndLine;
+  
+    public static void main(String args[]) throws Exception {
+        String fileName = null;
+        if (args.length < 1) {
+            System.out.println("Usage: <program> <spec-file>");
+        	return;
+        }
+        fileName = args[0];
+        SpecParser p = null;
+        try {
+            p = new SpecParser(new DataInputStream(new FileInputStream(fileName)));
+        } catch (FileNotFoundException e) {
+            System.out.println("File " + fileName + " not found.");
+            return;
+        }
+        IncludeProvider ip = new StaticIncludeProvider();
+        Map<?,?> root = parseAsJson(p, ip);
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
+		mapper.writeValue(System.out, root);
+  	}
+
+    public static Map<?,?> parseAsJson(SpecParser p, IncludeProvider ip) throws ParseException {
+        Map<String, KbModule> root = p.SpecStatement(ip);
+        Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
+        for (KbModule module : root.values()) {
+                List<Object> modList = ret.get(module.getServiceName());
+                if (modList == null) {
+                        modList = new ArrayList<Object>();
+                        ret.put(module.getServiceName(), modList);
+                }
+                modList.add(module.toJson());
+        }
+        return ret;
+    }
+    
+    public void generateParseException(KidlParseException t) throws ParseException {
+    	generateParseException(t.getMessage());
+    }
+
+    public void generateParseException(String message) throws ParseException {
+    	throw new ParseException("Error at line " + token.beginLine + ", column " + token.beginColumn + ": " + message);
+    }
+
+    public String getLastComment(Token first) {
+    	String comment = lastComment;
+    	lastComment = null;
+    	if (comment == null)
+    		return "";
+    	//if (first.beginLine > lastCommentEndLine + 1)
+    	//	return "";
+    	return Utils.trim(comment);
+    }
+}
+
+PARSER_END(SpecParser)
+
+
+SKIP:
+{
+    " "
+|   "\t"
+|   "\r"
+|   "\n"
+|   "/*" : WithinComment
+}
+
+<WithinComment> SKIP :
+{
+  "*/"
+  {
+    SpecParser.lastComment = "/*" + image;
+    SpecParser.lastCommentEndLine = input_stream.line;
+  }
+  : DEFAULT
+}
+
+<WithinComment> MORE :
+{
+  <~[]>
+}
+
+
+TOKEN: 
+{
+    <T_include:"#include">
+|   <T_module:"module">
+|   <T_auth:"authentication">
+|   <T_required:"required">
+|   <T_optional:"optional">
+|   <T_none:"none">
+|   <T_typedef:"typedef">
+|   <T_funcdef:"funcdef">
+|   <T_string:"string">
+|   <T_int:"int">
+|   <T_float:"float">
+|   <T_unobj:"UnspecifiedObject">
+|   <T_list:"list">
+|   <T_mapping:"mapping">
+|   <T_structure:"structure">
+|   <T_tuple:"tuple">
+|   <T_returns:"returns">
+|   <T_round_open_bracket:"(">
+|   <T_round_close_bracket:")">
+|   <T_comma:",">
+|   <T_dot:".">
+|   <T_semicolon:";">
+|   <T_colon:":">
+|   <T_figure_open_bracket:"{">
+|   <T_figure_close_bracket:"}">
+}
+
+
+TOKEN:
+{
+    < S_IDENTIFIER: ( <LETTER> )+ ( <DIGIT> | <LETTER> |<SPECIAL_CHARS>)* >
+|   < #LETTER: ["a"-"z", "A"-"Z"] >
+|   < #DIGIT: ["0" - "9"] >
+|   < #SPECIAL_CHARS: "$" | "_" | "-">
+|   < INCLUDE_LITERAL: "#include" ([" ", "\t"])* "<" (~[">"])* ">">
+}
+
+
+Map<String, KbModule> SpecStatement(IncludeProvider ip):
+{
+  Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  Map<String, KbModule> includes = null;
+}
+{
+  includes = IncludeList(ip)
+  ret = ModuleList(includes)
+  <EOF>
+  { return ret; }
+}
+
+Map<String, KbModule> IncludeList(IncludeProvider ip):
+{
+  Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  Map<String, KbModule> added = null;
+  String includeLine = null;
+}
+{
+  (
+    added = Include(ip)
+    { ret.putAll(added); }
+  )*
+  { return ret; }
+}
+
+Map<String, KbModule> Include(IncludeProvider ip):
+{
+  Token pathToken;
+}
+{
+  pathToken = <INCLUDE_LITERAL>
+  {
+  	try {
+	    return ip.parseInclude(pathToken.toString()); 
+	} catch (KidlParseException ex) {
+		generateParseException(ex);
+	}
+  }
+}
+
+Map<String, KbModule> ModuleList(Map<String, KbModule> includes):
+{
+  Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
+  KbModule module = null;
+}
+{
+  (
+    module = Module(includes)
+    { 
+      ret.put(module.getModuleName(), module); 
+      includes.put(module.getModuleName(), module);
+    }
+  )*
+  { return ret; }
+}
+
+KbModule Module(Map<String, KbModule> includes):
+{
+  Token first = null;
+  KbModule ret = null;
+  String comment = null;
+  Token srvToken = null;
+  Token nameToken = null;
+  KbModuleComp comp = null;
+}
+{
+  first = "module"
+  {
+	comment = getLastComment(first);
+  }
+  [
+    LOOKAHEAD (<S_IDENTIFIER> ":")
+    srvToken = <S_IDENTIFIER>
+    ":"
+  ]
+  nameToken = <S_IDENTIFIER>
+  { ret = new KbModule(srvToken == null ? null : srvToken.toString(), nameToken.toString(), comment); }
+  "{"
+  (
+    (      (
+        comp = Typedef(ret, includes)
+      )
+      |
+      (
+        comp = Funcdef(ret, includes)
+      )
+	  |
+	  (		comp = Auth()
+	  )
+	)
+	";"
+    {
+      lastComment = null;
+      ret.addModuleComponent(comp);
+    }  )*
+  "}"
+  ";"  { return ret; }
+}
+
+KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes):
+{
+  Token first;
+  String comment;
+  KbType type;
+  Token name;
+}
+{
+  first = "typedef"
+  {
+	comment = getLastComment(first);
+  }
+  type = Type(curModule, includes)
+  name = <S_IDENTIFIER>
+  { 
+  	try {
+	  	return new KbTypedef(curModule.getModuleName(), name.toString(), type, comment); 
+	} catch (KidlParseException ex) {
+		generateParseException(ex);
+	}
+  }
+}
+
+KbType Type(KbModule curModule, Map<String, KbModule> includes):
+{  KbType ret = null;
+  Token t = null;
+  KbType subType;
+  KbType subType2;
+  KbParameter tupleElem;
+  KbStructItem structItem;
+  Token moduleToken = null;
+  Token typeToken = null;
+}
+{
+  (
+  	(
+  	  t = "string"
+  	  { ret = new KbScalar(t.toString()); }  	)
+	|   	(
+  	  t = "int"
+  	  { ret = new KbScalar(t.toString()); }
+  	)
+	| 
+  	(
+  	  t = "float"
+  	  { ret = new KbScalar(t.toString()); }
+  	)
+	| 
+  	(
+  	  t = "UnspecifiedObject"
+  	  { ret = new KbUnspecifiedObject(); }
+  	)
+	| 
+    (
+      t = "list" "<" subType = Type(curModule, includes) ">"
+      { ret = new KbList(subType); }
+    )
+  	|
+  	(  	  t = "mapping" "<" subType = Type(curModule, includes) [<S_IDENTIFIER>] "," 
+  	  subType2 = Type(curModule, includes) [<S_IDENTIFIER>] ">"
+      { ret = new KbMapping(subType, subType2); }
+  	)
+  	|
+  	(
+  	  t = "tuple"
+      { ret = new KbTuple(); }
+  	  "<" tupleElem = OptNameParam(curModule, includes)
+  	  { ((KbTuple)ret).addElement(tupleElem); }
+  	  (
+  	  	"," tupleElem = OptNameParam(curModule, includes)
+      	{ ((KbTuple)ret).addElement(tupleElem); }
+  	  )* ">"
+  	)
+	|
+	(	  t = "structure"
+	  "{"
+	  { ret = new KbStruct(); }
+	  (		  structItem = StructItem(curModule, includes) ";"
+          { ((KbStruct)ret).getItems().add(structItem); }
+	  )*
+	  "}"	)
+	|
+	(
+	  [
+    	LOOKAHEAD (<S_IDENTIFIER> ".")
+    	moduleToken = <S_IDENTIFIER>
+    	"."
+  	  ]
+	  typeToken = <S_IDENTIFIER>
+	)
+  )  {
+    if (ret == null) {
+    	String module = moduleToken == null ? null : moduleToken.toString();
+    	KbModule refModule = null;
+    	if (module == null || module.equals(curModule.getModuleName())) {
+    		refModule = curModule;
+    	} else {
+    		refModule = includes.get(module);
+    		if (refModule == null)
+    			generateParseException("Can not find module: " + module);
+    	}
+    	String type = typeToken.toString();
+    	ret = refModule.getNameToType().get(type);
+    	if (ret == null)
+    		generateParseException("Can not find type: " + (module == null ? "" : (module + ".")) + type);
+    }
+    return ret;
+  }
+}
+
+KbStructItem StructItem(KbModule curModule, Map<String, KbModule> includes):
+{  KbType type;
+  Token name;
+}
+{
+  type = Type(curModule, includes)
+  name = <S_IDENTIFIER>
+  { return new KbStructItem(type, name.toString()); }
+}
+
+KbAuthdef Auth():
+{
+  Token t;
+}
+{
+  "authentication"
+  (
+ 	(		t = "required"
+  	)
+    |
+    (
+	  t = "optional"
+    )
+    |
+    (
+	  t = "none"
+    )
+  )
+  { return new KbAuthdef(t.toString()); }
+}
+
+KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes):
+{
+  Token first;
+  KbFuncdef ret = null;
+  String comment = null;
+  Token name;
+  List<KbParameter> args;
+  List<KbParameter> rets;
+  KbAuthdef auth;
+}
+{
+  first = "funcdef"
+  {
+	comment = getLastComment(first);
+  }
+  name = <S_IDENTIFIER>
+  "("
+  { ret = new KbFuncdef(name.toString(), comment); }
+  args = OptNameParams(curModule, includes)
+  { ret.getParameters().addAll(args); }
+  ")"
+  "returns"
+  "("
+  rets = OptNameParams(curModule, includes)
+  { ret.getReturnType().addAll(rets); }
+  ")"
+  [ auth = Auth()
+  	{ ret.setAuthentication(auth.getType()); }
+  ]
+  { return ret; }
+}
+
+List<KbParameter> Params(KbModule curModule, Map<String, KbModule> includes):
+{
+  List<KbParameter> ret = new ArrayList<KbParameter>();
+  KbParameter param;
+}
+{
+  [
+  	param = Param(curModule, includes)
+  	{ ret.add(param); }
+    (
+      ","
+  	  param = Param(curModule, includes)
+  	{ ret.add(param); }
+    )*
+  ]
+  { return ret; }
+}
+
+KbParameter Param(KbModule curModule, Map<String, KbModule> includes):
+{
+  KbType type;
+  Token name;
+}
+{
+  type = Type(curModule, includes)
+  name = <S_IDENTIFIER>
+  { return new KbParameter(type, name.toString()); }
+}
+
+List<KbParameter> OptNameParams(KbModule curModule, Map<String, KbModule> includes):
+{
+  List<KbParameter> ret = new ArrayList<KbParameter>();
+  KbParameter param;
+}
+{
+  [
+  	param = OptNameParam(curModule, includes)
+  	{ ret.add(param); }
+    (
+      ","
+  	  param = OptNameParam(curModule, includes)
+  	{ ret.add(param); }
+    )*
+  ]
+  { return ret; }
+}
+
+KbParameter OptNameParam(KbModule curModule, Map<String, KbModule> includes):
+{
+  KbType type;
+  Token nameToken;
+  String name = null;
+}
+{
+  type = Type(curModule, includes)
+  [ nameToken = <S_IDENTIFIER>
+    { name = nameToken.toString(); }
+  ]
+  { return new KbParameter(type, name); }
+}

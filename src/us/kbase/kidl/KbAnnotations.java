@@ -1,15 +1,17 @@
 package us.kbase.kidl;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.StringTokenizer;
+import java.util.TreeMap;
 
 public class KbAnnotations {
-	private Set<String> optional = new LinkedHashSet<String>();
-	private Set<String> idReferences = null;
+	private List<String> optional = null;
+	private KbAnnotationId idReference = null;
+	private KbAnnotationSearch searchableWsSubset = null;
 	private Map<String, Object> unknown = new HashMap<String, Object>();
 	
 	@SuppressWarnings("unchecked")
@@ -17,10 +19,13 @@ public class KbAnnotations {
 		for (Map.Entry<?, ?> enrty : data.entrySet()) {
 			String key = enrty.getKey().toString();
 			if (key.equals("optional")) {
-				optional.addAll((List<String>)enrty.getValue());
-			} else if (key.equals("id_reference")) {
-				idReferences = new LinkedHashSet<String>();
-				idReferences.addAll((List<String>)enrty.getValue());
+				optional = (List<String>)enrty.getValue();
+			} else if (key.equals("id")) {
+				idReference = new KbAnnotationId();
+				idReference.loadFromMap((Map<String, Object>)enrty.getValue());
+			} else if (key.equals("searchable_ws_subset")) {
+				searchableWsSubset = new KbAnnotationSearch();
+				searchableWsSubset.loadFromMap((Map<String, Object>)enrty.getValue());
 			} else if (key.equals("unknown_annotations")) {
 				unknown.putAll((Map<String, Object>)enrty.getValue());
 			} else {
@@ -29,22 +34,75 @@ public class KbAnnotations {
 					unknown.put(key, enrty.getValue());
 			}
 		}
-		optional = Collections.unmodifiableSet(optional);
-		if (idReferences != null)
-			idReferences = Collections.unmodifiableSet(idReferences);
+		if (optional != null)
+			optional = Collections.unmodifiableList(optional);
 		unknown = Collections.unmodifiableMap(unknown);
 		return this;
 	}
 	
-	public Set<String> getOptional() {
+	public KbAnnotations loadFromComment(String comment, KbTypedef caller) throws KidlParseException {
+		List<List<String>> lines = new ArrayList<List<String>>();
+		StringTokenizer st = new StringTokenizer(comment, "\r\n");
+		while (st.hasMoreTokens()) {
+			String line = st.nextToken();
+			StringTokenizer st2 = new StringTokenizer(line, " \t");
+			List<String> words = new ArrayList<String>();
+			while (st2.hasMoreTokens())
+				words.add(st2.nextToken());
+			lines.add(words);
+		}
+		for (int pos = 0; pos < lines.size(); pos++) {
+			if (lines.get(pos).size() == 0)
+				continue;
+			List<String> words = lines.get(pos);
+			String annType = words.get(0);
+			if (!annType.startsWith("@"))
+				continue;
+			annType = annType.substring(1);
+			List<String> value = words.subList(1, words.size());
+			if (annType.equals("optional")) {
+				optional = value;
+			} else if (annType.equals("id")) {
+				idReference = new KbAnnotationId();
+				idReference.loadFromComment(value);
+			} else if (annType.equals("searchable")) {
+				searchableWsSubset = new KbAnnotationSearch().loadFromComment(value, caller);
+			} else {
+				// TODO: Probably we should throw an exception here
+				unknown.put(annType, value);
+			}
+		}
+		return this;
+	}
+	
+	public List<String> getOptional() {
 		return optional;
 	}
 	
-	public Set<String> getIdReferences() {
-		return idReferences;
+	public KbAnnotationId getIdReference() {
+		return idReference;
+	}
+	
+	public KbAnnotationSearch getSearchable() {
+		return searchableWsSubset;
 	}
 	
 	public Map<String, Object> getUnknown() {
 		return unknown;
+	}
+	
+	public Object toJson(boolean searchable) {
+		Map<String, Object> ret = new TreeMap<String, Object>();
+		if (optional != null)
+			ret.put("optional", new ArrayList<String>(optional));
+		if (idReference != null)
+			ret.put("id", idReference.toJson());
+		if (searchable) {
+			Object searchableJson = searchableWsSubset == null ?
+					new HashMap<String, Object>() : searchableWsSubset.toJson();
+			ret.put("searchable_ws_subset", searchableJson);
+		}
+		ret.put("unknown_annotations", unknown);
+		return ret;
 	}
 }

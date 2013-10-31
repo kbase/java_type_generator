@@ -51,12 +51,14 @@
       <fileset dir="${src}">
         <patternset>
           <include name="us/kbase/kidl/**/*.java"/>
+          <include name="us/kbase/jkidl/**/*.java"/>
         </patternset>
       </fileset>
     </copy>
     <jar destfile="${dist}/${kidl.jar.file}">
       <fileset dir="${classes}">
         <include name="us/kbase/kidl/**"/>
+        <include name="us/kbase/jkidl/**"/>
       </fileset>
     </jar>
     <!-- Remove uncompressed class files-->
@@ -108,7 +110,7 @@ java -cp ${lib.classpath}:${jar.absolute.path} us.kbase.scripts.JavaTypeGenerato
     <pathconvert targetos="unix" property="lib.classpath" refid="compile.classpath"/>
     <!-- Create testing shell script-->
     <echo file="${test}/${test.file}">#!/bin/sh
-java -cp ${lib.classpath}:${jar.absolute.path} org.junit.runner.JUnitCore us.kbase.scripts.tests.MainTest
+java -cp ${lib.classpath}:${jar.absolute.path} org.junit.runner.JUnitCore us.kbase.kidl.tests.KidlTest us.kbase.scripts.tests.MainTest
     </echo>
     <chmod file="${test}/${test.file}" perm="a+x"/>
   </target>
