@@ -137,6 +137,9 @@ public class KidlTest {
 				"  typedef list<testA> testB;\n" +
 				"  typedef mapping<string,testA> testC;\n" +
 				"  typedef tuple<testA,testA,testA> testD;\n" +
+				"  /*\n" +
+				"  @optional val1 id\n" +
+				"  */\n" +
 				"  typedef structure {\n" +
 				"    testA val1;\n" +
 				"    test1 id;\n" +
@@ -179,6 +182,10 @@ public class KidlTest {
 				"  @id ws Test11.test2\n" +
 				"  */\n" +
 				"  typedef string test1;\n" +
+				"  typedef mapping<test1, float> id_map;\n" +
+				"  typedef mapping<string, test1> value_map;\n" +
+				"  typedef test1 test1new;\n" +
+				"  typedef mapping<test1new, float> id_map_new;\n" +
 				"  typedef structure {\n" +
 				"    int val1;\n" +
 				"    float val2;\n" +
@@ -214,6 +221,10 @@ public class KidlTest {
 				"    list<mapping<string,test2>> val6;\n" +
 				"  } test1;\n" +
 				"};",
+				"module Test13 {\n" +
+				"};\n" +
+				"module A {\n" +
+				"};"
 		};
 		boolean ok = true;
 		for (int testNum = 0; testNum < tests.length; testNum++) {
@@ -222,7 +233,7 @@ public class KidlTest {
 			Map<String, Map<String, String>> schemas1 = new HashMap<String, Map<String, String>>();
 			Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, null);
 			Map<String, Map<String, String>> schemas2 = new HashMap<String, Map<String, String>>();
-			Map<?,?> parse2 = KidlParser.parseSpecInt(specFile, workDir, schemas2);
+			Map<?,?> parse2 = KidlParser.parseSpecInt(specFile, schemas2);
 			ok = ok & compareJson(parse1, parse2, "Parsing result for test #" + (testNum + 1));
 			ok = ok & compareJsonSchemas(schemas1, schemas2, "Json schema for test #" + (testNum + 1));
 		}
@@ -242,7 +253,7 @@ public class KidlTest {
 			Map<String, Map<String, String>> schemas1 = new HashMap<String, Map<String, String>>();
 			Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, null);
 			Map<String, Map<String, String>> schemas2 = new HashMap<String, Map<String, String>>();
-			Map<?,?> parse2 = KidlParser.parseSpecInt(specFile, workDir, schemas2);
+			Map<?,?> parse2 = KidlParser.parseSpecInt(specFile, schemas2);
 			ok = ok & compareJson(parse1, parse2, "Parsing result for test #" + (testNum + 1));
 			ok = ok & compareJsonSchemas(schemas1, schemas2, "Json schema for test #" + (testNum + 1));
 		}
@@ -277,8 +288,8 @@ public class KidlTest {
 			throws JsonGenerationException, JsonMappingException, IOException,
 			Exception {
 		boolean ok = true;
-		String parse1text = writeJson(parse1);
-		String parse2text = writeJson(parse2);
+		String parse1text = rewriteJson(writeJson(parse1));
+		String parse2text = rewriteJson(writeJson(parse2));
 		if (!parse1text.equals(parse2text)) {
 			ok = false;
         	System.out.println(header + " (original/internal):");

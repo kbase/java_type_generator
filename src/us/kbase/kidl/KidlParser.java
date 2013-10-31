@@ -8,6 +8,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -52,7 +53,7 @@ public class KidlParser {
 		Map<?,?> map = null;
 		try {
 			if (internal) {
-				map = parseSpecInt(specFile, tempDir, modelToTypeJsonSchemaReturn);
+				map = parseSpecInt(specFile, modelToTypeJsonSchemaReturn);
 			} else {
 				map = parseSpecExt(specFile, tempDir, modelToTypeJsonSchemaReturn, kbTop);
 			}
@@ -68,19 +69,20 @@ public class KidlParser {
 		return KbService.loadFromMap(parseMap);
 	}
 
-	public static Map<?,?> parseSpecInt(File specFile, File tempDir, 
+	public static Map<?,?> parseSpecInt(File specFile,
 			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn) throws Exception {
         IncludeProvider ip = new FileIncludeProvider(specFile.getCanonicalFile().getParentFile());
-		return parseSpecInt(specFile, tempDir, modelToTypeJsonSchemaReturn, ip);
+		return parseSpecInt(new FileReader(specFile), modelToTypeJsonSchemaReturn, ip);
 	}
 	
-	public static Map<?,?> parseSpecInt(File specFile, File tempDir, 
+	public static Map<?,?> parseSpecInt(Reader specDocumentReader, 
 			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, IncludeProvider ip) 
 					throws KidlParseException, JsonGenerationException, JsonMappingException, IOException {
-        SpecParser p = new SpecParser(new DataInputStream(new FileInputStream(specFile)));
+        SpecParser p = new SpecParser(new BufferedReader(specDocumentReader));
         Map<String, KbModule> root;
 		try {
 			root = p.SpecStatement(ip);
+			specDocumentReader.close();
 		} catch (ParseException e) {
 			throw new KidlParseException(e.getMessage());
 		}
@@ -148,6 +150,12 @@ public class KidlParser {
 			ret.put("type", "object");
 			ret.put("original-type", "kidl-mapping");
 			ret.put("additionalProperties", createJsonSchema(mp.getValueType(), true));
+			KbType keyType = resolveTypedefs(mp.getKeyType());
+			if (keyType instanceof KbScalar) {
+				KbScalar sc = (KbScalar)keyType;
+				if (sc.getIdReference() != null)
+					ret.put("id-reference", sc.getIdReference().toJsonSchema());
+			}
 		} else if (type instanceof KbTuple) {
 			KbTuple tp = (KbTuple)type;
 			ret.put("type", "array");
@@ -171,7 +179,8 @@ public class KidlParser {
 			for (KbStructItem item : st.getItems())
 				if (!item.isOptional())
 					reqList.add(item.getName());
-			ret.put("required", reqList);
+			if (reqList.size() > 0)
+				ret.put("required", reqList);
 			if (st.getAnnotations() != null && st.getAnnotations().getSearchable() != null) {
 				KbAnnotationSearch search = st.getAnnotations().getSearchable();
 				ret.put("searchable-ws-subset", search.toJsonSchema());
@@ -180,6 +189,12 @@ public class KidlParser {
 		return ret;
 	}
 	
+	private static KbType resolveTypedefs(KbType type) {
+		if (type instanceof KbTypedef) 
+			return resolveTypedefs(((KbTypedef)type).getAliasType());
+		return type;
+	}
+
 	@SuppressWarnings("unchecked")
 	public static Map<?,?> parseSpecExt(File specFile, File tempDir, 
 			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, String kbTop) 

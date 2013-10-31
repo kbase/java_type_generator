@@ -370,7 +370,7 @@ public class MainTest extends Assert {
 		time1 = System.currentTimeMillis() - time1;
 		Map<String, Map<String, String>> intSchemas = new LinkedHashMap<String, Map<String, String>>();
 		long time2 = System.currentTimeMillis();
-		Map<?,?> intMap = KidlParser.parseSpecInt(specFile, workDir, intSchemas);
+		Map<?,?> intMap = KidlParser.parseSpecInt(specFile, intSchemas);
 		time2 = System.currentTimeMillis() - time2;
 		System.out.println("Compilation time: " + time1 + " vs " + time2);
 		Assert.assertTrue(KidlTest.compareJson(origMap, intMap, "Parsing result for " + testFileName));
