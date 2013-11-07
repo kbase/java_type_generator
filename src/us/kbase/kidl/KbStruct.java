@@ -114,7 +114,7 @@ public class KbStruct extends KbBasicType {
 			props.put(item.getName(), item.getItemType().toJsonSchema(true));
 		ret.put("properties", props);
 		ret.put("additionalProperties", true);
-		List<String> reqList = new ArrayList<>();
+		List<String> reqList = new ArrayList<String>();
 		for (KbStructItem item : getItems())
 			if (!item.isOptional())
 				reqList.add(item.getName());
