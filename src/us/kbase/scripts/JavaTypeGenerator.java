@@ -909,6 +909,7 @@ public class JavaTypeGenerator {
 			checkUtilityClass(srcOutDir, "JsonServerMethod");
 			checkUtilityClass(srcOutDir, "JsonServerServlet");
 			checkUtilityClass(srcOutDir, "JsonServerSyslog");
+			checkUtilityClass(srcOutDir, "KBaseJsonParser");
 		}
 	}
 
