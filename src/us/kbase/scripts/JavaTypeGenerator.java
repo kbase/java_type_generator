@@ -907,6 +907,9 @@ public class JavaTypeGenerator {
 		checkUtilityClass(srcOutDir, "JsonTreeTraversingParser");
 		checkUtilityClass(srcOutDir, "JsonByteString");
 		checkUtilityClass(srcOutDir, "KBaseObjectMapper");
+        checkUtilityClass(srcOutDir, "KBaseJsonParser");
+        checkUtilityClass(srcOutDir, "KBaseJsonGenerator");
+        checkUtilityClass(srcOutDir, "KBaseJsonTreeGenerator");
 		if (createServers) {
 			checkUtilityClass(srcOutDir, "JsonServerMethod");
 			checkUtilityClass(srcOutDir, "JsonServerServlet");
@@ -937,6 +940,7 @@ public class JavaTypeGenerator {
 		checkLib(libOutDir, "jackson-core-2.2.3");
 		checkLib(libOutDir, "jackson-databind-2.2.3");
 		checkLib(libOutDir, "kbase-auth");
+		checkLib(libOutDir, "commons-io");
 		if (createServers) {
 			checkLib(libOutDir, "servlet-api-2.5");
 			checkLib(libOutDir, "jetty-all-7.0.0");
