@@ -103,7 +103,9 @@ public class KbTypedef implements KbModuleComp, KbType {
 			ret.put("id", getName());
 			ret.put("description", getComment());
 		}
-		ret.putAll((Map<String, Object>)getAliasType().toJsonSchema(true));
+		if (!(getAliasType() instanceof KbStruct))
+			inner = true;
+		ret.putAll((Map<String, Object>)getAliasType().toJsonSchema(inner));
 		return ret;
 	}
 }

@@ -224,6 +224,16 @@ public class KidlTest {
 				"    list<test2> val5;\n" +
 				"    list<mapping<string,test2>> val6;\n" +
 				"  } test1;\n" +
+				"  /*\n" +
+				"  @searchable ws_subset val1\n" +
+				"  */\n" +
+				"  typedef structure {\n" +
+				"    int val1;\n" +
+				"    test1 val2;\n" +
+				"  } test3;\n" +
+				"  typedef structure {\n" +
+				"    test1 val1;\n" +
+				"  } test4;\n" +
 				"};",
 				"module Test13 {\n" +
 				"};\n" +

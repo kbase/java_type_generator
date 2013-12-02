@@ -120,7 +120,7 @@ public class KbStruct extends KbBasicType {
 				reqList.add(item.getName());
 		if (reqList.size() > 0)
 			ret.put("required", reqList);
-		if (getAnnotations() != null && getAnnotations().getSearchable() != null) {
+		if (getAnnotations() != null && getAnnotations().getSearchable() != null && !inner) {
 			KbAnnotationSearch search = getAnnotations().getSearchable();
 			ret.put("searchable-ws-subset", search.toJsonSchema());
 		}
