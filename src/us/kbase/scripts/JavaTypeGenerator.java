@@ -281,6 +281,8 @@ public class JavaTypeGenerator {
 					}
 					
 				    private void addToString(JDefinedClass jclass) {
+				    	if (jclass.getMethod("toString", new JType[0]) != null)
+				    		return;
 				        JMethod toString = jclass.method(JMod.PUBLIC, String.class, "toString");
 				        JBlock body = toString.body();
 				        JExpression ret = JExpr.lit(jclass.name());
