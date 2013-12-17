@@ -79,15 +79,15 @@ public class KbFuncdef implements KbModuleComp {
 		return data;
 	}
 	
-	private List<Object> toJson(List<KbParameter> list, ObjectUsageInfo oui) {
+	private List<Object> toJson(List<KbParameter> list) {
 		List<Object> ret = new ArrayList<Object>();
 		for (KbParameter param : list)
-			ret.add(param.toJson(oui));
+			ret.add(param.toJson());
 		return ret;
 	}
 	
 	@Override
-	public Object toJson(ObjectUsageInfo oui) {
+	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Funcdef");
 		ret.put("annotations", new KbAnnotations().toJson(false));
@@ -95,8 +95,8 @@ public class KbFuncdef implements KbModuleComp {
 		ret.put("authentication", authentication);
 		ret.put("comment", comment);
 		ret.put("name", name);
-		ret.put("parameters", toJson(parameters, oui));
-		ret.put("return_type", toJson(returnType, oui));
+		ret.put("parameters", toJson(parameters));
+		ret.put("return_type", toJson(returnType));
 		return ret;
 	}
 }

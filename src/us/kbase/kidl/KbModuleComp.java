@@ -5,5 +5,5 @@ package us.kbase.kidl;
  * @author rsutormin
  */
 public interface KbModuleComp {
-	public Object toJson(ObjectUsageInfo oui);
+	public Object toJson();
 }

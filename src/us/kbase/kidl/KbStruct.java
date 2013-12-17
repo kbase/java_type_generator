@@ -83,7 +83,7 @@ public class KbStruct extends KbBasicType {
 	}
 	
 	@Override
-	public Object toJson(ObjectUsageInfo oui) {
+	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Struct");
 		if (annotations == null || annotations.getSearchable() == null) {
@@ -95,7 +95,7 @@ public class KbStruct extends KbBasicType {
 			ret.put("comment", comment);
 		List<Object> itemList = new ArrayList<Object>();
 		for (KbStructItem item : items)
-			itemList.add(item.toJson(oui));
+			itemList.add(item.toJson());
 		ret.put("items", itemList);
 		if (module != null)
 			ret.put("module", module);

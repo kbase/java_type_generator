@@ -84,10 +84,10 @@ public class KbTypedef implements KbModuleComp, KbType {
 	}
 	
 	@Override
-	public Object toJson(ObjectUsageInfo oui) {
+	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Typedef");
-		ret.put("alias_type", aliasType.toJson(oui));
+		ret.put("alias_type", aliasType.toJson());
 		ret.put("annotations", annotations.toJson(true));
 		ret.put("comment", comment);
 		ret.put("module", module);

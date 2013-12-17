@@ -31,10 +31,10 @@ public class KbList extends KbBasicType {
 	}
 	
 	@Override
-	public Object toJson(ObjectUsageInfo oui) {
+	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::List");
-		ret.put("element_type", elementType.toJson(oui));
+		ret.put("element_type", elementType.toJson());
 		return ret;
 	}
 

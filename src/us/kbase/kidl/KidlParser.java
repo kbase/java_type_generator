@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -116,7 +117,7 @@ public class KidlParser {
         }
         return ret;
 	}
-
+	
 	@SuppressWarnings("unchecked")
 	public static Map<?,?> parseSpecExt(File specFile, File tempDir, 
 			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, String kbTop) 
@@ -176,6 +177,7 @@ public class KidlParser {
 				throw new KidlParseException(caption + ", here is KIDL output:\n" + errText);
 			}
 			Map<String,Object> map = SpecXmlHelper.parseXml(xmlFile);
+			correctStringAnnotations(map);
 			Set<String> moduleNames = new HashSet<String>();
 			for (Object obj : map.values()) {
 				List<List<Object>> modList = (List<List<Object>>)obj;
@@ -242,6 +244,25 @@ public class KidlParser {
 		}
 	}	
 	
+	private static void correctStringAnnotations(Object node) {
+		if (node instanceof Map) {
+			Map<String, Object> map = (Map<String, Object>)node;
+			Object perlType = map.get("!");
+			if (perlType != null && perlType instanceof String && 
+					perlType.equals("Bio::KBase::KIDL::KBT::Scalar")) {
+				String scalarType = (String)map.get("scalar_type");
+				if (scalarType.equals("string") && map.get("annotations") == null)
+					map.put("annotations", Collections.EMPTY_MAP);
+			} else {
+				for (Object value : map.values())
+					correctStringAnnotations(value);
+			}
+		} else if (node instanceof List) {
+			for (Object item : ((List<?>)node))
+				correctStringAnnotations(item);
+		}
+	}
+
 	private static void deleteRecursively(File fileOrDir) {
 		if (fileOrDir.isDirectory())
 			for (File f : fileOrDir.listFiles()) 

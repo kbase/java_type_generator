@@ -245,7 +245,15 @@ public class KidlTest {
 				"  *************************************/\n" +
 				"  /* Real comment for type1 */\n" +
 				"  typedef string test1;\n" +
-				"};",								
+				"};",
+				"module RefCount {" +
+				"/* @id ws */" +
+				"typedef string reference;" +
+				"/* @optional ref */" + 
+				"typedef structure {" +
+				"reference ref;" +
+				"} RefType;" +
+				"};"
 		};
 		boolean ok = true;
 		for (int testNum = 0; testNum < tests.length; testNum++) {

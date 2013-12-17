@@ -50,10 +50,10 @@ public class KbStructItem {
 		return optional;
 	}
 	
-	public Object toJson(ObjectUsageInfo oui) {
+	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::StructItem");
-		ret.put("item_type", itemType.toJson(oui));
+		ret.put("item_type", itemType.toJson());
 		ret.put("name", name);
 		ret.put("nullable", nullable ? "1" : "0");
 		return ret;

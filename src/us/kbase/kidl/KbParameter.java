@@ -35,11 +35,11 @@ public class KbParameter {
 		return type;
 	}
 	
-	public Object toJson(ObjectUsageInfo oui) {
+	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		if (name != null)
 			ret.put("name", name);
-		ret.put("type", type.toJson(oui));
+		ret.put("type", type.toJson());
 		return ret;
 	}
 }
