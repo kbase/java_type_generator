@@ -434,9 +434,20 @@ public class KidlTest {
 			Assert.assertEquals(KbTypedef.class, cmpList.get(i).getClass());
 			KbTypedef typedef = (KbTypedef)cmpList.get(i);
 			if (typedef.getName().endsWith("_ref")) {
-				Assert.assertEquals(KbScalar.class, typedef.getAliasType().getClass());
-				KbScalar type = (KbScalar)typedef.getAliasType();
-				String actualRefList = "" + type.getIdReference().getValidTypedefNamesForWs();
+				String actualRefList = "" + typedef.getAnnotations().getIdReference().getValidTypedefNamesForWs();
+				String expectedRefList = typedef.getName().startsWith("full_") ? "[Test.my_struct]" : "[]";
+				Assert.assertEquals(expectedRefList, actualRefList);
+			}
+		}
+		srvList = KidlParser.parseSpec(specFile, workDir, null, null, true);
+		module = getModule(srvList);
+		cmpList = module.getModuleComponents();
+		Assert.assertEquals(3, cmpList.size());
+		for (int i = 0; i < cmpList.size(); i++) {
+			Assert.assertEquals(KbTypedef.class, cmpList.get(i).getClass());
+			KbTypedef typedef = (KbTypedef)cmpList.get(i);
+			if (typedef.getName().endsWith("_ref")) {
+				String actualRefList = "" + typedef.getAnnotations().getIdReference().getValidTypedefNamesForWs();
 				String expectedRefList = typedef.getName().startsWith("full_") ? "[Test.my_struct]" : "[]";
 				Assert.assertEquals(expectedRefList, actualRefList);
 			}
