@@ -502,6 +502,12 @@ public class JavaTypeGenerator {
 						"    }"
 						));
 			}
+			classLines.addAll(Arrays.asList(
+					"",
+					"	public void _setFileForNextRpcResponse(" + model.ref("java.io.File") + " f) {",
+					"		caller.setFileForNextRpcResponse(f);",
+					"	}"
+					));
 			for (JavaFunc func : module.getFuncs()) {
 				JavaType retType = null;
 				if (func.getRetMultyType() == null) {
