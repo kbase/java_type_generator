@@ -220,11 +220,9 @@ public class JavaTypeGenerator {
 		generateClientClass(data, srcOutDir, packageParent, url);
 		if (createServers)
 			generateServerClass(data, srcOutDir, packageParent);
-		checkUtilityClasses(srcOutDir, createServers);
 		checkLibs(libOutDir, createServers);
 		if (gwtPackage != null) {
 			GwtGenerator.generate(data, srcOutDir, gwtPackage);
-			checkUtilityClass(srcOutDir, "GwtTransformer");
 		}
 	}
 
@@ -905,45 +903,16 @@ public class JavaTypeGenerator {
 			lines.remove(lines.size() - 1);
 	}
 	
-	private static void checkUtilityClasses(File srcOutDir, boolean createServers) throws Exception {
-		checkUtilityClass(srcOutDir, "JsonClientCaller");
-		checkUtilityClass(srcOutDir, "JacksonTupleModule");
-		checkUtilityClass(srcOutDir, "UObject");
-		checkUtilityClass(srcOutDir, "JsonClientException");
-		checkUtilityClass(srcOutDir, "UnauthorizedException");
-		checkUtilityClass(srcOutDir, "ServerException");
-		checkUtilityClass(srcOutDir, "JsonTreeTraversingParser");
-		checkUtilityClass(srcOutDir, "JsonTokenStream");
-		if (createServers) {
-			checkUtilityClass(srcOutDir, "JsonServerMethod");
-			checkUtilityClass(srcOutDir, "JsonServerServlet");
-			checkUtilityClass(srcOutDir, "JsonServerSyslog");
-		}
-	}
-
-	private static void checkUtilityClass(File srcOutDir, String className) throws Exception {
-		File dir = new File(srcOutDir.getAbsolutePath() + "/" + utilPackage.replace('.', '/'));
-		if (!dir.exists())
-			dir.mkdirs();
-		File dstClassFile = new File(dir, className + ".java");
-		List<String> lines = TextUtils.readStreamLines(JavaTypeGenerator.class.getResourceAsStream(
-				className + ".java.properties"));
-		if (lines.get(0).startsWith("package "))
-			lines.remove(0);
-		lines.add(0, "package " + utilPackage + ";");
-		TextUtils.writeFileLines(lines, dstClassFile);
-	}
-	
 	private static void checkLibs(File libOutDir, boolean createServers) throws Exception {
 		if (libOutDir == null)
 			return;
 		if (!libOutDir.exists())
 			libOutDir.mkdirs();
-		//checkLib(libOutDir, "jackson-all-1.9.11");
 		checkLib(libOutDir, "jackson-annotations-2.2.3");
 		checkLib(libOutDir, "jackson-core-2.2.3");
 		checkLib(libOutDir, "jackson-databind-2.2.3");
 		checkLib(libOutDir, "kbase-auth");
+		checkLib(libOutDir, "kbase-common");
 		if (createServers) {
 			checkLib(libOutDir, "servlet-api-2.5");
 			checkLib(libOutDir, "jetty-all-7.0.0");
