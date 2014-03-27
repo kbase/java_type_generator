@@ -25,7 +25,7 @@ public class KbStruct extends KbBasicType {
 	}
 
 	public KbStruct(List<KbStructItem> items) {
-		items = Collections.unmodifiableList(items);
+		this.items = Collections.unmodifiableList(items);
 	}
 
 	public KbStruct loadFromMap(Map<?,?> data, KbAnnotations annFromTypeDef) throws KidlParseException {
