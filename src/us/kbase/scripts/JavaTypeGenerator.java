@@ -421,6 +421,7 @@ public class JavaTypeGenerator {
 			}
 			List<String> classLines = new ArrayList<String>();
 			String urlClass = model.ref("java.net.URL");
+			String tokenClass = model.ref("us.kbase.auth.AuthToken");
 			printModuleComment(module, classLines);
 			classLines.addAll(Arrays.asList(
 					"public class " + clientClassName + " {",
@@ -468,7 +469,7 @@ public class JavaTypeGenerator {
 				if (url != null) {
 					classLines.addAll(Arrays.asList(
 						"",
-						"    public " + clientClassName + "(" + model.ref("us.kbase.auth.AuthToken") + " token) throws " + 
+						"    public " + clientClassName + "(" + tokenClass + " token) throws " + 
 								model.ref(utilPackage + ".UnauthorizedException") + ", " +
 								model.ref("java.io.IOException") + " {",
 						"        caller = new " + callerClass + "(DEFAULT_URL, token);",
@@ -484,9 +485,13 @@ public class JavaTypeGenerator {
 			}
 			classLines.addAll(Arrays.asList(
 					"",
-					"	public void setConnectionReadTimeOut(Integer milliseconds) {",
-					"		this.caller.setConnectionReadTimeOut(milliseconds);",
-					"	}"
+					"    public " + urlClass + " getURL() {",
+					"        return caller.getURL();",
+					"    }",
+					"",
+					"    public void setConnectionReadTimeOut(Integer milliseconds) {",
+					"        this.caller.setConnectionReadTimeOut(milliseconds);",
+					"    }"
 					));
 			if (anyAuth) {
 				classLines.addAll(Arrays.asList(
@@ -497,14 +502,18 @@ public class JavaTypeGenerator {
 						"",	
 						"    public void setAuthAllowedForHttp(boolean isAuthAllowedForHttp) {",
 						"        caller.setAuthAllowedForHttp(isAuthAllowedForHttp);",
+						"    }",
+						"",
+						"    public " + tokenClass + " getToken() {",
+						"        return caller.getToken();",
 						"    }"
 						));
 			}
 			classLines.addAll(Arrays.asList(
 					"",
-					"	public void _setFileForNextRpcResponse(" + model.ref("java.io.File") + " f) {",
-					"		caller.setFileForNextRpcResponse(f);",
-					"	}"
+					"    public void _setFileForNextRpcResponse(" + model.ref("java.io.File") + " f) {",
+					"        caller.setFileForNextRpcResponse(f);",
+					"    }"
 					));
 			for (JavaFunc func : module.getFuncs()) {
 				JavaType retType = null;

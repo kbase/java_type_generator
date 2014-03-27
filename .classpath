@@ -17,5 +17,6 @@
 	<classpathentry kind="lib" path="jars/lib/jars/apache_commons/commons-io-2.4.jar"/>
 	<classpathentry kind="lib" path="jars/lib/jars/google/jsonschema2pojo-core-0.3.6.jar"/>
 	<classpathentry kind="lib" path="jars/lib/jars/apache_commons/commons-lang-2.4.jar"/>
+	<classpathentry kind="lib" path="jars/lib/jars/kbase/kbase-common-temp.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
