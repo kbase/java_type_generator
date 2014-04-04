@@ -1,4 +1,4 @@
-package us.kbase.scripts.tests;
+package us.kbase.scripts.test;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -28,7 +28,7 @@ import org.junit.Test;
 import us.kbase.kidl.KbFuncdef;
 import us.kbase.kidl.KbService;
 import us.kbase.kidl.KidlParser;
-import us.kbase.kidl.tests.KidlTest;
+import us.kbase.kidl.test.KidlTest;
 import us.kbase.scripts.JavaData;
 import us.kbase.scripts.JavaFunc;
 import us.kbase.scripts.JavaModule;
@@ -40,17 +40,17 @@ import us.kbase.scripts.util.ProcessHelper;
  * Main test class for JavaTypeGenerator.
  * @author rsutormin
  */
-public class MainTest extends Assert {
+public class TypeGeneratorTest extends Assert {
 	public static final String rootPackageName = "us.kbase";
 	
 	public static void main(String[] args) throws Exception{
 		int testNum = Integer.parseInt(args[0]);
 		if (testNum == 5) {
-			new MainTest().testSyslog();
+			new TypeGeneratorTest().testSyslog();
 		} else if (testNum == 6) {
-			new MainTest().testAuth();
+			new TypeGeneratorTest().testAuth();
 		} else if (testNum == 8) {
-			new MainTest().testServerCodeStoring();
+			new TypeGeneratorTest().testServerCodeStoring();
 		} else if (testNum == 9 || testNum == 10) {
 			startTest(testNum, false);
 		} else {
@@ -146,7 +146,7 @@ public class MainTest extends Assert {
 			Assert.assertTrue(key);
 		}
         String testJavaResource = "Test" + testNum + ".java.properties";
-        InputStream testClassIS = MainTest.class.getResourceAsStream(testJavaResource);
+        InputStream testClassIS = TypeGeneratorTest.class.getResourceAsStream(testJavaResource);
         if (testClassIS == null) {
         	Assert.fail("Java test class resource was not found: " + testJavaResource);
         }
@@ -347,7 +347,7 @@ public class MainTest extends Assert {
     	String testFilePath = "src/" + testPackage.replace('.', '/') + "/" + testJavaFileName;
         File testJavaFile = new File(workDir, testFilePath);
         String testJavaResource = testJavaFileName + ".properties";
-        InputStream testClassIS = MainTest.class.getResourceAsStream(testJavaResource);
+        InputStream testClassIS = TypeGeneratorTest.class.getResourceAsStream(testJavaResource);
         if (testClassIS == null) {
         	Assert.fail("Java test class resource was not found: " + testJavaResource);
         }
@@ -529,12 +529,12 @@ public class MainTest extends Assert {
 	private static void extractSpecFiles(int testNum, File workDir,
 			String testFileName) {
 		try {
-			TextUtils.writeFileLines(TextUtils.readStreamLines(MainTest.class.getResourceAsStream(testFileName + ".properties")), 
+			TextUtils.writeFileLines(TextUtils.readStreamLines(TypeGeneratorTest.class.getResourceAsStream(testFileName + ".properties")), 
 					new File(workDir, testFileName));
 		} catch (Exception ex) {
 			String zipFileName = "test" + testNum + ".zip";
 			try {
-				ZipInputStream zis = new ZipInputStream(MainTest.class.getResourceAsStream(zipFileName + ".properties"));
+				ZipInputStream zis = new ZipInputStream(TypeGeneratorTest.class.getResourceAsStream(zipFileName + ".properties"));
 				while (true) {
 					ZipEntry ze = zis.getNextEntry();
 					if (ze == null)

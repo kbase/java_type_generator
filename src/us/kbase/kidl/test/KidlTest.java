@@ -1,4 +1,4 @@
-package us.kbase.kidl.tests;
+package us.kbase.kidl.test;
 
 import java.io.BufferedReader;
 import java.io.File;

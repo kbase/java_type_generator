@@ -15,7 +15,6 @@ test: test-client-server
 
 test-client-server:
 	$(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(KB_TOP) test
-	cd test; bash ./test_gen_java_types.sh
 
 compile:
 	$(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(KB_TOP)
