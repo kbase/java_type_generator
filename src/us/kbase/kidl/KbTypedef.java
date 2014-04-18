@@ -24,6 +24,9 @@ public class KbTypedef implements KbModuleComp, KbType {
 		this.aliasType = aliasType;
 		this.comment = comment == null ? "" : comment;
 		this.annotations = new KbAnnotations().loadFromComment(this.comment, this);
+		
+		// TODO Check if we are overriding an annotation that is defined lower - if so, then we should
+		// either override or throw an error.  Right now we silently ignore.
 		if (aliasType instanceof KbScalar) {
 			((KbScalar)aliasType).utilizeAnnotations(annotations);
 		} else if (aliasType instanceof KbTuple) {

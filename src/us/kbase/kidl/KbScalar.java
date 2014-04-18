@@ -17,6 +17,7 @@ public class KbScalar extends KbBasicType {
 	private String javaStyleType;
 	private String jsonStyleType;
 	private KbAnnotationId idReference;
+	private KbAnnotationRange range;
 	
 	public KbScalar() {}
 	
@@ -36,8 +37,10 @@ public class KbScalar extends KbBasicType {
 	}
 
 	void utilizeAnnotations(KbAnnotations ann) {
-		if (ann != null)
+		if (ann != null) {
 			idReference = ann.getIdReference();
+			range = ann.getRange();
+		}
 	}
 	
 	public Type getScalarType() {
@@ -90,6 +93,10 @@ public class KbScalar extends KbBasicType {
 		return idReference;
 	}
 	
+	public KbAnnotationRange getRange() {
+		return range;
+	}
+	
 	@Override
 	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
@@ -100,6 +107,7 @@ public class KbScalar extends KbBasicType {
 		return ret;
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public Object toJsonSchema(boolean inner) {
 		Map<String, Object> ret = new LinkedHashMap<String, Object>();
@@ -108,6 +116,13 @@ public class KbScalar extends KbBasicType {
 		if (getIdReference() != null) {
 			KbAnnotationId idRef = getIdReference();
 			ret.put("id-reference", idRef.toJsonSchema());
+		}
+		if(getRange() != null) {
+			if(scalarType == Type.intType) {
+				ret.putAll((Map<String, Object>)range.toJsonSchemaForInt());
+			} else if(scalarType == Type.floatType) {
+				ret.putAll((Map<String, Object>)range.toJsonSchemaForFloat());
+			}
 		}
 		return ret;
 	}

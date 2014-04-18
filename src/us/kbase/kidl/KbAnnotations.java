@@ -15,6 +15,7 @@ public class KbAnnotations {
 	private List<String> optional = null;
 	private KbAnnotationId idReference = null;
 	private KbAnnotationSearch searchableWsSubset = null;
+	private KbAnnotationRange range = null;
 	private Map<String, Object> unknown = new HashMap<String, Object>();
 	
 	@SuppressWarnings("unchecked")
@@ -29,6 +30,9 @@ public class KbAnnotations {
 			} else if (key.equals("searchable_ws_subset")) {
 				searchableWsSubset = new KbAnnotationSearch();
 				searchableWsSubset.loadFromMap((Map<String, Object>)enrty.getValue());
+			} else if (key.equals("range")) {
+				range = new KbAnnotationRange();
+				range.loadFromMap((Map<String, Object>)enrty.getValue());
 			} else if (key.equals("unknown_annotations")) {
 				unknown.putAll((Map<String, Object>)enrty.getValue());
 			} else {
@@ -74,6 +78,9 @@ public class KbAnnotations {
 				if (searchableWsSubset == null)
 					searchableWsSubset = new KbAnnotationSearch();
 				searchableWsSubset.loadFromComment(value, caller);
+			} else if(annType.equals("range")) {
+				range = new KbAnnotationRange();
+				range.loadFromComment(value);
 			} else {
 				// TODO: Probably we should throw an exception here
 				unknown.put(annType, value);
@@ -92,6 +99,10 @@ public class KbAnnotations {
 	
 	public KbAnnotationSearch getSearchable() {
 		return searchableWsSubset;
+	}
+	
+	public KbAnnotationRange getRange() {
+		return range;
 	}
 	
 	public Map<String, Object> getUnknown() {
