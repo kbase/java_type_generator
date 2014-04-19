@@ -108,6 +108,7 @@ public class KbStruct extends KbBasicType {
 		return ret;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Object toJsonSchema(boolean inner) {
 		Map<String, Object> ret = new LinkedHashMap<String, Object>();
@@ -127,6 +128,9 @@ public class KbStruct extends KbBasicType {
 		if (getAnnotations() != null && getAnnotations().getSearchable() != null && !inner) {
 			KbAnnotationSearch search = getAnnotations().getSearchable();
 			ret.put("searchable-ws-subset", search.toJsonSchema());
+		}
+		if (getAnnotations() != null && getAnnotations().getWsMetadata() != null && !inner) {
+			ret.putAll((Map<? extends String, ? extends Object>) getAnnotations().getWsMetadata().toJsonSchema());
 		}
 		return ret;
 	}

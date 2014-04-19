@@ -15,6 +15,7 @@ public class KbAnnotations {
 	private List<String> optional = null;
 	private KbAnnotationId idReference = null;
 	private KbAnnotationSearch searchableWsSubset = null;
+	private KbAnnotationMetadata wsMetadata = null;
 	private KbAnnotationRange range = null;
 	private Map<String, Object> unknown = new HashMap<String, Object>();
 	
@@ -30,7 +31,10 @@ public class KbAnnotations {
 			} else if (key.equals("searchable_ws_subset")) {
 				searchableWsSubset = new KbAnnotationSearch();
 				searchableWsSubset.loadFromMap((Map<String, Object>)enrty.getValue());
-			} else if (key.equals("range")) {
+			} else if (key.equals("metadata")) {
+				wsMetadata = new KbAnnotationMetadata();
+				wsMetadata.loadFromMap((Map<String, Object>)enrty.getValue());
+			}else if (key.equals("range")) {
 				range = new KbAnnotationRange();
 				range.loadFromMap((Map<String, Object>)enrty.getValue());
 			} else if (key.equals("unknown_annotations")) {
@@ -78,6 +82,10 @@ public class KbAnnotations {
 				if (searchableWsSubset == null)
 					searchableWsSubset = new KbAnnotationSearch();
 				searchableWsSubset.loadFromComment(value, caller);
+			} else if (annType.equals("metadata")) {
+				if (wsMetadata == null)
+					wsMetadata = new KbAnnotationMetadata();
+				wsMetadata.loadFromComment(value,caller);
 			} else if(annType.equals("range")) {
 				range = new KbAnnotationRange();
 				range.loadFromComment(value);
@@ -99,6 +107,10 @@ public class KbAnnotations {
 	
 	public KbAnnotationSearch getSearchable() {
 		return searchableWsSubset;
+	}
+	
+	public KbAnnotationMetadata getWsMetadata() {
+		return wsMetadata;
 	}
 	
 	public KbAnnotationRange getRange() {
