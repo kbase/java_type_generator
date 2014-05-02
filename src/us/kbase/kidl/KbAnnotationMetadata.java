@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import us.kbase.kidl.KbScalar.Type;
+
 /**
  * Class represents kind of comment annotation called 'range'.
  */
@@ -100,9 +102,10 @@ public class KbAnnotationMetadata {
 			if(i.getName().equals(expression)) {
 				KbType itemType = resolveTypedefs(i.getItemType());
 				if(itemType instanceof KbScalar) {
-					if(gettingLengthOf) {
-						throw new KidlParseException("metadata annotation is invalid, if you are selecting a string, int or float for metadata, you cannot use: length("+expression+")");
-						
+					if(((KbScalar) itemType).getScalarType() != Type.stringType) {
+						if(gettingLengthOf) {
+							throw new KidlParseException("metadata annotation is invalid, if you are selecting an int or float for metadata, you cannot use: length("+expression+")");
+						}
 					}
 					// we are ok
 				} else if(itemType instanceof KbList) {
@@ -113,8 +116,12 @@ public class KbAnnotationMetadata {
 					if(!gettingLengthOf) {
 						throw new KidlParseException("metadata annotation is invalid, if you are selecting a mapping for metadata, you must use: length("+expression+")");
 					}
+				} else if(itemType instanceof KbTuple) {
+					if(!gettingLengthOf) {
+						throw new KidlParseException("metadata annotation is invalid, if you are selecting a tuple for metadata, you must use: length("+expression+")");
+					}
 				} else {
-					throw new KidlParseException("metadata annotation is invalid, you can only select fields that are scalars, lists, or mappings; '"+expression+"' is not one of these.");
+					throw new KidlParseException("metadata annotation is invalid, you can only select fields that are scalars, lists, tuples, or mappings; '"+expression+"' is not one of these.");
 				}
 				foundExpression=true;
 			}
