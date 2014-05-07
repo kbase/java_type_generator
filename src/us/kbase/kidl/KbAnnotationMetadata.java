@@ -39,24 +39,25 @@ public class KbAnnotationMetadata {
 		String type = words.get(0);
 		words.remove(0);
 		if(type.equals(TYPE_WS)) {
-			if (words.size() < 3)
-				throw new KidlParseException("metadata annotation is invalid, must define at least 4 tokens: @metadata ws [expression] as [metadata_name]");
+			if (words.size() < 1)
+				throw new KidlParseException("metadata annotation is invalid, must define at least 2 tokens: @metadata ws [expression]");
 			StringBuilder expression = new StringBuilder();
 			StringBuilder metadataName = new StringBuilder();
 			boolean seenAsKeyword = false;
 			
+			boolean isFirstWord = true; // 'as' cannot be the first token parsed (in case there is a field named 'as')
 			for(String w:words) {
-				if(w.toLowerCase().equals("as")) {
+				if(!isFirstWord && w.toLowerCase().equals("as")) {
 					seenAsKeyword = true;
 					continue;
 				}
+				if(isFirstWord) { isFirstWord = false; }
 				if(seenAsKeyword) { metadataName.append(w+" "); }
 				else { expression.append(w); }
 			}
 			if(!seenAsKeyword) {
-				throw new KidlParseException("metadata annotation is invalid, the 'as' keyword was not found: @metadata ws [expression] as [metadata_name]");
+				metadataName.append(expression.toString());
 			}
-			//System.out.println(metadataName.toString()+":::"+expression.toString());
 			
 			validateExpression(expression.toString(),(KbStruct) callerType);
 			
