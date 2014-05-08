@@ -1,5 +1,7 @@
 package us.kbase.kidl;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -9,8 +11,8 @@ import java.util.TreeMap;
  */
 public class KbAnnotationRange {
 	
-	Double minValue;
-	Double maxValue;
+	BigDecimal minValue;
+	BigDecimal maxValue;
 	boolean isExclusiveMin;
 	boolean isExclusiveMax;
 	
@@ -53,7 +55,7 @@ public class KbAnnotationRange {
 			minValue = null; maxValue = null;
 			if(!values[0].trim().isEmpty()) {
 				try {
-					minValue = new Double(values[0].trim());
+					minValue = new BigDecimal(values[0].trim());
 				} catch (Exception e) {
 					throw new KidlParseException("Error in specifying the valid range of a number, invalid minimum value: "+e.getMessage());
 				}
@@ -62,7 +64,7 @@ public class KbAnnotationRange {
 		if(values.length==2) {
 			if(!values[1].trim().isEmpty()) {
 				try {
-					maxValue = new Double(values[1].trim());
+					maxValue = new BigDecimal(values[1].trim());
 				} catch (Exception e) {
 					throw new KidlParseException("Error in specifying the valid range of a number, invalid minimum value: "+e.getMessage());
 				}
@@ -70,6 +72,12 @@ public class KbAnnotationRange {
 		}
 		if(values.length > 2) {
 			throw new KidlParseException("Error in specifying the valid range of a number, too many commas given");
+		}
+		
+		if(minValue!=null && maxValue!=null) {
+			if(minValue.compareTo(maxValue) > 0) {
+				throw new KidlParseException("Error in specifying a valid range, min value was greater than max value.");
+			}
 		}
 	}
 	
@@ -94,23 +102,6 @@ public class KbAnnotationRange {
 	public boolean isMaxSet() {
 		return maxValue!=null;
 	}
-	
-	
-	public double getDoubleMinValue() {
-		return minValue.doubleValue();
-	}
-	public int getIntMinValue() {
-		return minValue.intValue();
-	}
-	
-	public double getDoubleMaxValue() {
-		return maxValue.doubleValue();
-	}
-	public int getIntMaxValue() {
-		return maxValue.intValue();
-	}
-
-	
 	
 	Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
@@ -142,15 +133,23 @@ public class KbAnnotationRange {
 	Object toJsonSchemaForInt() {
 		Map<String, Object> rangeMap = new TreeMap<String, Object>();
 		if(isMinSet()) {
-			rangeMap.put("minimum", new Long(minValue.longValue()));
-			if(isExclusiveMin) {
-				rangeMap.put("exclusiveMinimum",new Boolean(true));
+			BigDecimal rounded = minValue.setScale(0,RoundingMode.CEILING);
+			rangeMap.put("minimum", rounded );
+			if(rounded.compareTo(minValue)==0) {
+				if(isExclusiveMin) {
+					rangeMap.put("exclusiveMinimum",new Boolean(true));
+				}
 			}
 		}
 		if(isMaxSet()) {
-			rangeMap.put("maximum", new Long(maxValue.longValue()));
-			if(isExclusiveMax) {
-				rangeMap.put("exclusiveMaximum",new Boolean(true));
+			// always round towards negative infinity, and discard the 'exclusive' flag
+			// unless we did not round (in which case an integer value was provided, so we are ok)
+			BigDecimal rounded =  maxValue.setScale(0,RoundingMode.FLOOR);
+			rangeMap.put("maximum", rounded);
+			if(rounded.compareTo(maxValue)==0) {
+				if(isExclusiveMax) {
+					rangeMap.put("exclusiveMaximum",new Boolean(true));
+				}
 			}
 		}
 		return rangeMap;
