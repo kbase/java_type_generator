@@ -90,9 +90,19 @@ public class KbStruct extends KbBasicType {
 	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Struct");
-		if (annotations == null || annotations.getSearchable() == null) {
+		if (annotations == null) {
 			Map<String, Object> ann = new HashMap<String, Object>();
 			ann.put("searchable_ws_subset", new HashMap<String, Object>());
+			ann.put("metadata", new HashMap<String, Object>());
+			ret.put("annotations", ann);
+		} else {
+			Map<String, Object> ann = new HashMap<String, Object>();
+			if(annotations.getSearchable()==null) {
+				ann.put("searchable_ws_subset", new HashMap<String, Object>());
+			}
+			if(annotations.getWsMetadata()==null) {
+				ann.put("metadata", new HashMap<String, Object>());
+			}
 			ret.put("annotations", ann);
 		}
 		if (comment != null && comment.length() > 0)

@@ -101,8 +101,8 @@ public class KbScalar extends KbBasicType {
 	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Scalar");
-		if (scalarType == Type.stringType)
-			ret.put("annotations", new HashMap<String, Object>());
+		//if (scalarType == Type.stringType)
+		ret.put("annotations", new HashMap<String, Object>());
 		ret.put("scalar_type", getSpecName());
 		return ret;
 	}

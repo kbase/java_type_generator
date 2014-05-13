@@ -121,17 +121,24 @@ public class KbAnnotations {
 		return unknown;
 	}
 	
-	public Object toJson(boolean searchable) {
+	public Object toJson(boolean isTypedef) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		if (optional != null)
 			ret.put("optional", new ArrayList<String>(optional));
 		if (idReference != null)
 			ret.put("id", idReference.toJson());
-		if (searchable) {
+		if (isTypedef) {
 			Object searchableJson = searchableWsSubset == null ?
 					new HashMap<String, Object>() : searchableWsSubset.toJson();
 			ret.put("searchable_ws_subset", searchableJson);
+			Object metadataJson = wsMetadata == null ?
+					new HashMap<String, Object>() : wsMetadata.toJson();
+			ret.put("metadata", metadataJson);
 		}
+		if(range!=null) {
+			ret.put("range", range.toJson());
+		}
+		
 		ret.put("unknown_annotations", unknown);
 		return ret;
 	}

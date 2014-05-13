@@ -1,7 +1,9 @@
 package us.kbase.kidl;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import us.kbase.kidl.KbScalar.Type;
@@ -134,14 +136,27 @@ public class KbAnnotationMetadata {
 		
 	}
 	
-	
+	// If the json schema was parsed from the perl type compiler, use this method for instantiation
 	void loadFromMap(Map<String,Object> data) throws KidlParseException {
-		throw new KidlParseException("loadFromMap called for KBAnnotationMetadata!!  not yet supported");
+		@SuppressWarnings("unchecked")
+		Map<String,Object> info = (Map<String, Object>) data.get("ws");
+		if(info==null) return;
+		Iterator<Entry<String, Object>> it = info.entrySet().iterator();
+		while (it.hasNext()) {
+			Entry<String, Object> pairs = it.next();
+			String metadataName = pairs.getKey();
+			String expression = (String)pairs.getValue();
+			// we do not need to validate, we assume the type compiler has validated the expression already
+			//validateExpression(expression,(KbStruct) callerType);
+			wsMetaDataMap.put(metadataName,expression.toString());
+		}
 	}
 	
 	Object toJson() {
+		Map<String, Object> metadataFields = new TreeMap<String, Object>();
+		metadataFields.putAll(wsMetaDataMap);
 		Map<String, Object> ret = new TreeMap<String, Object>();
-		/*  NOT SUPPORTED YET IN PERL TYPE COMPILER, SO DON'T OUTPUT */
+		ret.put("ws", metadataFields);
 		return ret;
 	}
 	

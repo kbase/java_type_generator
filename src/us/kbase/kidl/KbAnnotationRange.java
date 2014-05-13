@@ -2,9 +2,11 @@ package us.kbase.kidl;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.Map.Entry;
 
 /**
  * Class represents kind of comment annotation called 'range'.
@@ -93,7 +95,26 @@ public class KbAnnotationRange {
 	}
 	
 	void loadFromMap(Map<String,Object> data) throws KidlParseException {
-		throw new KidlParseException("loadFromMap called for KbAnnotationRange!!  not yet supported");
+		Iterator<Entry<String, Object>> it = data.entrySet().iterator();
+		isExclusiveMin = false;
+		isExclusiveMax = false;
+		while (it.hasNext()) {
+			Entry<String, Object> pairs = it.next();
+			String key = pairs.getKey();
+			if(key.equals("maximum")) {
+				maxValue = new BigDecimal(pairs.getValue().toString());
+			} else if(key.equals("minimum")) {
+				minValue = new BigDecimal(pairs.getValue().toString());
+			} else if(key.equals("exclusiveMaximum")) {
+				//if((Boolean)pairs.getValue()) {
+				//	isExclusiveMax = true;
+				//}
+			}else if(key.equals("exclusiveMinimum")) {
+				//if((Boolean)pairs.getValue()) {
+				//	isExclusiveMin = true;
+				//}
+			}
+		}
 	}
 	
 	public boolean isMinSet() {
@@ -105,12 +126,23 @@ public class KbAnnotationRange {
 	
 	Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
-		
-		/*  NOT SUPPORTED YET IN PERL TYPE COMPILER, SO DON'T OUTPUT */
-		
+		if(isMinSet()) {
+			ret.put("minimum", minValue.toString());
+			if(isExclusiveMin) {
+				ret.put("exclusiveMinimum","1");
+			} else {
+				ret.put("exclusiveMinimum","0");
+			}
+		}
+		if(isMaxSet()) {
+			ret.put("maximum", maxValue.toString());
+			if(isExclusiveMax) {
+				ret.put("exclusiveMaximum","1");
+			} else {
+				ret.put("exclusiveMaximum","0");
+			}
+		}
 		return ret;
-		
-		
 	}
 	
 	Object toJsonSchemaForFloat() {
