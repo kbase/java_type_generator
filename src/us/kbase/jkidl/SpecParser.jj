@@ -175,6 +175,7 @@ Map<String, KbModule> SpecStatement(IncludeProvider ip):
   Map<String, KbModule> includes = null;
 }
 {
+  { lastComment.set(null); }
   includes = IncludeList(ip)
   ret = ModuleList(includes)
   <EOF>

@@ -60,7 +60,7 @@ public class SpecParser implements SpecParserConstants {
         }
 
     public static Map<?,?> parseAsJson(SpecParser p, IncludeProvider ip) throws ParseException {
-    	lastComment.set(null);
+        lastComment.set(null);
         Map<String, KbModule> root = p.SpecStatement(ip);
         Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
         for (KbModule module : root.values()) {
@@ -97,6 +97,7 @@ public class SpecParser implements SpecParserConstants {
  */
   final public Map<String, KbModule> SpecStatement(IncludeProvider ip) throws ParseException {Map<String, KbModule> ret = new LinkedHashMap<String, KbModule>();
   Map<String, KbModule> includes = null;
+lastComment.set(null);
     includes = IncludeList(ip);
     ret = ModuleList(includes);
     jj_consume_token(0);
