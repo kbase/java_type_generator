@@ -60,6 +60,7 @@ public class SpecParser implements SpecParserConstants {
         }
 
     public static Map<?,?> parseAsJson(SpecParser p, IncludeProvider ip) throws ParseException {
+    	lastComment.set(null);
         Map<String, KbModule> root = p.SpecStatement(ip);
         Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
         for (KbModule module : root.values()) {
