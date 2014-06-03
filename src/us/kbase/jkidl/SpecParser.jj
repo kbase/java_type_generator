@@ -66,6 +66,7 @@ public class SpecParser {
   	}
 
     public static Map<?,?> parseAsJson(SpecParser p, IncludeProvider ip) throws ParseException {
+    	lastComment.set(null);
         Map<String, KbModule> root = p.SpecStatement(ip);
         Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
         for (KbModule module : root.values()) {
@@ -174,6 +175,7 @@ Map<String, KbModule> SpecStatement(IncludeProvider ip):
   Map<String, KbModule> includes = null;
 }
 {
+  { lastComment.set(null); }
   includes = IncludeList(ip)
   ret = ModuleList(includes)
   <EOF>
