@@ -274,7 +274,7 @@ public class KidlTest {
 	@Test
 	public void testJsonSchemas2() throws Exception {
 		boolean ok = true;
-		for (int testNum = 1; testNum <= 21; testNum++) {
+		for (int testNum = 1; testNum <= 22; testNum++) {
 			if (testNum == 9) {
 				continue;
 			}
