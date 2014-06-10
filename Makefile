@@ -6,21 +6,33 @@ ANT = ant
 
 default: compile
 
-deploy: distrib
+deploy: deploy-client deploy-service deploy-scripts
 
-deploy-all: distrib
-
-test: test-client-server
-	@echo "finished all tests"
-
-test-client-server:
-	$(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(KB_TOP) test
+undeploy:
+	@echo "Nothing to undeploy"
 
 compile:
 	$(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(KB_TOP)
 
-distrib:
+deploy-client:
+	@echo "No deployment for client"
+
+deploy-service:
+	@echo "No deployment for service"
+
+deploy-scripts:
 	$(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(TARGET) dist
+
+test: test-client test-service test-scripts
+
+test-client:
+	@echo "No tests for client"
+
+test-service:
+	@echo "No tests for service"
+
+test-scripts:
+	$(ANT) -DDEPLOY_RUNTIME=$(DEPLOY_RUNTIME) -DTARGET=$(KB_TOP) test
 
 clean:
 	$(ANT) clean

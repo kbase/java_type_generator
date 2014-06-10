@@ -1,0 +1,23 @@
+<html>
+<body>
+<h1>Java Type Generator</h1>
+<pre>
+Program generates java client and server classes for JSON RPC calls.
+Usage: &lt;program&gt; [options...] &lt;spec-file&gt;
+Usage: &lt;program&gt; {-h|--help}     - to see this help
+ &lt;spec-file&gt;  : File *.spec for compilation into java classes
+ -S           : Defines whether or not java code for server side should be created,
+                default value is false, use -S for true
+ -g &lt;gwtpckg&gt; : Gwt client java package (define it in case you need copies of
+                generated classes for GWT client)
+ -l &lt;lib-dir&gt; : Library output folder (exclusive with -o, not required when using -s)
+ -o &lt;out-dir&gt; : Output folder (src and lib subfolders will be created), use -s and
+                possibly -l instead of -o for more detailed settings
+ -p &lt;package&gt; : Java package parent (module subpackages are created in this
+                package), default value is us.kbase
+ -s &lt;src-dir&gt; : Source output folder (exclusive with -o)
+ -t &lt;tmp-dir&gt; : Temporary folder, default value is parent folder of &lt;spec-file&gt;
+ -u &lt;url&gt;     : Default url for service
+</pre>
+</body>
+</html>

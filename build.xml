@@ -145,36 +145,24 @@ java -cp ${lib.classpath}:${jar.absolute.path} us.kbase.scripts.JavaTypeGenerato
         </fileset>
       </batchtest>
     </junit>
-
-    <!-- Define classpath string with : delimiter from list of lib-jar files
-    <pathconvert targetos="unix" property="lib.classpath" refid="compile.classpath"/>
-    <echo file="${test}/${test.file}">#!/bin/sh
-java -cp ${lib.classpath}:${jar.absolute.path} org.junit.runner.JUnitCore us.kbase.kidl.tests.KidlTest us.kbase.scripts.tests.MainTest
-    </echo>
-    <chmod file="${test}/${test.file}" perm="a+x"/ -->
   </target>
 
   <target name="dist" depends="compile" description="generate the distribution" >
-    <!-- Copy necessary lib-jars into runtime lib subfolder-->
-    <!--copy todir="${out.lib}" flatten="true">
-      <fileset dir="${lib}">
-        <include name="*.jar"/>
-      </fileset>
-    </copy-->
     <!-- Copy main jar file into deployment lib folder-->
     <copy todir="${out.jar}" flatten="true">
       <fileset file="${dist}/${jar.file}"/>
     </copy>
     <!-- Define list of lib-jar files-->
+    <property name="absolute.lib" location="${lib}"/>
     <!-- Define absolute path to main jar file-->
     <property name="jar.absolute.path" location="${out.jar}/${jar.file}"/>
     <!-- Define classpath string with : delimiter from list of lib-jar files-->
-    <pathconvert targetos="unix" property="lib.classpath" refid="compile.classpath">
-      <map from="${lib}" to="${out.lib}"/>
+    <pathconvert targetos="unix" property="dist.lib.classpath" refid="compile.classpath">
+      <map from="${absolute.lib}" to="${out.lib}"/>
     </pathconvert>
     <!-- Create main shell script-->
     <echo file="${dist}/${sh.file}">#!/bin/sh
-java -cp ${lib.classpath}:${jar.absolute.path} us.kbase.scripts.JavaTypeGenerator $@
+java -cp ${dist.lib.classpath}:${jar.absolute.path} us.kbase.scripts.JavaTypeGenerator $@
     </echo>
     <chmod file="${dist}/${sh.file}" perm="a+x"/>
     <!-- Copy main shell script into deployment bin folder-->
