@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -97,6 +98,11 @@ public class JavaTypeGenerator {
 		Args parsedArgs = new Args();
 		CmdLineParser parser = new CmdLineParser(parsedArgs);
 		parser.setUsageWidth(85);
+		if (args.length == 0 || (args.length == 1 && (args[0].equals("-h") || args[0].equals("--help")))) {
+            parser.parseArgument("no.spec");
+            showUsage(parser, null, System.out);
+            return;
+		}
 		try {
             parser.parseArgument(args);
         } catch( CmdLineException e ) {
@@ -142,9 +148,16 @@ public class JavaTypeGenerator {
 	}
 
 	private static void showUsage(CmdLineParser parser, String message) {
-		System.err.println(message);
-		System.err.println("Usage: <program> [options...] <spec-file>");
-		parser.printUsage(System.err);
+		showUsage(parser, message, System.err);
+	}
+	
+	private static void showUsage(CmdLineParser parser, String message, PrintStream out) {
+		if (message != null)
+			out.println(message);
+		out.println("Program generates java client and server classes for JSON RPC calls.");
+		out.println("Usage: <program> [options...] <spec-file>");
+		out.println("Usage: <program> {-h|--help}     - to see this help");
+		parser.printUsage(out);
 	}
 	
 	public static JavaData processSpec(File specFile, File tempDir, File srcOutDir, String packageParent, 
