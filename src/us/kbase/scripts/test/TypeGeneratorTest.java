@@ -1,6 +1,7 @@
 package us.kbase.scripts.test;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -23,6 +25,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import us.kbase.kidl.KbFuncdef;
@@ -55,6 +58,19 @@ public class TypeGeneratorTest extends Assert {
 			startTest(testNum, false);
 		} else {
 			startTest(testNum);
+		}
+	}
+	
+	@BeforeClass
+	public static void prepareTestConfigParams() throws Exception {
+		Properties props = new Properties();
+		InputStream is = new FileInputStream(new File("test.cfg"));
+		props.load(is);
+		is.close();
+		for (Object key : props.keySet()) {
+			String prop = key.toString();
+			String value = props.getProperty(prop);
+			System.setProperty(prop, value);
 		}
 	}
 	
