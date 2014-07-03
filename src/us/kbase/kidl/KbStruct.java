@@ -90,9 +90,19 @@ public class KbStruct extends KbBasicType {
 	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::Struct");
-		if (annotations == null || annotations.getSearchable() == null) {
+		if (annotations == null) {
 			Map<String, Object> ann = new HashMap<String, Object>();
 			ann.put("searchable_ws_subset", new HashMap<String, Object>());
+			ann.put("metadata", new HashMap<String, Object>());
+			ret.put("annotations", ann);
+		} else {
+			Map<String, Object> ann = new HashMap<String, Object>();
+			if(annotations.getSearchable()==null) {
+				ann.put("searchable_ws_subset", new HashMap<String, Object>());
+			}
+			if(annotations.getWsMetadata()==null) {
+				ann.put("metadata", new HashMap<String, Object>());
+			}
 			ret.put("annotations", ann);
 		}
 		if (comment != null && comment.length() > 0)
@@ -108,6 +118,7 @@ public class KbStruct extends KbBasicType {
 		return ret;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Object toJsonSchema(boolean inner) {
 		Map<String, Object> ret = new LinkedHashMap<String, Object>();
@@ -127,6 +138,9 @@ public class KbStruct extends KbBasicType {
 		if (getAnnotations() != null && getAnnotations().getSearchable() != null && !inner) {
 			KbAnnotationSearch search = getAnnotations().getSearchable();
 			ret.put("searchable-ws-subset", search.toJsonSchema());
+		}
+		if (getAnnotations() != null && getAnnotations().getWsMetadata() != null && !inner) {
+			ret.putAll((Map<? extends String, ? extends Object>) getAnnotations().getWsMetadata().toJsonSchema());
 		}
 		return ret;
 	}

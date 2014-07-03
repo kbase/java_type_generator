@@ -274,7 +274,7 @@ public class KidlTest {
 	@Test
 	public void testJsonSchemas2() throws Exception {
 		boolean ok = true;
-		for (int testNum = 1; testNum <= 20; testNum++) {
+		for (int testNum = 1; testNum <= 22; testNum++) {
 			if (testNum == 9) {
 				continue;
 			}
@@ -434,7 +434,7 @@ public class KidlTest {
 			Assert.assertEquals(KbTypedef.class, cmpList.get(i).getClass());
 			KbTypedef typedef = (KbTypedef)cmpList.get(i);
 			if (typedef.getName().endsWith("_ref")) {
-				String actualRefList = "" + typedef.getAnnotations().getIdReference().getValidTypedefNamesForWs();
+				String actualRefList = "" + typedef.getAnnotations().getIdReference().getAttributes();
 				String expectedRefList = typedef.getName().startsWith("full_") ? "[Test.my_struct]" : "[]";
 				Assert.assertEquals(expectedRefList, actualRefList);
 			}
@@ -447,7 +447,7 @@ public class KidlTest {
 			Assert.assertEquals(KbTypedef.class, cmpList.get(i).getClass());
 			KbTypedef typedef = (KbTypedef)cmpList.get(i);
 			if (typedef.getName().endsWith("_ref")) {
-				String actualRefList = "" + typedef.getAnnotations().getIdReference().getValidTypedefNamesForWs();
+				String actualRefList = "" + typedef.getAnnotations().getIdReference().getAttributes();
 				String expectedRefList = typedef.getName().startsWith("full_") ? "[Test.my_struct]" : "[]";
 				Assert.assertEquals(expectedRefList, actualRefList);
 			}

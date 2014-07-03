@@ -2,6 +2,7 @@ package us.kbase.kidl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -90,6 +91,7 @@ public class KbTuple extends KbBasicType {
 		for (KbType type : elementTypes)
 			elementTypeList.add(type.toJson());
 		ret.put("element_types", elementTypeList);
+		ret.put("annotations", new HashMap<String, Object>());
 		if (name != null)
 			ret.put("name", name);
 		return ret;

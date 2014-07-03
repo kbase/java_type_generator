@@ -15,6 +15,8 @@ public class KbAnnotations {
 	private List<String> optional = null;
 	private KbAnnotationId idReference = null;
 	private KbAnnotationSearch searchableWsSubset = null;
+	private KbAnnotationMetadata wsMetadata = null;
+	private KbAnnotationRange range = null;
 	private Map<String, Object> unknown = new HashMap<String, Object>();
 	
 	@SuppressWarnings("unchecked")
@@ -29,6 +31,12 @@ public class KbAnnotations {
 			} else if (key.equals("searchable_ws_subset")) {
 				searchableWsSubset = new KbAnnotationSearch();
 				searchableWsSubset.loadFromMap((Map<String, Object>)enrty.getValue());
+			} else if (key.equals("metadata")) {
+				wsMetadata = new KbAnnotationMetadata();
+				wsMetadata.loadFromMap((Map<String, Object>)enrty.getValue());
+			}else if (key.equals("range")) {
+				range = new KbAnnotationRange();
+				range.loadFromMap((Map<String, Object>)enrty.getValue());
 			} else if (key.equals("unknown_annotations")) {
 				unknown.putAll((Map<String, Object>)enrty.getValue());
 			} else {
@@ -74,6 +82,13 @@ public class KbAnnotations {
 				if (searchableWsSubset == null)
 					searchableWsSubset = new KbAnnotationSearch();
 				searchableWsSubset.loadFromComment(value, caller);
+			} else if (annType.equals("metadata")) {
+				if (wsMetadata == null)
+					wsMetadata = new KbAnnotationMetadata();
+				wsMetadata.loadFromComment(value,caller);
+			} else if(annType.equals("range")) {
+				range = new KbAnnotationRange();
+				range.loadFromComment(value);
 			} else {
 				// TODO: Probably we should throw an exception here
 				unknown.put(annType, value);
@@ -94,21 +109,36 @@ public class KbAnnotations {
 		return searchableWsSubset;
 	}
 	
+	public KbAnnotationMetadata getWsMetadata() {
+		return wsMetadata;
+	}
+	
+	public KbAnnotationRange getRange() {
+		return range;
+	}
+	
 	public Map<String, Object> getUnknown() {
 		return unknown;
 	}
 	
-	public Object toJson(boolean searchable) {
+	public Object toJson(boolean isTypedef) {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		if (optional != null)
 			ret.put("optional", new ArrayList<String>(optional));
 		if (idReference != null)
 			ret.put("id", idReference.toJson());
-		if (searchable) {
+		if (isTypedef) {
 			Object searchableJson = searchableWsSubset == null ?
 					new HashMap<String, Object>() : searchableWsSubset.toJson();
 			ret.put("searchable_ws_subset", searchableJson);
+			Object metadataJson = wsMetadata == null ?
+					new HashMap<String, Object>() : wsMetadata.toJson();
+			ret.put("metadata", metadataJson);
 		}
+		if(range!=null) {
+			ret.put("range", range.toJson());
+		}
+		
 		ret.put("unknown_annotations", unknown);
 		return ret;
 	}

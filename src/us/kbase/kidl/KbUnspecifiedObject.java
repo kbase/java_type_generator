@@ -1,5 +1,6 @@
 package us.kbase.kidl;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -21,6 +22,7 @@ public class KbUnspecifiedObject extends KbBasicType {
 	public Object toJson() {
 		Map<String, Object> ret = new TreeMap<String, Object>();
 		ret.put("!", "Bio::KBase::KIDL::KBT::UnspecifiedObject");
+		ret.put("annotations", new HashMap<String, Object>());
 		return ret;
 	}
 

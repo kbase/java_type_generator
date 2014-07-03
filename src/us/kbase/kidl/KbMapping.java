@@ -1,5 +1,6 @@
 package us.kbase.kidl;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -43,6 +44,7 @@ public class KbMapping extends KbBasicType {
 		ret.put("!", "Bio::KBase::KIDL::KBT::Mapping");
 		ret.put("key_type", keyType.toJson());
 		ret.put("value_type", valueType.toJson());
+		ret.put("annotations", new HashMap<String, Object>());
 		return ret;
 	}
 	
