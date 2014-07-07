@@ -451,6 +451,7 @@ public class JavaTypeGenerator {
 					"        }",
 					"    }",
 					"",
+					"    /** Constructs a client with the default url and no user credentials.*/",
 					"    public " + clientClassName + "() {",
 					"       caller = new " + callerClass + "(DEFAULT_URL);",
 					"    }"
@@ -458,13 +459,23 @@ public class JavaTypeGenerator {
 			}
 			classLines.addAll(Arrays.asList(
 					"",
+					"",
+					"    /** Constructs a client with a custom URL and no user credentials.",
+					"     * @param url the URL of the service.",
+					"     */",
 					"    public " + clientClassName + "(" + urlClass + " url) {",
 					"        caller = new " + callerClass + "(url);",
 					"    }"
 					));
 			if (anyAuth) {
 				classLines.addAll(Arrays.asList(
-						"",
+						"    /** Constructs a client with a custom URL.",
+						"     * @param url the URL of the service.",
+						"     * @param token the user's authorization token.",
+						"     * @throws UnauthorizedException if the token is not valid.",
+						"     * @throws IOException if an IOException occurs when checking the token's",
+						"     * validity.",
+						"     */",
 						"    public " + clientClassName + "(" + urlClass + " url, " + 
 								model.ref("us.kbase.auth.AuthToken") + " token) throws " + 
 								model.ref(utilPackage + ".UnauthorizedException") + ", " +
@@ -472,6 +483,14 @@ public class JavaTypeGenerator {
 						"        caller = new " + callerClass + "(url, token);",
 						"    }",
 						"",
+						"    /** Constructs a client with a custom URL.",
+						"     * @param url the URL of the service.",
+						"     * @param user the user name.",
+						"     * @param password the password for the user name.",
+						"     * @throws UnauthorizedException if the credentials are not valid.",
+						"     * @throws IOException if an IOException occurs when checking the user's",
+						"     * credentials.",
+						"     */",
 						"    public " + clientClassName + "(" + urlClass + 
 								" url, String user, String password) throws " + 
 								model.ref(utilPackage + ".UnauthorizedException") + ", " +
@@ -482,12 +501,25 @@ public class JavaTypeGenerator {
 				if (url != null) {
 					classLines.addAll(Arrays.asList(
 						"",
+						"    /** Constructs a client with the default URL.",
+						"     * @param token the user's authorization token.",
+						"     * @throws UnauthorizedException if the token is not valid.",
+						"     * @throws IOException if an IOException occurs when checking the token's",
+						"     * validity.",
+						"     */",
 						"    public " + clientClassName + "(" + tokenClass + " token) throws " + 
 								model.ref(utilPackage + ".UnauthorizedException") + ", " +
 								model.ref("java.io.IOException") + " {",
 						"        caller = new " + callerClass + "(DEFAULT_URL, token);",
 						"    }",
 						"",
+						"    /** Constructs a client with the default URL.",
+						"     * @param user the user name.",
+						"     * @param password the password for the user name.",
+						"     * @throws UnauthorizedException if the credentials are not valid.",
+						"     * @throws IOException if an IOException occurs when checking the user's",
+						"     * credentials.",
+						"     */",
 						"    public " + clientClassName + "(String user, String password) throws " + 
 								model.ref(utilPackage + ".UnauthorizedException") + ", " +
 								model.ref("java.io.IOException") + " {",
@@ -498,10 +530,18 @@ public class JavaTypeGenerator {
 			}
 			classLines.addAll(Arrays.asList(
 					"",
+					"    /** Get the URL of the service with which this client communicates.",
+					"     * @return the service URL.",
+					"     */",
 					"    public " + urlClass + " getURL() {",
 					"        return caller.getURL();",
 					"    }",
 					"",
+					"    /** Set the timeout between establishing a connection to a server and",
+					"     * receiving a response. A value of zero or null implies no timeout.",
+					"     * @param milliseconds the milliseconds to wait before timing out when",
+					"     * attempting to read from a server.",
+					"     */",
 					"    public void setConnectionReadTimeOut(Integer milliseconds) {",
 					"        this.caller.setConnectionReadTimeOut(milliseconds);",
 					"    }"
@@ -509,14 +549,54 @@ public class JavaTypeGenerator {
 			if (anyAuth) {
 				classLines.addAll(Arrays.asList(
 						"",
+						"    /** Check if this client allows insecure http (vs https) connections.",
+						"     * @return true if insecure connections are allowed.",
+						"     */",
+						"    public boolean isInsecureHttpConnectionAllowed() {",
+						"        return caller.isInsecureHttpConnectionAllowed();",
+						"    }",
+						"",
+						"    /** Deprecated. Use isInsecureHttpConnectionAllowed().",
+						"     * @deprecated",
+						"     */",
 						"    public boolean isAuthAllowedForHttp() {",
 						"        return caller.isAuthAllowedForHttp();",
 						"    }",
-						"",	
+						"",
+						"    /** Set whether insecure http (vs https) connections should be allowed by",
+						"     * this client.",
+						"     * @param allowed true to allow insecure connections. Default false",
+						"     */",
+						"    public void setIsInsecureHttpConnectionAllowed(boolean allowed) {",
+						"        caller.setInsecureHttpConnectionAllowed(allowed);",
+						"    }",
+						"",
+						"    /** Deprecated. Use setInsecureHttpConnectionAllowed().",
+						"     * @deprecated",
+						"     */",
 						"    public void setAuthAllowedForHttp(boolean isAuthAllowedForHttp) {",
 						"        caller.setAuthAllowedForHttp(isAuthAllowedForHttp);",
 						"    }",
 						"",
+						"    /** Set whether all SSL certificates, including self-signed certificates,",
+						"     * should be trusted.",
+						"     * @param trustAll true to trust all certificates. Default false.",
+						"     */",
+						"    public void setAllSSLCertificatesTrusted(final boolean trustAll) {",
+						"        caller.setAllSSLCertificatesTrusted(trustAll);",
+						"    }",
+						"    ",
+						"    /** Check if this client trusts all SSL certificates, including",
+						"     * self-signed certificates.",
+						"     * @return true if all certificates are trusted.",
+						"     */",
+						"    public boolean isAllSSLCertificatesTrusted() {",
+						"        return caller.isAllSSLCertificatesTrusted();",
+						"    }",
+						"",
+						"    /** Get the token this client uses to communicate with the server.",
+						"     * @return the authorization token.",
+						"     */",
 						"    public " + tokenClass + " getToken() {",
 						"        return caller.getToken();",
 						"    }"
@@ -1155,3 +1235,4 @@ public class JavaTypeGenerator {
 		File specFile;
 	}
 }
+
