@@ -51,6 +51,11 @@
     <mkdir dir="${out.lib}"/>
   </target>
 	
+  <target name="copy_kidl_jar" if="EXT_KIDL_JAR">
+    <!-- copy the kidl jar to a versioned jar -->
+    <copy file="${dist}/${kidl.jar.file}" tofile="${dist}/${EXT_KIDL_JAR}"/>
+  </target>
+	
   <target name="compile" depends="init" description="compile the source">
     <!-- Compile class files-->
     <javac destdir="${classes}" srcdir="${src}" includeantruntime="false" debug="true" classpathref="compile.classpath" />
@@ -107,7 +112,7 @@
     </fileset>
   </path>
 
-  <target name="compile_and_bin" depends="compile" description="compile and create shell file in dev_container/bin" >
+  <target name="compile_and_bin" depends="compile,copy_kidl_jar" description="compile and create shell file in dev_container/bin" >
     <!-- Define list of lib-jar files-->
     <!-- Define absolute path to main jar file-->
     <property name="jar.absolute.path" location="${dist}/${jar.file}"/>
