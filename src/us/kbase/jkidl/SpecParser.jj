@@ -370,7 +370,11 @@ KbType Type(KbModule curModule, Map<String, KbModule> includes):
 	  "{"
 	  { ret = new KbStruct(); }
 	  (		  structItem = StructItem(curModule, includes) ";"
-          { ((KbStruct)ret).getItems().add(structItem); }
+          { 
+            boolean ok = ((KbStruct)ret).addItem(structItem);
+            if (!ok)
+              generateParseException("Name duplication for field [" + structItem.getName() + "]"); 
+          }
 	  )*
 	  "}"	)
 	|

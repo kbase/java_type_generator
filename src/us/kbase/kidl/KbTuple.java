@@ -110,4 +110,33 @@ public class KbTuple extends KbBasicType {
 		ret.put("items", items);
 		return ret;
 	}
+	
+	@Override
+	public void afterCreation() {
+		// Let's check duplication in field names
+		Map<String, int[]> fieldToCountAndSuffix = new HashMap<String, int[]>();
+		for (String elementName : elementNames) {
+			if (elementName == null)
+				continue;
+			int[] value = fieldToCountAndSuffix.get(elementName);
+			if (value == null) {
+				value = new int[] {0, 0};
+				fieldToCountAndSuffix.put(elementName, value);
+			}
+			value[0]++;
+		}
+		List<String> newElementNames = new ArrayList<String>();
+		for (int pos = 0; pos < elementNames.size(); pos++) {
+			String elementName = elementNames.get(0);
+			if (elementName == null || fieldToCountAndSuffix.get(elementName)[0] == 1) {
+				newElementNames.add(elementName);
+				continue;
+			} else {
+				int[] value = fieldToCountAndSuffix.get(elementName);
+				value[1]++;
+				newElementNames.add(elementName + "_" + value[1]);
+			}
+		}
+		elementNames = Collections.unmodifiableList(newElementNames); 
+	}
 }

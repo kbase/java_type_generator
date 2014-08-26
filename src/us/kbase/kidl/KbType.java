@@ -16,4 +16,9 @@ public interface KbType {
 	 * @param inner is important for typedefs, defines if this typedef of top level or not.
 	 */
 	public Object toJsonSchema(boolean inner);
+	
+	/**
+	 * Method is invoked from parser after type is built and it's time to check internal integrity.
+	 */
+	public void afterCreation();
 }

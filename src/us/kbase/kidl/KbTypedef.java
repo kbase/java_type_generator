@@ -111,4 +111,9 @@ public class KbTypedef implements KbModuleComp, KbType {
 		ret.putAll((Map<String, Object>)getAliasType().toJsonSchema(inner));
 		return ret;
 	}
+
+	@Override
+	public void afterCreation() {
+		// Default implementation - just do nothing
+	}
 }

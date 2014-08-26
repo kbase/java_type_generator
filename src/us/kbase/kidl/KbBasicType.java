@@ -27,4 +27,9 @@ public abstract class KbBasicType implements KbType {
 	}
 	
 	public abstract String getJavaStyleName();
+	
+	@Override
+	public void afterCreation() {
+		// Default implementation - just do nothing
+	}
 }

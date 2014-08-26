@@ -367,7 +367,9 @@ ret = new KbStruct();
         }
         structItem = StructItem(curModule, includes);
         jj_consume_token(T_semicolon);
-((KbStruct)ret).getItems().add(structItem);
+boolean ok = ((KbStruct)ret).addItem(structItem);
+            if (!ok)
+              generateParseException("Name duplication for field [" + structItem.getName() + "]");
       }
       jj_consume_token(T_figure_close_bracket);
       break;

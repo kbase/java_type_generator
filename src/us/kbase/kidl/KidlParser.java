@@ -62,7 +62,7 @@ public class KidlParser {
 			return parseSpec(map);
 		} catch (KidlParseException ex) {
 			throw ex;
-		} catch (Exception ex) {
+		} catch (Throwable ex) {
 			throw new KidlParseException("Error during parsing spec-file: " + ex.getMessage(), ex);
 		}
 	}

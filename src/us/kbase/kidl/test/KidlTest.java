@@ -32,6 +32,7 @@ import us.kbase.kidl.KbScalar;
 import us.kbase.kidl.KbService;
 import us.kbase.kidl.KbStruct;
 import us.kbase.kidl.KbStructItem;
+import us.kbase.kidl.KbTuple;
 import us.kbase.kidl.KbTypedef;
 import us.kbase.kidl.KidlParseException;
 import us.kbase.kidl.KidlParser;
@@ -567,17 +568,54 @@ public class KidlTest {
 						"};",
 						"to a mapping"
 				},
+				{ "" +
+						"module Test {\n" +
+						"  typedef structure {\n" +
+						"    int val1;\n" +
+						"    string val1;\n" +
+						"  } test1;\n" +
+						"};",
+						"Name duplication for field [val1]"
+				},
+				{ "" +
+						"/*\n" +
+						"",
+						"Encountered: <EOF>"
+				}
 		};
 		for (int testNum = 0; testNum < specAndResult.length; testNum++) {
 			specFile = prepareSpec(workDir, specAndResult[testNum][0]);
 			try {
 				KidlParser.parseSpec(specFile, workDir, null, null, true);
 				Assert.fail();
-			} catch (KidlParseException ex) {
+			} catch (Exception ex) {
+				boolean expectedError = ex.getMessage().contains(specAndResult[testNum][1]);
+				if (!expectedError)
+					ex.printStackTrace();
 				Assert.assertTrue("Actual message for test #" + (testNum + 1) + ": " + ex.getMessage(), 
-						ex.getMessage().contains(specAndResult[testNum][1]));
+						expectedError);
 			}
 		}
+	}
+	
+	@Test
+	public void testTupleFieldDuplication() throws Exception {
+		File workDir = prepareWorkDir();
+		File specFile = prepareSpec(workDir, "" +
+				"module Test {\n" +
+				"  typedef tuple<string fid, string fid, string fid> t;\n" +
+				"};");
+		List<KbService> srvList = KidlParser.parseSpec(specFile, workDir, null);
+		KbModule module = getModule(srvList);
+		List<KbModuleComp> cmpList = module.getModuleComponents();
+		Assert.assertEquals(1, cmpList.size());
+		Assert.assertEquals(KbTypedef.class, cmpList.get(0).getClass());
+		KbTypedef typedef = (KbTypedef)cmpList.get(0);
+		Assert.assertEquals(KbTuple.class, typedef.getAliasType().getClass());
+		KbTuple type = (KbTuple)typedef.getAliasType();
+		Assert.assertEquals(3, type.getElementNames().size());
+		for (int i = 0; i < type.getElementNames().size(); i++)
+			Assert.assertEquals("fid_" + (i + 1), type.getElementNames().get(i));
 	}
 	
 	protected KbModule getModule(List<KbService> srvList) {
