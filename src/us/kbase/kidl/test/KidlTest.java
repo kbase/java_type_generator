@@ -15,9 +15,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.parsers.ParserConfigurationException;
+
 import junit.framework.Assert;
 
 import org.junit.Test;
+import org.xml.sax.SAXException;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonParseException;
@@ -28,7 +31,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 
 import us.kbase.kidl.KbModule;
 import us.kbase.kidl.KbModuleComp;
-import us.kbase.kidl.KbScalar;
 import us.kbase.kidl.KbService;
 import us.kbase.kidl.KbStruct;
 import us.kbase.kidl.KbStructItem;
@@ -282,14 +284,26 @@ public class KidlTest {
 			File workDir = prepareWorkDir();
 			InputStream is = this.getClass().getResourceAsStream("spec." + testNum + ".properties");
 			File specFile = prepareSpec(workDir, is);
-			Map<String, Map<String, String>> schemas1 = new HashMap<String, Map<String, String>>();
-			Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, null);
-			Map<String, Map<String, String>> schemas2 = new HashMap<String, Map<String, String>>();
-			Map<?,?> parse2 = KidlParser.parseSpecInt(specFile, schemas2);
-			ok = ok & compareJson(parse1, parse2, "Parsing result for test #" + (testNum + 1));
-			ok = ok & compareJsonSchemas(schemas1, schemas2, "Json schema for test #" + (testNum + 1));
+			try {
+				parseSpec(testNum, specFile, workDir);
+			} catch (Exception ex) {
+				ok = false;
+			}
 		}
 		Assert.assertTrue(ok);
+	}
+
+	private List<KbService> parseSpec(int testNum, File specFile, File workDir)
+			throws KidlParseException, IOException, InterruptedException,
+			ParserConfigurationException, SAXException, Exception,
+			JsonGenerationException, JsonMappingException, JsonParseException {
+		Map<String, Map<String, String>> schemas1 = new HashMap<String, Map<String, String>>();
+		Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, null);
+		Map<String, Map<String, String>> schemas2 = new HashMap<String, Map<String, String>>();
+		Map<?, ?> parse = KidlParser.parseSpecInt(specFile, schemas2);
+		Assert.assertTrue(compareJson(parse1, parse, "Parsing result for test #" + (testNum + 1)));
+		Assert.assertTrue(compareJsonSchemas(schemas1, schemas2, "Json schema for test #" + (testNum + 1)));
+		return KidlParser.parseSpec(parse);
 	}
 
 	public static boolean compareJsonSchemas(Map<String, Map<String, String>> schemas1,
@@ -392,7 +406,7 @@ public class KidlTest {
 				"    float val2;\n" +
 				"  } my_struct;\n" +
 				"};");
-		List<KbService> srvList = KidlParser.parseSpec(specFile, workDir, null);
+		List<KbService> srvList = parseSpec(0, specFile, workDir);
 		KbModule module = getModule(srvList);
 		List<KbModuleComp> cmpList = module.getModuleComponents();
 		Assert.assertEquals(1, cmpList.size());
@@ -605,7 +619,7 @@ public class KidlTest {
 				"module Test {\n" +
 				"  typedef tuple<string fid, string fid, string fid> t;\n" +
 				"};");
-		List<KbService> srvList = KidlParser.parseSpec(specFile, workDir, null);
+		List<KbService> srvList = parseSpec(0, specFile, workDir);
 		KbModule module = getModule(srvList);
 		List<KbModuleComp> cmpList = module.getModuleComponents();
 		Assert.assertEquals(1, cmpList.size());
@@ -617,7 +631,28 @@ public class KidlTest {
 		for (int i = 0; i < type.getElementNames().size(); i++)
 			Assert.assertEquals("fid_" + (i + 1), type.getElementNames().get(i));
 	}
-	
+
+	@Test
+	public void testTupleFieldWithoutName() throws Exception {
+		File workDir = prepareWorkDir();
+		File specFile = prepareSpec(workDir, "" +
+				"module Test {\n" +
+				"  typedef tuple<string, string, string> t;\n" +
+				"};");
+		List<KbService> srvList = parseSpec(0, specFile, workDir);
+		KbModule module = getModule(srvList);
+		List<KbModuleComp> cmpList = module.getModuleComponents();
+		Assert.assertEquals(1, cmpList.size());
+		Assert.assertEquals(KbTypedef.class, cmpList.get(0).getClass());
+		KbTypedef typedef = (KbTypedef)cmpList.get(0);
+		Assert.assertEquals(KbTuple.class, typedef.getAliasType().getClass());
+		KbTuple type = (KbTuple)typedef.getAliasType();
+		Assert.assertEquals(3, type.getElementNames().size());
+		for (int i = 0; i < type.getElementNames().size(); i++) {
+			Assert.assertEquals("e_" + (i + 1), type.getElementNames().get(i));
+		}
+	}
+
 	protected KbModule getModule(List<KbService> srvList) {
 		Assert.assertEquals(1, srvList.size());
 		List<KbModule> modList = srvList.get(0).getModules();

@@ -22,7 +22,7 @@ public class KbTuple extends KbBasicType {
 	public KbTuple(List<KbType> types) {
 		elementNames = new ArrayList<String>();
 		for (KbType type : types)
-			elementNames.add(null);
+			elementNames.add("e_" + (elementNames.size() + 1));
 		elementNames = Collections.unmodifiableList(elementNames);
 		elementTypes = Collections.unmodifiableList(types);
 	}
@@ -127,7 +127,7 @@ public class KbTuple extends KbBasicType {
 		}
 		List<String> newElementNames = new ArrayList<String>();
 		for (int pos = 0; pos < elementNames.size(); pos++) {
-			String elementName = elementNames.get(0);
+			String elementName = elementNames.get(pos);
 			if (elementName == null || fieldToCountAndSuffix.get(elementName)[0] == 1) {
 				newElementNames.add(elementName);
 				continue;

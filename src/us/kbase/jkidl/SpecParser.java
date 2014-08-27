@@ -403,6 +403,8 @@ if (ret == null) {
         ret = refModule.getNameToType().get(type);
         if (ret == null)
                 generateParseException("Can not find type: " + (module == null ? "" : (module + ".")) + type);
+    } else {
+        ret.afterCreation();
     }
     {if ("" != null) return ret;}
     throw new Error("Missing return statement in function");

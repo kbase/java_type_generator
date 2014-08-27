@@ -401,6 +401,8 @@ KbType Type(KbModule curModule, Map<String, KbModule> includes):
     	ret = refModule.getNameToType().get(type);
     	if (ret == null)
     		generateParseException("Can not find type: " + (module == null ? "" : (module + ".")) + type);
+    } else {
+        ret.afterCreation();
     }
     return ret;
   }
