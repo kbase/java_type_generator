@@ -79,10 +79,10 @@ public class KbAnnotationMetadata {
 		return type;
 	}
 	
-	/* we only support top level extraction of stuff, so expression must be a field name.
-	 * additionally, the extraction is only valid if the item is a scalar type (in which case
+	/* We only support extraction of paths into structures, so the expression must be a dot
+	 * delimited path through structures to get to a valid scalar type (in which case
 	 * the type is cast to a string) or a list/mapping in which case it requires the operator
-	 * length(field_name) to specify that we want the lenght of the field name.
+	 * length(field_name) to specify that we want the length of the field name.
 	 * 
 	 * If we extend this simple expression in the future, it should be validated here.
 	 *  */
@@ -99,12 +99,23 @@ public class KbAnnotationMetadata {
 				throw new KidlParseException("metadata annotation is invalid, expression starts with length(, but does not have closing parenthesis");
 			}
 		}
+		String [] expTokens = expression.split("\\.");
+
+		// returns nothing, but throws an exception if things are not valid.
+		validateMetadataPath(expTokens, items, 0, gettingLengthOf, expression);
+	}
+	
+	// validates that path goes only through structures to a valid field
+	private void validateMetadataPath(String [] pathFields, List<KbStructItem> items, int pathPosition, boolean gettingLengthOf, String expression) throws KidlParseException {
+		String currentField = pathFields[pathPosition];
 		boolean foundExpression = false;
 		for(KbStructItem i:items) {
-			//System.out.println(i.getName() +" compare to " + expression);
-			if(i.getName().equals(expression)) {
+			if(i.getName().equals(currentField)) {
 				KbType itemType = resolveTypedefs(i.getItemType());
 				if(itemType instanceof KbScalar) {
+					if(pathPosition+1 != pathFields.length) {
+						throw new KidlParseException("metadata annotation is invalid, you are attempting to descend into a field named '"+pathFields[pathPosition+1]+"' in the expression '"+expression+"', but '"+currentField+"' is a string/int/float");
+					}
 					if(((KbScalar) itemType).getScalarType() != Type.stringType) {
 						if(gettingLengthOf) {
 							throw new KidlParseException("metadata annotation is invalid, if you are selecting an int or float for metadata, you cannot use: length("+expression+")");
@@ -112,16 +123,31 @@ public class KbAnnotationMetadata {
 					}
 					// we are ok
 				} else if(itemType instanceof KbList) {
+					if(pathPosition+1 != pathFields.length) {
+						throw new KidlParseException("metadata annotation is invalid, you are attempting to descend into a field named '"+pathFields[pathPosition+1]+"' in the expression '"+expression+"', but '"+currentField+"' is a list and you cannot extract metadata from within a list.");
+					}
 					if(!gettingLengthOf) {
 						throw new KidlParseException("metadata annotation is invalid, if you are selecting a list for metadata, you must use: length("+expression+")");
 					}
 				} else if(itemType instanceof KbMapping) {
+					if(pathPosition+1 != pathFields.length) {
+						throw new KidlParseException("metadata annotation is invalid, you are attempting to descend into a field named '"+pathFields[pathPosition+1]+"' in the expression '"+expression+"', but '"+currentField+"' is a mapping and you cannot extract metadata from within a mapping.");
+					}
 					if(!gettingLengthOf) {
 						throw new KidlParseException("metadata annotation is invalid, if you are selecting a mapping for metadata, you must use: length("+expression+")");
 					}
 				} else if(itemType instanceof KbTuple) {
+					if(pathPosition+1 != pathFields.length) {
+						throw new KidlParseException("metadata annotation is invalid, you are attempting to descend into a field named '"+pathFields[pathPosition+1]+"' in the expression '"+expression+"', but '"+currentField+"' is a tuple and you cannot extract metadata from within a tuple.");
+					}
 					if(!gettingLengthOf) {
 						throw new KidlParseException("metadata annotation is invalid, if you are selecting a tuple for metadata, you must use: length("+expression+")");
+					}
+				} else if(itemType instanceof KbStruct){
+					if(pathPosition+1 < pathFields.length) {
+						validateMetadataPath(pathFields, ((KbStruct) itemType).getItems(), pathPosition+1, gettingLengthOf, expression);
+					} else {
+						throw new KidlParseException("metadata annotation is invalid, you cannot select a structure, and  '"+pathFields[pathPosition+1]+"' in '"+expression+"' is a field that is a structure.");
 					}
 				} else {
 					throw new KidlParseException("metadata annotation is invalid, you can only select fields that are scalars, lists, tuples, or mappings; '"+expression+"' is not one of these.");
@@ -130,11 +156,10 @@ public class KbAnnotationMetadata {
 			}
 		}
 		if(!foundExpression) {
-			throw new KidlParseException("metadata annotation is invalid, could not identify field named:'"+expression+"'");
+			throw new KidlParseException("metadata annotation is invalid, could not identify field named:'"+currentField+"' in '"+expression+"'");
 		}
-		
-		
 	}
+	
 	
 	// If the json schema was parsed from the perl type compiler, use this method for instantiation
 	void loadFromMap(Map<String,Object> data) throws KidlParseException {
