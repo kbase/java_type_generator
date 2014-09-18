@@ -40,7 +40,9 @@ import us.kbase.scripts.TextUtils;
 import us.kbase.scripts.util.ProcessHelper;
 
 /**
- * Main test class for JavaTypeGenerator.
+ * Main test class for JavaTypeGenerator. It contains 10 tests checking different cases 
+ * including basic primitive, collection and structure types, authentication, #includes,
+ * syslog, documentation and GWT-stubs. 
  * @author rsutormin
  */
 public class TypeGeneratorTest extends Assert {
