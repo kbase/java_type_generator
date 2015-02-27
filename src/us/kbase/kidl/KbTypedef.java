@@ -1,8 +1,15 @@
 package us.kbase.kidl;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+
+import us.kbase.common.service.test.Tuple2;
 
 /**
  * Class represents type definition (or named type) in spec-file.
@@ -119,6 +126,22 @@ public class KbTypedef implements KbModuleComp, KbType {
 	
     @Override
     public Object forTemplates() {
-        throw new IllegalStateException("Templates are not yet supported for types");
+        Map<String, Object> ret = new LinkedHashMap<String, Object>();
+        ret.put("name", getName());
+        ret.put("comment", getComment());
+        ret.put("english", getTypeInEnglish(getAliasType()));
+        return ret;
+    }
+    
+    private static String getTypeInEnglish(KbType type) {
+        Set<String> allKeys = new HashSet<String>();
+        List<String> additional = new ArrayList<>();
+        LinkedList<Tuple2<String, KbType>> subQueue = new LinkedList<Tuple2<String, KbType>>();
+        StringBuilder ret = new StringBuilder(Utils.getEnglishTypeDescr(type, subQueue, allKeys, additional));
+        if (additional.size() > 0)
+            ret.append(":\n");
+        for (String add : additional)
+            ret.append(add).append("\n");
+        return ret.toString();
     }
 }

@@ -1,8 +1,12 @@
 package us.kbase.kidl;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import us.kbase.common.service.test.Tuple2;
 
 public class Utils {
 
@@ -92,4 +96,66 @@ public class Utils {
 			return resolveTypedefs(((KbTypedef)type).getAliasType());
 		return type;
 	}
+	
+    public static String getEnglishTypeDescr(
+            KbType type, LinkedList<Tuple2<String, KbType>> typeQueue, 
+            Set<String> allKeys, List<String> additional) {
+        String descr = null;
+        if (type instanceof KbScalar) {
+            KbScalar sc = (KbScalar)type;
+            descr = sc.getSpecName();
+        } else if (type instanceof KbTypedef) {
+            KbTypedef td = (KbTypedef)type;
+            descr = td.getModule() + "." + td.getName();
+            if (!allKeys.contains(td.getName())) {
+                typeQueue.add(new Tuple2<String, KbType>().withE1(td.getName()).withE2(td.getAliasType()));
+            }
+        } else if (type instanceof KbList) {
+            KbList ls = (KbList)type;
+            descr = "reference to a list where each element is " + 
+                    getEnglishTypeDescr(ls.getElementType(), typeQueue, allKeys, null);
+        } else if (type instanceof KbMapping) {
+            KbMapping mp = (KbMapping)type;
+            descr = "reference to a hash where the key is " + 
+                    getEnglishTypeDescr(mp.getKeyType(), typeQueue, allKeys, null) + 
+                    " and the value is " + 
+                    getEnglishTypeDescr(mp.getValueType(), typeQueue, allKeys, null);
+        } else if (type instanceof KbTuple) {
+            KbTuple tp = (KbTuple)type;
+            int count = tp.getElementTypes().size();
+            descr = "reference to a list containing " + count + " item" + (count == 1 ? "" : "s"); 
+            if (additional != null) {
+                for (int i = 0; i < count; i++) {
+                    String tpName = tp.getElementNames().get(i);
+                    KbType tpType = tp.getElementTypes().get(i);
+                    additional.add(i + ":" + (tpName != null ? (" (" + tpName + ")") : "") + " " + 
+                            getEnglishTypeDescr(tpType, typeQueue, allKeys, null));
+                }
+            }
+        } else if (type instanceof KbStruct) {
+            KbStruct st = (KbStruct)type;
+            descr = "reference to a hash where the following keys are defined";
+            if (additional != null) {
+                for (KbStructItem item : st.getItems()) {
+                    String itName = item.getName();
+                    KbType itType = item.getItemType();
+                    additional.add(itName + " has a value which is " + 
+                            getEnglishTypeDescr(itType, typeQueue, allKeys, null));
+                }
+            }
+        } else if (type instanceof KbUnspecifiedObject) {
+            descr = "UnspecifiedObject, which can hold any non-null object";
+        } else {
+            descr = type.toString();
+        }
+        if (descr.length() > 0) {
+            char firstLetter = descr.charAt(0);
+            descr = "a" + (isVowel(firstLetter) ? "n" : "") + " " + descr;
+        }
+        return descr;
+    }
+    
+    public static boolean isVowel(char c) {
+        return "AEIOUaeiou".indexOf(c) != -1;
+    }
 }

@@ -67,22 +67,6 @@ public class KidlTest {
 		return ret;
 	}
 	
-	public static boolean isDiff(String origText, String newText) throws Exception {
-        List<String> origLn = getLines(origText);
-        List<String> newLn = getLines(newText);
-        if (origLn.size() != newLn.size()) {
-            return true;
-        }
-        for (int pos = 0; pos < origLn.size(); pos++) {
-            String l1 = origLn.get(pos);
-            String l2 = newLn.get(pos);
-            if (!l1.equals(l2)) {
-                return true;
-            }
-        }
-        return false;
-	}
-	
 	public static void showDiff(String origText, String newText) throws Exception {
 		List<String> origLn = getLines(origText);
 		List<String> newLn = getLines(newText);

@@ -162,11 +162,19 @@ public class KbModule {
 	public Object forTemplates() {
 	    Map<String, Object> ret = new LinkedHashMap<String, Object>();
         ret.put("module_name", moduleName);
+        ret.put("module_doc", comment);
         List<Object> methods = new ArrayList<Object>();
+        List<Object> types = new ArrayList<Object>();
         for (KbModuleComp comp : moduleComponents)
-            if (comp instanceof KbFuncdef)
+            if (comp instanceof KbFuncdef) {
                 methods.add(comp.forTemplates());
+            } else if (comp instanceof KbTypedef) {
+                types.add(comp.forTemplates());
+            } else {
+                System.out.println("Module component: " + comp);
+            }
         ret.put("methods", methods);
+        ret.put("types", types);
 	    return ret;
 	}
 }

@@ -1,5 +1,6 @@
 package us.kbase.kidl;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -42,4 +43,26 @@ public class KbParameter {
 		ret.put("type", type.toJson());
 		return ret;
 	}
+
+    public Map<String, Object> forTemplates() {
+        Map<String, Object> ret = new LinkedHashMap<String, Object>();
+        ret.put("name", name);
+        String validator = null;
+        KbType t = type;
+        while (t instanceof KbTypedef) {
+            t = ((KbTypedef)t).getAliasType();
+        }
+        if (t instanceof KbMapping || t instanceof KbStruct) {
+            validator = "ref($" + name + ") eq 'HASH'";
+        } else if (t instanceof KbList || t instanceof KbTuple) {
+            validator = "ref($" + name + ") eq 'ARRAY'";
+        } else if (t instanceof KbUnspecifiedObject) {
+            validator = "defined $" + name;
+        } else {
+            validator = "!ref($" + name + ")";
+        }
+        ret.put("validator", validator);
+        ret.put("perl_var", "$" + name);
+        return ret;
+    }
 }

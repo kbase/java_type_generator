@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -95,4 +96,17 @@ public class TextUtils {
 				deleteRecursively(f);
 		fileOrDir.delete();
 	}
+
+    public static List<String> getLines(String text) throws Exception {
+        BufferedReader br = new BufferedReader(new StringReader(text));
+        List<String> ret = new ArrayList<String>();
+        while (true) {
+            String l = br.readLine();
+            if (l == null)
+                break;
+            ret.add(l);
+        }
+        br.close();
+        return ret;
+    }
 }

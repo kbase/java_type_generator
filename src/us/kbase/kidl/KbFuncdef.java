@@ -2,10 +2,15 @@ package us.kbase.kidl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+
+import us.kbase.common.service.test.Tuple2;
 
 /**
  * Class represents function definition in spec-file.
@@ -114,21 +119,102 @@ public class KbFuncdef implements KbModuleComp {
         Map<String, Object> ret = new LinkedHashMap<String, Object>();
         ret.put("name", name);
         ret.put("arg_count", parameters.size());
-        ret.put("args", getNames(parameters));
-        ret.put("arg_vars", getNames(parameters));
+        List<String> paramNames = getNameList(parameters, false);
+        ret.put("args", getNames(paramNames, null));
+        ret.put("arg_vars", getNames(paramNames, "$"));
         ret.put("ret_count", returnType.size());
-        ret.put("ret_vars", getNames(returnType));
+        List<String> returnNames = getNameList(returnType, true);
+        ret.put("ret_vars", nullIfEmpty(getNames(returnNames, "$")));
         ret.put("authentication", authentication == null ? "none" : authentication);
+        List<String> docLines = new ArrayList<String>();
+        LinkedList<Tuple2<String, KbType>> typeQueue = new LinkedList<Tuple2<String, KbType>>();
+        for (KbParameter arg : parameters) {
+            String item = arg.getName();
+            typeQueue.add(new Tuple2<String, KbType>().withE1("$" + item).withE2(arg.getType()));
+        }
+        for (int returnPos = 0; returnPos < returnType.size(); returnPos++) {
+            KbParameter arg = returnType.get(returnPos);
+            String item = returnNames.get(returnPos);
+            typeQueue.add(new Tuple2<String, KbType>().withE1("$" + item).withE2(arg.getType()));
+        }
+        processArgDoc(typeQueue, docLines, null, true);
+        ret.put("arg_doc", docLines);
+        ret.put("doc", comment);
+        List<Object> params = new ArrayList<Object>();
+        int paramIndex = 1;
+        for (KbParameter param : parameters) {
+            Map<String, Object> paramMap =  param.forTemplates();
+            paramMap.put("index", paramIndex++);
+            params.add(paramMap);
+        }
+        ret.put("params", params);
         return ret;
     }
+    
+    private static void processArgDoc(LinkedList<Tuple2<String, KbType>> typeQueue, 
+            List<String> docLines, Set<String> allKeys, boolean topLevel) {
+        if (allKeys == null)
+            allKeys = new HashSet<String>();
+        List<String> additional = new ArrayList<>();
+        LinkedList<Tuple2<String, KbType>> subQueue = new LinkedList<Tuple2<String, KbType>>();
+        while (!typeQueue.isEmpty()) {
+            Tuple2<String, KbType> namedType = typeQueue.removeFirst();
+            String key = namedType.getE1();
+            if (allKeys.contains(key))
+                continue;
+            allKeys.add(key);
+            KbType type = namedType.getE2();
+            additional.clear();
+            String argLine = key + " is " + 
+                    Utils.getEnglishTypeDescr(type, subQueue, allKeys, additional);
+            if (additional.size() > 0)
+                argLine += ":";
+            docLines.add(argLine);
+            for (String add : additional)
+                docLines.add("\t" + add);
+            if (subQueue.size() > 0 && !topLevel) {
+                processArgDoc(subQueue, docLines, allKeys, false);
+                if (subQueue.size() > 0)
+                    throw new IllegalStateException("Not empty: " + subQueue);
+            }
+        }
+        if (subQueue.size() > 0)
+            processArgDoc(subQueue, docLines, allKeys, false);
+    }
 
-    private static String getNames(List<KbParameter> args) {
+    private static List<String> getNameList(List<KbParameter> args, boolean returned) {
+        List<String> ret = new ArrayList<String>();
+        for (int i = 0; i < args.size(); i++) {
+            KbParameter arg = args.get(i);
+            String item = arg.getName();
+            if (item == null) {
+                if (returned) {
+                    item = "return";
+                } else {
+                    item = "arg";
+                }
+                if (args.size() > 1) {
+                    item += "_" + (i + 1);
+                }
+            }
+            ret.add(item);
+        }
+        return ret;
+    }    
+    
+    private static String getNames(List<String> items, String prefix) {
         StringBuilder ret = new StringBuilder();
-        for (KbParameter arg : args) {
+        for (String arg : items) {
             if (ret.length() > 0)
                 ret.append(", ");
-            ret.append(arg.getName());
+            if (prefix != null)
+                ret.append(prefix);
+            ret.append(arg);
         }
         return ret.toString();
+    }
+    
+    private static String nullIfEmpty(String text) {
+        return text.length() > 0 ? text : null;
     }
 }
