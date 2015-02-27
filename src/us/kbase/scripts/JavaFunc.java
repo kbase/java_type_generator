@@ -3,6 +3,7 @@ package us.kbase.scripts;
 import java.util.Collections;
 import java.util.List;
 
+import us.kbase.kidl.KbAuthdef;
 import us.kbase.kidl.KbFuncdef;
 
 public class JavaFunc {
@@ -51,10 +52,10 @@ public class JavaFunc {
 	}
 
 	public boolean isAuthRequired() {
-		return "required".equals(original.getAuthentication());
+		return KbAuthdef.REQUIRED.equals(original.getAuthentication());
 	}
 	
 	public boolean isAuthOptional() {
-		return "optional".equals(original.getAuthentication());
+		return KbAuthdef.OPTIONAL.equals(original.getAuthentication());
 	}
 }

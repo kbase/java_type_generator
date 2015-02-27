@@ -6,4 +6,5 @@ package us.kbase.kidl;
  */
 public interface KbModuleComp {
 	public Object toJson();
+	public Object forTemplates();
 }

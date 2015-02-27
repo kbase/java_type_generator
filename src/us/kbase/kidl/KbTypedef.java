@@ -116,4 +116,9 @@ public class KbTypedef implements KbModuleComp, KbType {
 	public void afterCreation() {
 		// Default implementation - just do nothing
 	}
+	
+    @Override
+    public Object forTemplates() {
+        throw new IllegalStateException("Templates are not yet supported for types");
+    }
 }

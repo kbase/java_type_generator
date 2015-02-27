@@ -67,6 +67,22 @@ public class KidlTest {
 		return ret;
 	}
 	
+	public static boolean isDiff(String origText, String newText) throws Exception {
+        List<String> origLn = getLines(origText);
+        List<String> newLn = getLines(newText);
+        if (origLn.size() != newLn.size()) {
+            return true;
+        }
+        for (int pos = 0; pos < origLn.size(); pos++) {
+            String l1 = origLn.get(pos);
+            String l2 = newLn.get(pos);
+            if (!l1.equals(l2)) {
+                return true;
+            }
+        }
+        return false;
+	}
+	
 	public static void showDiff(String origText, String newText) throws Exception {
 		List<String> origLn = getLines(origText);
 		List<String> newLn = getLines(newText);
@@ -78,8 +94,8 @@ public class KidlTest {
 			origWidth = 100;
 		int maxSize = Math.max(origLn.size(), newLn.size());
 		for (int pos = 0; pos < maxSize; pos++) {
-			String origL = pos < origLn.size() ? origLn.get(pos) : "";
-			String newL = pos < newLn.size() ? newLn.get(pos) : "";
+			String origL = pos < origLn.size() ? origLn.get(pos) : "<no-data>";
+			String newL = pos < newLn.size() ? newLn.get(pos) : "<no-data>";
 			boolean eq = origL.equals(newL);
 			if (origL.length() > origWidth) {
 				System.out.println("/" + (eq ? " " : "*") +origL);

@@ -2,6 +2,7 @@ package us.kbase.kidl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,4 +47,32 @@ public class KbService {
 	public List<KbModule> getModules() {
 		return modules;
 	}
+	
+	
+    public Map<String, Object> forTemplates() {
+        Map<String, Object> ret = new LinkedHashMap<String, Object>();
+        List<Object> modules = new ArrayList<Object>();
+        boolean psbl = false;
+        boolean only = true;
+        int funcCount = 0;
+        for (KbModule m : getModules()) {
+            modules.add(m.forTemplates());
+            for (KbModuleComp mc : m.getModuleComponents())
+                if (mc instanceof KbFuncdef) {
+                    KbFuncdef func = (KbFuncdef)mc;
+                    funcCount++;
+                    boolean req = func.isAuthenticationRequired();
+                    boolean opt = func.isAuthenticationOptional();
+                    psbl |= req || opt;
+                    only &= req;
+                }
+        }
+        only &= funcCount > 0;
+        ret.put("modules", modules);
+        if (psbl)
+            ret.put("authenticated", true);
+        if (only)
+            ret.put("authenticated_only", true);
+        return ret;
+    }
 }

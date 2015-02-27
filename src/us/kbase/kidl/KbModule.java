@@ -158,4 +158,15 @@ public class KbModule {
 	public List<?> getData() {
 		return data;
 	}
+	
+	public Object forTemplates() {
+	    Map<String, Object> ret = new LinkedHashMap<String, Object>();
+        ret.put("module_name", moduleName);
+        List<Object> methods = new ArrayList<Object>();
+        for (KbModuleComp comp : moduleComponents)
+            if (comp instanceof KbFuncdef)
+                methods.add(comp.forTemplates());
+        ret.put("methods", methods);
+	    return ret;
+	}
 }

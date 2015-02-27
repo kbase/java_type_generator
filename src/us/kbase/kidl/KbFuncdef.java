@@ -2,6 +2,7 @@ package us.kbase.kidl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -58,7 +59,15 @@ public class KbFuncdef implements KbModuleComp {
 	public String getAuthentication() {
 		return authentication;
 	}
-	
+
+	public boolean isAuthenticationRequired() {
+	    return KbAuthdef.REQUIRED.equals(authentication);
+	}
+
+	public boolean isAuthenticationOptional() {
+	    return KbAuthdef.OPTIONAL.equals(authentication);
+	}
+
 	public void setAuthentication(String authentication) {
 		this.authentication = authentication;
 	}
@@ -99,4 +108,27 @@ public class KbFuncdef implements KbModuleComp {
 		ret.put("return_type", toJson(returnType));
 		return ret;
 	}
+
+    @Override
+    public Object forTemplates() {
+        Map<String, Object> ret = new LinkedHashMap<String, Object>();
+        ret.put("name", name);
+        ret.put("arg_count", parameters.size());
+        ret.put("args", getNames(parameters));
+        ret.put("arg_vars", getNames(parameters));
+        ret.put("ret_count", returnType.size());
+        ret.put("ret_vars", getNames(returnType));
+        ret.put("authentication", authentication == null ? "none" : authentication);
+        return ret;
+    }
+
+    private static String getNames(List<KbParameter> args) {
+        StringBuilder ret = new StringBuilder();
+        for (KbParameter arg : args) {
+            if (ret.length() > 0)
+                ret.append(", ");
+            ret.append(arg.getName());
+        }
+        return ret.toString();
+    }
 }
