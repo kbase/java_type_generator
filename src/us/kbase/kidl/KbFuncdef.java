@@ -124,7 +124,7 @@ public class KbFuncdef implements KbModuleComp {
         ret.put("arg_vars", getNames(paramNames, "$"));
         ret.put("ret_count", returnType.size());
         List<String> returnNames = getNameList(returnType, true);
-        ret.put("ret_vars", nullIfEmpty(getNames(returnNames, "$")));
+        ret.put("ret_vars", getNames(returnNames, "$"));
         ret.put("authentication", authentication == null ? "none" : authentication);
         List<String> docLines = new ArrayList<String>();
         LinkedList<Tuple2<String, KbType>> typeQueue = new LinkedList<Tuple2<String, KbType>>();
@@ -141,13 +141,21 @@ public class KbFuncdef implements KbModuleComp {
         ret.put("arg_doc", docLines);
         ret.put("doc", comment);
         List<Object> params = new ArrayList<Object>();
-        int paramIndex = 1;
-        for (KbParameter param : parameters) {
-            Map<String, Object> paramMap =  param.forTemplates();
-            paramMap.put("index", paramIndex++);
+        for (int paramPos = 0; paramPos < parameters.size(); paramPos++) {
+            KbParameter param = parameters.get(paramPos);
+            Map<String, Object> paramMap =  param.forTemplates(paramNames.get(paramPos));
+            paramMap.put("index", paramPos + 1);
             params.add(paramMap);
         }
         ret.put("params", params);
+        List<Object> returns = new ArrayList<Object>();
+        for (int retPos = 0; retPos < returnType.size(); retPos++) {
+            KbParameter retParam = returnType.get(retPos);
+            Map<String, Object> paramMap =  retParam.forTemplates(returnNames.get(retPos));
+            paramMap.put("index", retPos + 1);
+            returns.add(paramMap);
+        }
+        ret.put("returns", returns);
         return ret;
     }
     
@@ -214,7 +222,7 @@ public class KbFuncdef implements KbModuleComp {
         return ret.toString();
     }
     
-    private static String nullIfEmpty(String text) {
+    /*private static String nullIfEmpty(String text) {
         return text.length() > 0 ? text : null;
-    }
+    }*/
 }

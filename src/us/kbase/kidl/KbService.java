@@ -49,9 +49,9 @@ public class KbService {
 	}
 	
 	
-    public Map<String, Object> forTemplates() {
+    public Map<String, Object> forTemplates(String perlImplName) {
         Map<String, Object> ret = new LinkedHashMap<String, Object>();
-        List<Object> modules = new ArrayList<Object>();
+        List<Map<String, Object>> modules = new ArrayList<Map<String, Object>>();
         boolean psbl = false;
         boolean only = true;
         int funcCount = 0;
@@ -68,11 +68,17 @@ public class KbService {
                 }
         }
         only &= funcCount > 0;
+        if (modules.size() == 1) {
+            modules.get(0).put("impl_package_name", perlImplName);
+        } else {
+            throw new IllegalStateException("It's not supported yet");
+        }
         ret.put("modules", modules);
         if (psbl)
             ret.put("authenticated", true);
         if (only)
             ret.put("authenticated_only", true);
+        ret.put("service_name", getName());
         return ret;
     }
 }

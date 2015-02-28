@@ -44,8 +44,9 @@ public class KbParameter {
 		return ret;
 	}
 
-    public Map<String, Object> forTemplates() {
+    public Map<String, Object> forTemplates(String altName) {
         Map<String, Object> ret = new LinkedHashMap<String, Object>();
+        String name = this.name != null ? this.name : altName;
         ret.put("name", name);
         String validator = null;
         KbType t = type;

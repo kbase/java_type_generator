@@ -159,7 +159,7 @@ public class KbModule {
 		return data;
 	}
 	
-	public Object forTemplates() {
+	public Map<String, Object> forTemplates() {
 	    Map<String, Object> ret = new LinkedHashMap<String, Object>();
         ret.put("module_name", moduleName);
         ret.put("module_doc", comment);
