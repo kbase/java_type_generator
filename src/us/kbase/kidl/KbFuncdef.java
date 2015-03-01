@@ -2,6 +2,7 @@ package us.kbase.kidl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -128,8 +129,9 @@ public class KbFuncdef implements KbModuleComp {
         ret.put("authentication", authentication == null ? "none" : authentication);
         List<String> docLines = new ArrayList<String>();
         LinkedList<Tuple2<String, KbType>> typeQueue = new LinkedList<Tuple2<String, KbType>>();
-        for (KbParameter arg : parameters) {
-            String item = arg.getName();
+        for (int paramPos = 0; paramPos < parameters.size(); paramPos++) {
+            KbParameter arg = parameters.get(paramPos);
+            String item = paramNames.get(paramPos);
             typeQueue.add(new Tuple2<String, KbType>().withE1("$" + item).withE2(arg.getType()));
         }
         for (int returnPos = 0; returnPos < returnType.size(); returnPos++) {
@@ -179,7 +181,11 @@ public class KbFuncdef implements KbModuleComp {
                 argLine += ":";
             docLines.add(argLine);
             for (String add : additional)
-                docLines.add("\t" + add);
+                if (add.isEmpty()) {
+                    docLines.add("");
+                } else {
+                    docLines.add("\t" + add);
+                }
             if (subQueue.size() > 0 && !topLevel) {
                 processArgDoc(subQueue, docLines, allKeys, false);
                 if (subQueue.size() > 0)
@@ -194,18 +200,39 @@ public class KbFuncdef implements KbModuleComp {
         List<String> ret = new ArrayList<String>();
         for (int i = 0; i < args.size(); i++) {
             KbParameter arg = args.get(i);
-            String item = arg.getName();
+            String item = arg.getOriginalName();
             if (item == null) {
                 if (returned) {
                     item = "return";
+                    //if (args.size() > 1)
+                    //    item += "_" + (i + 1);
                 } else {
-                    item = "arg";
-                }
-                if (args.size() > 1) {
-                    item += "_" + (i + 1);
+                    KbType type = arg.getType();
+                    if (type instanceof KbTypedef) {
+                        item = ((KbTypedef)type).getName();
+                    } else {
+                        item = "arg";
+                    }
                 }
             }
             ret.add(item);
+        }
+        Map<String, int[]> valToCount = new HashMap<String, int[]>();
+        for (String val : ret) {
+            int[] count = valToCount.get(val);
+            if (count == null) {
+                valToCount.put(val, new int[] {1, 0});
+            } else {
+                count[0]++;
+            }
+        }
+        for (int pos = 0; pos < ret.size(); pos++) {
+            String val = ret.get(pos);
+            int[] count = valToCount.get(val);
+            if (count[0] > 1) {
+                val += "_" + (++count[1]);
+                ret.set(pos, val);
+            }
         }
         return ret;
     }    

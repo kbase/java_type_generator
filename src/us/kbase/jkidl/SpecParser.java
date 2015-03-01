@@ -219,6 +219,7 @@ ret = new KbModule(srvToken == null ? null : srvToken.toString(), nameToken.toSt
         throw new ParseException();
       }
       jj_consume_token(T_semicolon);
+if (!(comp instanceof KbAuthdef))
 lastComment.set(null);
       ret.addModuleComponent(comp);
     }

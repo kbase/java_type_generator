@@ -18,6 +18,9 @@ import us.kbase.templates.TemplateFormatter;
 public class TemplateBasedGenerator {
     
     public static void main(String[] args) throws Exception {
+        test("erdb");
+        test("fba");
+        test("is");
         test("ws");
     }
     
@@ -33,11 +36,11 @@ public class TemplateBasedGenerator {
         String perlPsgi = "PsgiVal";
         generate(fr, defUrl, jsClient, perlClient, perlServer, perlImpl, perlPsgi, null, outDir);
         File testDir = new File("other", specName);
-        cmpFiles(outDir, testDir, jsClient + ".js");
-        cmpFiles(outDir, testDir, perlClient + ".pm");
-        cmpFiles(outDir, testDir, perlServer + ".pm");
-        cmpFiles(outDir, testDir, perlImpl + ".pm");
-        cmpFiles(outDir, testDir, perlPsgi);
+        cmpFiles(outDir, testDir, jsClient + ".js", false);
+        cmpFiles(outDir, testDir, perlClient + ".pm" , true);
+        cmpFiles(outDir, testDir, perlServer + ".pm", false);
+        cmpFiles(outDir, testDir, perlImpl + ".pm", true);
+        cmpFiles(outDir, testDir, perlPsgi, false);
     }
     
     public static void generate(Reader specReader, String defaultUrl, String jsName,
@@ -84,18 +87,18 @@ public class TemplateBasedGenerator {
         TemplateFormatter.formatTemplate("perl_psgi", context, perlPsgi);
     }
 
-    private static void cmpFiles(File dir1, File dir2, String fileName) throws Exception {
+    private static void cmpFiles(File dir1, File dir2, String fileName, boolean trim) throws Exception {
         String text1 = TextUtils.readFileText(new File(dir1, fileName));
         String text2 = TextUtils.readFileText(new File(dir2, fileName));
-        if (isDiff(text1, text2)) {
-            System.out.println("Files [" + fileName + "] are different");
+        if (isDiff(text1, text2, trim)) {
+            System.out.println("Files [" + dir1.getName() + "/" + fileName + "] are different");
             PrintWriter pw = new PrintWriter(new File(dir1, fileName + ".diff"));
-            printDiff(text1, text2, pw);
+            printDiff(text1, text2, trim, pw);
             pw.close();
         }
     }
     
-    public static boolean isDiff(String origText, String newText) throws Exception {
+    public static boolean isDiff(String origText, String newText, boolean trim) throws Exception {
         List<String> origLn = TextUtils.getLines(origText);
         List<String> newLn = TextUtils.getLines(newText);
         if (origLn.size() != newLn.size()) {
@@ -104,14 +107,15 @@ public class TemplateBasedGenerator {
         for (int pos = 0; pos < origLn.size(); pos++) {
             String l1 = origLn.get(pos);
             String l2 = newLn.get(pos);
-            if (!l1.equals(l2)) {
+            boolean eq = trim ? l1.trim().equals(l2.trim()) : l1.equals(l2);
+            if (!eq) {
                 return true;
             }
         }
         return false;
     }
 
-    private static void printDiff(String origText, String newText, PrintWriter pw) throws Exception {
+    private static void printDiff(String origText, String newText, boolean trim, PrintWriter pw) throws Exception {
         List<String> origLn = TextUtils.getLines(origText);
         List<String> newLn = TextUtils.getLines(newText);
         int origWidth = 0;
@@ -124,7 +128,7 @@ public class TemplateBasedGenerator {
         for (int pos = 0; pos < maxSize; pos++) {
             String origL = pos < origLn.size() ? origLn.get(pos) : "<no-data>";
             String newL = pos < newLn.size() ? newLn.get(pos) : "<no-data>";
-            boolean eq = origL.equals(newL);
+            boolean eq = trim ? origL.trim().equals(newL.trim()) : origL.equals(newL);
             if (origL.length() > origWidth) {
                 pw.println("/" + (eq ? " " : "*") +origL);
                 pw.println("\\" + (eq ? " " : "*") + newL);

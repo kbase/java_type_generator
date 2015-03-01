@@ -10,26 +10,33 @@ import java.util.TreeMap;
  */
 public class KbParameter {
 	private String name;
+	private String nameNotNullIfPossible;
 	private KbType type;
 	
 	public KbParameter() {}
 	
 	public KbParameter(KbType type, String name) {
 		this.name = name;
+		this.nameNotNullIfPossible = name;
 		this.type = type;
 	}
 	
 	public KbParameter loadFromMap(Map<?,?> data, boolean isReturn, int paramNum) throws KidlParseException {
 		name = Utils.propOrNull(data, "name"); // Utils.prop(data, "name");
-		if (name == null && !isReturn) {
-			name = "arg" + paramNum;
-		}
 		type = Utils.createTypeFromMap(Utils.propMap(data, "type"));
+		nameNotNullIfPossible = name;
+        if (nameNotNullIfPossible == null && !isReturn) {
+            nameNotNullIfPossible = "arg" + paramNum;
+        }
 		return this;
+	}
+
+	public String getOriginalName() {
+	    return name;
 	}
 	
 	public String getName() {
-		return name;
+		return nameNotNullIfPossible;
 	}
 	
 	public KbType getType() {

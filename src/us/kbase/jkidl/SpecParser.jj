@@ -276,7 +276,8 @@ KbModule Module(Map<String, KbModule> includes):
 	)
 	";"
     {
-      lastComment.set(null);
+      if (!(comp instanceof KbAuthdef))
+          lastComment.set(null);
       ret.addModuleComponent(comp);
     }  )*
   "}"
