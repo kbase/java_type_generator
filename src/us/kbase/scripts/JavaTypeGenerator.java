@@ -577,7 +577,7 @@ public class JavaTypeGenerator {
 					"        caller.setInsecureHttpConnectionAllowed(allowed);",
 					"    }",
 					"",
-					"    /** Deprecated. Use setInsecureHttpConnectionAllowed().",
+					"    /** Deprecated. Use setIsInsecureHttpConnectionAllowed().",
 					"     * @deprecated",
 					"     */",
 					"    public void setAuthAllowedForHttp(boolean isAuthAllowedForHttp) {",

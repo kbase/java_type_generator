@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.io.StringReader;
 
 public class Utils {
-	public static String trim(String comment) {
+	public static String trim(String comment, boolean processStars) {
 		if (comment == null)
 			return "";
 		StringBuilder sb = new StringBuilder(comment.trim());
@@ -29,6 +29,12 @@ public class Utils {
 				String l = br.readLine();
 				if (l == null)
 					break;
+				if (processStars) {
+				    int starPos = l.indexOf('*');
+				    if (starPos >= 0 && l.substring(0, starPos).trim().length() == 0 &&
+				            (l.length() == starPos + 1 || l.charAt(starPos + 1) != '*'))
+				        l = l.substring(starPos + 1);
+				}
 				if (lineNum == 1)
 					while (base < l.length() && l.charAt(base) == ' ')
 						base++;

@@ -673,7 +673,7 @@ public class TypeGeneratorTest extends Assert {
 	private static void runJavac(File workDir, File srcDir, String classPath, File binDir, 
 			String... sourceFilePaths) throws IOException {
 		ProcessHelper.cmd("javac", "-g:source,lines", "-d", binDir.getName(), "-sourcepath", srcDir.getName(), "-cp", 
-				classPath).add(sourceFilePaths).exec(workDir);
+				classPath, "-Xlint:deprecation").add(sourceFilePaths).exec(workDir);
 	}
 
 	private static void runJavaDoc(File workDir, File srcDir, String classPath, File docDir, String... packages) throws IOException {

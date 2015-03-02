@@ -48,6 +48,7 @@ public class TemplateBasedGenerator {
         cmpFiles(outDir, testDir, perlServer + ".pm", false);
         cmpFiles(outDir, testDir, pythonServer + ".py", false);
         cmpFiles(outDir, testDir, perlImpl + ".pm", true);
+        cmpFiles(outDir, testDir, pythonImpl + ".py", false);
         cmpFiles(outDir, testDir, perlPsgi, false);
     }
     
@@ -84,18 +85,26 @@ public class TemplateBasedGenerator {
         for (int modulePos = 0; modulePos < modules.size(); modulePos++) {
             Map<String, Object> module = new LinkedHashMap<String, Object>(modules.get(modulePos));
             String perlModuleImplName = (String)module.get("impl_package_name");
+            String pythonModuleImplName = (String)module.get("pymodule");
             File perlImpl = new File(outDir, perlModuleImplName + ".pm");
+            File pythonImpl = new File(outDir, pythonModuleImplName + ".py");
             Map<String, Object> moduleContext = new LinkedHashMap<String, Object>();
             moduleContext.put("module", module);
             moduleContext.put("server_package_name", perlServerName);
             moduleContext.put("empty_escaper", "");  // ${empty_escaper}
+            moduleContext.put("display", new StringUtils());
             module.put("module_header", "");
             module.put("module_constructor", "");
+            module.put("py_module_header", "");
+            module.put("py_module_class_header", "");
+            module.put("py_module_constructor", "");
             List<Map<String, Object>> methods = (List<Map<String, Object>>)module.get("methods");
             for (Map<String, Object> method : methods) {
                 method.put("user_code", "");
+                method.put("py_user_code", "");
             }
             TemplateFormatter.formatTemplate("perl_impl", moduleContext, perlImpl);
+            TemplateFormatter.formatTemplate("python_impl", moduleContext, pythonImpl);
         }
         File perlPsgi = new File(outDir, perlPsgiName);
         TemplateFormatter.formatTemplate("perl_psgi", context, perlPsgi);
