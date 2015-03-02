@@ -71,6 +71,25 @@ public class KbParameter {
         }
         ret.put("validator", validator);
         ret.put("perl_var", "$" + name);
+        ret.put("baretype", getBareType(t));
         return ret;
+    }
+    
+    private static String getBareType(KbType t) {
+        if (t instanceof KbScalar) {
+            return ((KbScalar)t).getSpecName();
+        } else if (t instanceof KbList) {
+            return "list";
+        } else if (t instanceof KbMapping) {
+            return "mapping";
+        } else if (t instanceof KbTuple) {
+            return "tuple";
+        } else if (t instanceof KbStruct) {
+            return "struct";
+        } else if (t instanceof KbUnspecifiedObject) {
+            return "UnspecifiedObject";
+        } else {
+            throw new IllegalStateException(t.getClass().getSimpleName());
+        }
     }
 }

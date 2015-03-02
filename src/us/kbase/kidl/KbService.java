@@ -49,7 +49,7 @@ public class KbService {
 	}
 	
 	
-    public Map<String, Object> forTemplates(String perlImplName) {
+    public Map<String, Object> forTemplates(String perlImplName, String pythonImplName) {
         Map<String, Object> ret = new LinkedHashMap<String, Object>();
         List<Map<String, Object>> modules = new ArrayList<Map<String, Object>>();
         boolean psbl = false;
@@ -70,6 +70,7 @@ public class KbService {
         only &= funcCount > 0;
         if (modules.size() == 1) {
             modules.get(0).put("impl_package_name", perlImplName);
+            modules.get(0).put("pymodule", pythonImplName);
         } else {
             throw new IllegalStateException("It's not supported yet");
         }

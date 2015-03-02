@@ -9,6 +9,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
+
 import us.kbase.jkidl.FileIncludeProvider;
 import us.kbase.jkidl.IncludeProvider;
 import us.kbase.kidl.KbService;
@@ -34,23 +36,30 @@ public class TemplateBasedGenerator {
         String perlServer = "ServiceVal";
         String perlImpl = "ImplVal";
         String perlPsgi = "PsgiVal";
-        generate(fr, defUrl, jsClient, perlClient, perlServer, perlImpl, perlPsgi, null, outDir);
+        String pythonClient = "PyVal";
+        String pythonServer = "PyserverVal";
+        String pythonImpl = "PyimplVal";
+        generate(fr, defUrl, jsClient, perlClient, perlServer, perlImpl, perlPsgi, 
+                pythonClient, pythonServer, pythonImpl, null, outDir);
         File testDir = new File("other", specName);
         cmpFiles(outDir, testDir, jsClient + ".js", false);
         cmpFiles(outDir, testDir, perlClient + ".pm" , true);
+        cmpFiles(outDir, testDir, pythonClient + ".py" , false);
         cmpFiles(outDir, testDir, perlServer + ".pm", false);
+        cmpFiles(outDir, testDir, pythonServer + ".py", false);
         cmpFiles(outDir, testDir, perlImpl + ".pm", true);
         cmpFiles(outDir, testDir, perlPsgi, false);
     }
     
     public static void generate(Reader specReader, String defaultUrl, String jsName,
             String perlClientName, String perlServerName, String perlImplName, String perlPsgiName, 
+            String pythonClientName, String pythonServerName, String pythonImplName, 
             IncludeProvider ip, File outDir) throws Exception {
         if (ip == null)
             ip = new FileIncludeProvider(new File("."));
         List<KbService> srvs = KidlParser.parseSpec(KidlParser.parseSpecInt(specReader, null, ip));
         KbService service = srvs.get(0);
-        Map<String, Object> context = service.forTemplates(perlImplName);
+        Map<String, Object> context = service.forTemplates(perlImplName, pythonImplName);
         if (defaultUrl != null)
             context.put("default_service_url", defaultUrl);
         context.put("client_package_name", perlClientName);
@@ -58,14 +67,19 @@ public class TemplateBasedGenerator {
         context.put("impl_package_name", perlImplName);
         context.put("enable_client_retry", true);
         context.put("empty_escaper", "");  // ${empty_escaper}
+        context.put("display", new StringUtils());
         if (!outDir.exists())
             outDir.mkdirs();
         File jsClient = new File(outDir, jsName + ".js");
         TemplateFormatter.formatTemplate("javascript_client", context, jsClient);
         File perlClient = new File(outDir, perlClientName + ".pm");
         TemplateFormatter.formatTemplate("perl_client", context, perlClient);
+        File pythonClient = new File(outDir, pythonClientName + ".py");
+        TemplateFormatter.formatTemplate("python_client", context, pythonClient);
         File perlServer = new File(outDir, perlServerName + ".pm");
         TemplateFormatter.formatTemplate("perl_server", context, perlServer);
+        File pythonServer = new File(outDir, pythonServerName + ".py");
+        TemplateFormatter.formatTemplate("python_server", context, pythonServer);
         List<Map<String, Object>> modules = (List<Map<String, Object>>)context.get("modules");
         for (int modulePos = 0; modulePos < modules.size(); modulePos++) {
             Map<String, Object> module = new LinkedHashMap<String, Object>(modules.get(modulePos));
