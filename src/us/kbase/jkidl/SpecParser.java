@@ -82,14 +82,14 @@ public class SpecParser implements SpecParserConstants {
         throw new ParseException("Error at line " + token.beginLine + ", column " + token.beginColumn + ": " + message);
     }
 
-    public String getLastComment(Token first, boolean processStars) {
+    public String getLastComment(Token first) {
         String comment = lastComment.get();
         lastComment.set(null);
         if (comment == null)
                 return "";
         //if (first.beginLine > lastCommentEndLine.get() + 1)
         //	return "";
-        return Utils.trim(comment, processStars);
+        return Utils.trim(comment);
     }
 
 /**
@@ -177,7 +177,7 @@ ret.put(module.getModuleName(), module);
   Token nameToken = null;
   KbModuleComp comp = null;
     first = jj_consume_token(T_module);
-comment = getLastComment(first, true);
+comment = getLastComment(first);
     if (jj_2_1(2147483647)) {
       srvToken = jj_consume_token(S_IDENTIFIER);
       jj_consume_token(T_colon);
@@ -238,7 +238,7 @@ if (!(comp instanceof KbAuthdef))
   KbType type;
   Token name;
     first = jj_consume_token(T_typedef);
-comment = getLastComment(first, false);
+comment = getLastComment(first);
     type = Type(curModule, includes);
     name = jj_consume_token(S_IDENTIFIER);
 try {
@@ -457,7 +457,7 @@ if (ret == null) {
   List<KbParameter> rets;
   KbAuthdef auth;
     first = jj_consume_token(T_funcdef);
-comment = getLastComment(first, true);
+comment = getLastComment(first);
     name = jj_consume_token(S_IDENTIFIER);
     jj_consume_token(T_round_open_bracket);
 ret = new KbFuncdef(name.toString(), comment);

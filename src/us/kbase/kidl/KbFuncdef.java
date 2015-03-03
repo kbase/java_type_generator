@@ -141,7 +141,7 @@ public class KbFuncdef implements KbModuleComp {
         }
         processArgDoc(typeQueue, docLines, null, true);
         ret.put("arg_doc", docLines);
-        ret.put("doc", comment);
+        ret.put("doc", Utils.removeStarsInComment(comment));
         List<Object> params = new ArrayList<Object>();
         for (int paramPos = 0; paramPos < parameters.size(); paramPos++) {
             KbParameter param = parameters.get(paramPos);
@@ -203,15 +203,13 @@ public class KbFuncdef implements KbModuleComp {
             String item = arg.getOriginalName();
             if (item == null) {
                 if (returned) {
-                    item = "return";
-                    //if (args.size() > 1)
-                    //    item += "_" + (i + 1);
+                    item = "return" + (args.size() > 1 ? ("_" + (i + 1)) : "");
                 } else {
                     KbType type = arg.getType();
                     if (type instanceof KbTypedef) {
                         item = ((KbTypedef)type).getName();
                     } else {
-                        item = "arg";
+                        item = "arg_" + (i + 1);
                     }
                 }
             }
@@ -248,8 +246,4 @@ public class KbFuncdef implements KbModuleComp {
         }
         return ret.toString();
     }
-    
-    /*private static String nullIfEmpty(String text) {
-        return text.length() > 0 ? text : null;
-    }*/
 }

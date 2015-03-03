@@ -162,7 +162,7 @@ public class KbModule {
 	public Map<String, Object> forTemplates() {
 	    Map<String, Object> ret = new LinkedHashMap<String, Object>();
         ret.put("module_name", moduleName);
-        ret.put("module_doc", comment);
+        ret.put("module_doc", Utils.removeStarsInComment(comment));
         List<Object> methods = new ArrayList<Object>();
         List<Object> types = new ArrayList<Object>();
         for (KbModuleComp comp : moduleComponents)

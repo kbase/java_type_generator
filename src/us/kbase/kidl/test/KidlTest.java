@@ -81,6 +81,8 @@ public class KidlTest {
 			String origL = pos < origLn.size() ? origLn.get(pos) : "<no-data>";
 			String newL = pos < newLn.size() ? newLn.get(pos) : "<no-data>";
 			boolean eq = origL.equals(newL);
+			if (eq)
+			    continue;
 			if (origL.length() > origWidth) {
 				System.out.println("/" + (eq ? " " : "*") +origL);
 				System.out.println("\\" + (eq ? " " : "*") + newL);
@@ -274,15 +276,27 @@ public class KidlTest {
 		Assert.assertTrue(ok);
 	}
 
+	public static List<Integer> getTestSpecNumbers() {
+	    List<Integer> ret = new ArrayList<Integer>();
+        for (int testNum = 1; testNum <= 22; testNum++) {
+            if (testNum == 9) {
+                continue;
+            }
+            ret.add(testNum);
+        }	
+        return ret;
+	}
+	
+	public static InputStream readTestSpec(int testNum) {
+	    return KidlTest.class.getResourceAsStream("spec." + testNum + ".properties");
+	}
+	
 	@Test
 	public void testJsonSchemas2() throws Exception {
 		boolean ok = true;
-		for (int testNum = 1; testNum <= 22; testNum++) {
-			if (testNum == 9) {
-				continue;
-			}
+		for (int testNum : getTestSpecNumbers()) {
 			File workDir = prepareWorkDir();
-			InputStream is = this.getClass().getResourceAsStream("spec." + testNum + ".properties");
+			InputStream is = readTestSpec(testNum);
 			File specFile = prepareSpec(workDir, is);
 			try {
 				parseSpec(testNum, specFile, workDir);

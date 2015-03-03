@@ -88,14 +88,14 @@ public class SpecParser {
     	throw new ParseException("Error at line " + token.beginLine + ", column " + token.beginColumn + ": " + message);
     }
 
-    public String getLastComment(Token first, boolean processStars) {
+    public String getLastComment(Token first) {
     	String comment = lastComment.get();
     	lastComment.set(null);
     	if (comment == null)
     		return "";
     	//if (first.beginLine > lastCommentEndLine.get() + 1)
     	//	return "";
-    	return Utils.trim(comment, processStars);
+    	return Utils.trim(comment);
     }
 }
 
@@ -252,7 +252,7 @@ KbModule Module(Map<String, KbModule> includes):
 {
   first = "module"
   {
-	comment = getLastComment(first, true);
+	comment = getLastComment(first);
   }
   [
     LOOKAHEAD (<S_IDENTIFIER> ":")
@@ -298,7 +298,7 @@ KbTypedef Typedef(KbModule curModule, Map<String, KbModule> includes):
 {
   first = "typedef"
   {
-	comment = getLastComment(first, false);
+	comment = getLastComment(first);
   }
   type = Type(curModule, includes)
   name = <S_IDENTIFIER>
@@ -459,7 +459,7 @@ KbFuncdef Funcdef(KbModule curModule, Map<String, KbModule> includes):
 {
   first = "funcdef"
   {
-	comment = getLastComment(first, true);
+	comment = getLastComment(first);
   }
   name = <S_IDENTIFIER>
   "("

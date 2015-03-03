@@ -1,5 +1,8 @@
 package us.kbase.kidl;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -188,5 +191,33 @@ public class Utils {
     
     public static boolean isVowel(char c) {
         return "AEIOUaeiou".indexOf(c) != -1;
+    }
+    
+    public static String removeStarsInComment(String comment) {
+        int base = 0;
+        BufferedReader br = new BufferedReader(new StringReader(comment));
+        StringBuilder sb = new StringBuilder();
+        try {
+            for (int lineNum = 0;; lineNum++) {
+                String l = br.readLine();
+                if (l == null)
+                    break;
+                int starPos = l.indexOf('*');
+                if (starPos >= 0 && l.substring(0, starPos).trim().length() == 0 &&
+                        (l.length() == starPos + 1 || l.charAt(starPos + 1) != '*'))
+                    l = l.substring(starPos + 1);
+                if (lineNum == 1)
+                    while (base < l.length() && l.charAt(base) == ' ')
+                        base++;
+                if (l.length() >= base && l.substring(0, base).trim().length() == 0)
+                    l = l.substring(base);
+                sb.append(l).append('\n');
+            }
+            br.close();
+        } catch (IOException ex) {
+            throw new IllegalStateException("Unexpected error", ex);
+        }
+        us.kbase.jkidl.Utils.trimWhitespaces(sb);
+        return sb.toString();
     }
 }
