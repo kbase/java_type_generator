@@ -3,7 +3,6 @@ package us.kbase.scripts;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -11,12 +10,9 @@ import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.text.MessageFormat;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -25,11 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -81,18 +73,6 @@ public class JavaTypeGenerator {
 
 	private static final String defaultParentPackage = "us.kbase";
 	private static final String utilPackage = defaultParentPackage + ".common.service";
-	
-	private static final String HEADER = "HEADER";
-	private static final String CLSHEADER = "CLASS_HEADER";
-	private static final String CONSTRUCTOR = "CONSTRUCTOR";
-	private static final String METHOD = "METHOD_";
-	
-	private static final Pattern PAT_HEADER = Pattern.compile(
-			".*//BEGIN_HEADER\n(.*)//END_HEADER\n.*", Pattern.DOTALL);
-	private static final Pattern PAT_CLASS_HEADER = Pattern.compile(
-			".*//BEGIN_CLASS_HEADER\n(.*)    //END_CLASS_HEADER\n.*", Pattern.DOTALL);
-	private static final Pattern PAT_CONSTRUCTOR = Pattern.compile(
-			".*//BEGIN_CONSTRUCTOR\n(.*)        //END_CONSTRUCTOR\n.*", Pattern.DOTALL);
 	
 	public static void main(String[] args) throws Exception {
 		Args parsedArgs = new Args();
@@ -813,51 +793,12 @@ public class JavaTypeGenerator {
 		printCommentLines("", lines, classLines);
 	}
 	
-	private static String backupExtension() {
-		String ret = ".bak-";
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
-		return ret + sdf.format(new Date());
-	}
-		
-	private static void checkMatch(HashMap<String, String> code, Pattern matcher,
-			String oldserver, String codekey, String errortype, boolean exceptOnFail) 
-			throws ParseException {
-		Matcher m = matcher.matcher(oldserver);
-		if (!m.matches()) {
-			if (exceptOnFail) {
-				throw new ParseException("Missing " + errortype + 
-						" in original file", 0);
-			} else {
-				return;
-			}
-		}
-		code.put(codekey, m.group(1));
-	}
-	
 	private static HashMap<String, String> parsePrevCode(File classFile, List<JavaFunc> funcs)
 		throws IOException, ParseException {
-		
-		HashMap<String, String> code = new HashMap<String, String>();
-		if (!classFile.exists()) {
-			code.put(HEADER, "");
-			code.put(CLSHEADER, "");
-			code.put(CONSTRUCTOR, "");
-			return code;
-		}
-		
-		File backup = new File(classFile.getAbsoluteFile() + backupExtension());
-		FileUtils.copyFile(classFile, backup);
-		String oldserver = IOUtils.toString(new FileReader(classFile));
-		checkMatch(code, PAT_HEADER, oldserver, HEADER, "header", true);
-		checkMatch(code, PAT_CLASS_HEADER, oldserver, CLSHEADER, "class header", true);
-		checkMatch(code, PAT_CONSTRUCTOR, oldserver, CONSTRUCTOR, "constructor", true);
-		for (JavaFunc func: funcs) {
-			String name = func.getOriginal().getName();
-			Pattern p = Pattern.compile(MessageFormat.format(
-					".*//BEGIN {0}\n(.*)        //END {0}\n.*", name), Pattern.DOTALL);
-			checkMatch(code, p, oldserver, METHOD + name, "method " + name, false);
-		}
-		return code;
+	    List<String> funcNames = new ArrayList<String>();
+		for (JavaFunc func: funcs)
+			funcNames.add(func.getOriginal().getName());
+		return PrevCodeParser.parsePrevCode(classFile, "//", funcNames, true);
 	}
 
 	private static List<String> splitCodeLines(String code) {
@@ -887,7 +828,7 @@ public class JavaTypeGenerator {
 					""
 					));
 			classLines.add("    //BEGIN_CLASS_HEADER");
-			classLines.addAll(splitCodeLines(originalCode.get(CLSHEADER)));
+			classLines.addAll(splitCodeLines(originalCode.get(PrevCodeParser.CLSHEADER)));
 			classLines.add("    //END_CLASS_HEADER");
 			classLines.add("");
 			classLines.add("    public " + serverClassName + "() throws Exception {");
@@ -896,7 +837,7 @@ public class JavaTypeGenerator {
 				serviceName = module.getOriginal().getModuleName();
 			classLines.add("        super(\"" + serviceName + "\");");
 			classLines.add("        //BEGIN_CONSTRUCTOR");
-			classLines.addAll(splitCodeLines(originalCode.get(CONSTRUCTOR)));
+			classLines.addAll(splitCodeLines(originalCode.get(PrevCodeParser.CONSTRUCTOR)));
 			classLines.addAll(Arrays.asList(
 					"        //END_CONSTRUCTOR",
 					"    }"
@@ -930,8 +871,8 @@ public class JavaTypeGenerator {
 				
 				List<String> funcLines = new LinkedList<String>();
 				String name = func.getOriginal().getName();
-				if (originalCode.containsKey(METHOD + name)) {
-					funcLines.addAll(splitCodeLines(originalCode.get(METHOD + name)));
+				if (originalCode.containsKey(PrevCodeParser.METHOD + name)) {
+					funcLines.addAll(splitCodeLines(originalCode.get(PrevCodeParser.METHOD + name)));
 				}
 				funcLines.add(0, "        //BEGIN " + name);
 				funcLines.add("        //END " + name);
@@ -979,7 +920,7 @@ public class JavaTypeGenerator {
 			headerLines.addAll(model.generateImports());
 			headerLines.add("");
 			headerLines.add("//BEGIN_HEADER");
-			headerLines.addAll(splitCodeLines(originalCode.get(HEADER)));
+			headerLines.addAll(splitCodeLines(originalCode.get(PrevCodeParser.HEADER)));
 			headerLines.add("//END_HEADER");
 			headerLines.add("");
 			classLines.addAll(0, headerLines);

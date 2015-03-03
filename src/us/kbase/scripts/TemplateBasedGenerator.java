@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -71,43 +72,74 @@ public class TemplateBasedGenerator {
         context.put("display", new StringUtils());
         if (!outDir.exists())
             outDir.mkdirs();
-        File jsClient = new File(outDir, jsName + ".js");
-        TemplateFormatter.formatTemplate("javascript_client", context, jsClient);
-        File perlClient = new File(outDir, perlClientName + ".pm");
-        TemplateFormatter.formatTemplate("perl_client", context, perlClient);
-        File pythonClient = new File(outDir, pythonClientName + ".py");
-        TemplateFormatter.formatTemplate("python_client", context, pythonClient);
-        File perlServer = new File(outDir, perlServerName + ".pm");
-        TemplateFormatter.formatTemplate("perl_server", context, perlServer);
-        File pythonServer = new File(outDir, pythonServerName + ".py");
-        TemplateFormatter.formatTemplate("python_server", context, pythonServer);
-        List<Map<String, Object>> modules = (List<Map<String, Object>>)context.get("modules");
-        for (int modulePos = 0; modulePos < modules.size(); modulePos++) {
-            Map<String, Object> module = new LinkedHashMap<String, Object>(modules.get(modulePos));
-            String perlModuleImplName = (String)module.get("impl_package_name");
-            String pythonModuleImplName = (String)module.get("pymodule");
-            File perlImpl = new File(outDir, perlModuleImplName + ".pm");
-            File pythonImpl = new File(outDir, pythonModuleImplName + ".py");
-            Map<String, Object> moduleContext = new LinkedHashMap<String, Object>();
-            moduleContext.put("module", module);
-            moduleContext.put("server_package_name", perlServerName);
-            moduleContext.put("empty_escaper", "");  // ${empty_escaper}
-            moduleContext.put("display", new StringUtils());
-            module.put("module_header", "");
-            module.put("module_constructor", "");
-            module.put("py_module_header", "");
-            module.put("py_module_class_header", "");
-            module.put("py_module_constructor", "");
-            List<Map<String, Object>> methods = (List<Map<String, Object>>)module.get("methods");
-            for (Map<String, Object> method : methods) {
-                method.put("user_code", "");
-                method.put("py_user_code", "");
-            }
-            TemplateFormatter.formatTemplate("perl_impl", moduleContext, perlImpl);
-            TemplateFormatter.formatTemplate("python_impl", moduleContext, pythonImpl);
+        if (jsName != null) {
+            File jsClient = new File(outDir, jsName + ".js");
+            TemplateFormatter.formatTemplate("javascript_client", context, jsClient);
         }
-        File perlPsgi = new File(outDir, perlPsgiName);
-        TemplateFormatter.formatTemplate("perl_psgi", context, perlPsgi);
+        if (perlClientName != null) {
+            File perlClient = new File(outDir, perlClientName + ".pm");
+            TemplateFormatter.formatTemplate("perl_client", context, perlClient);
+        }
+        if (pythonClientName != null) {
+            File pythonClient = new File(outDir, pythonClientName + ".py");
+            TemplateFormatter.formatTemplate("python_client", context, pythonClient);
+        }
+        if (perlServerName != null) {
+            File perlServer = new File(outDir, perlServerName + ".pm");
+            TemplateFormatter.formatTemplate("perl_server", context, perlServer);
+        }
+        if (pythonServerName != null) {
+            File pythonServer = new File(outDir, pythonServerName + ".py");
+            TemplateFormatter.formatTemplate("python_server", context, pythonServer);
+        }
+        if (perlImplName != null || pythonImplName != null) {
+            List<Map<String, Object>> modules = (List<Map<String, Object>>)context.get("modules");
+            for (int modulePos = 0; modulePos < modules.size(); modulePos++) {
+                Map<String, Object> module = new LinkedHashMap<String, Object>(modules.get(modulePos));
+                List<Map<String, Object>> methods = (List<Map<String, Object>>)module.get("methods");
+                List<String> methodNames = new ArrayList<String>();
+                for (Map<String, Object> method : methods)
+                    methodNames.add(method.get("name").toString());
+                File perlImpl = null;
+                if (perlImplName != null) {
+                    String perlModuleImplName = (String)module.get("impl_package_name");
+                    perlImpl = new File(outDir, perlModuleImplName + ".pm");
+                    Map<String, String> prevCode = PrevCodeParser.parsePrevCode(perlImpl, "#", methodNames, false);
+                    module.put("module_header", prevCode.get(PrevCodeParser.HEADER));
+                    module.put("module_constructor", prevCode.get(PrevCodeParser.CONSTRUCTOR));
+                    for (Map<String, Object> method : methods) {
+                        String code = prevCode.get(PrevCodeParser.METHOD + method.get("name"));
+                        method.put("user_code", code == null ? "" : code);
+                    }
+                }
+                File pythonImpl = null;
+                if (pythonImplName != null) {
+                    String pythonModuleImplName = (String)module.get("pymodule");
+                    pythonImpl = new File(outDir, pythonModuleImplName + ".py");
+                    Map<String, String> prevCode = PrevCodeParser.parsePrevCode(pythonImpl, "#", methodNames, true);
+                    module.put("py_module_header", prevCode.get(PrevCodeParser.HEADER));
+                    module.put("py_module_class_header", prevCode.get(PrevCodeParser.CLSHEADER));
+                    module.put("py_module_constructor", prevCode.get(PrevCodeParser.CONSTRUCTOR));
+                    for (Map<String, Object> method : methods) {
+                        String code = prevCode.get(PrevCodeParser.METHOD + method.get("name"));
+                        method.put("py_user_code", code == null ? "" : code);
+                    }
+                }
+                Map<String, Object> moduleContext = new LinkedHashMap<String, Object>();
+                moduleContext.put("module", module);
+                moduleContext.put("server_package_name", perlServerName);
+                moduleContext.put("empty_escaper", "");  // ${empty_escaper}
+                moduleContext.put("display", new StringUtils());
+                if (perlImplName != null)
+                    TemplateFormatter.formatTemplate("perl_impl", moduleContext, perlImpl);
+                if (pythonImplName != null)
+                    TemplateFormatter.formatTemplate("python_impl", moduleContext, pythonImpl);
+            }
+        }
+        if (perlPsgiName != null) {
+            File perlPsgi = new File(outDir, perlPsgiName);
+            TemplateFormatter.formatTemplate("perl_psgi", context, perlPsgi);
+        }
     }
 
     private static void cmpFiles(File dir1, File dir2, String fileName, boolean trim) throws Exception {
