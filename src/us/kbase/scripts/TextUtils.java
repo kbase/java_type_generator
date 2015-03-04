@@ -10,6 +10,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringReader;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -91,7 +92,7 @@ public class TextUtils {
 	}
 
 	public static void deleteRecursively(File fileOrDir) {
-		if (fileOrDir.isDirectory())
+		if (fileOrDir.isDirectory() && !Files.isSymbolicLink(fileOrDir.toPath()))
 			for (File f : fileOrDir.listFiles()) 
 				deleteRecursively(f);
 		fileOrDir.delete();

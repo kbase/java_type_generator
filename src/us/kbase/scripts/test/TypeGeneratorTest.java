@@ -238,8 +238,6 @@ public class TypeGeneratorTest extends Assert {
 			boolean needClientServer, File workDir, String testPackage,
 			File libDir, File binDir, JavaData parsingData, File serverOutDir)
 			throws IOException, Exception {
-		if (true)
-			return; // TODO: solve problem with log.py in python server 
 		int portNum = pyPort(testNum);
 		File pidFile = new File(serverOutDir, "pid.txt");
 		pythonServerCorrection(serverOutDir, parsingData);
@@ -249,8 +247,12 @@ public class TypeGeneratorTest extends Assert {
 			List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
 			//JavaTypeGenerator.checkEnvVars(lines, "PYTHONPATH");
 			lines.addAll(Arrays.asList(
-					"python " + serverFile.getAbsolutePath() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
-					"echo $pid > " + pidFile.getAbsolutePath()
+			        "cd \"" + serverOutDir.getAbsolutePath() + "\"",
+			        "if [ ! -d biokbase ]; then",
+			        "  cp -r ../../../lib/biokbase ./",
+			        "fi",
+			        "python " + serverFile.getName() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
+					"echo $pid > " + pidFile.getName()
 					));
 			TextUtils.writeFileLines(lines, uwsgiFile);
 			ProcessHelper.cmd("bash", uwsgiFile.getCanonicalPath()).exec(serverOutDir);
