@@ -1,0 +1,11 @@
+{
+   "tests":[
+       {
+           "method":"list_workspaces",
+           "auth":false,
+           "params": [{"test":"test"}],
+           "outcome":{"status":"pass"}
+       }
+   ]
+
+}
