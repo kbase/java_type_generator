@@ -1,6 +1,7 @@
 package us.kbase.scripts;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.Reader;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -16,29 +17,65 @@ import us.kbase.kidl.KidlParser;
 import us.kbase.templates.TemplateFormatter;
 
 public class TemplateBasedGenerator {
+
+    public static void generate(File specFile, String defaultUrl, 
+            boolean genJs, String jsClientName,
+            boolean genPerl, String perlClientName, boolean genPerlServer, 
+            String perlServerName, String perlImplName, String perlPsgiName, 
+            boolean genPython, String pythonClientName, boolean genPythonServer,
+            String pythonServerName, String pythonImplName,
+            boolean enableRetries, File outDir) throws Exception {
+        IncludeProvider ip = new FileIncludeProvider(specFile.getCanonicalFile().getParentFile());
+        generate(new FileReader(specFile), defaultUrl, genJs, jsClientName, genPerl, 
+                perlClientName, genPerlServer, perlServerName, perlImplName, perlPsgiName, 
+                genPython, pythonClientName, genPythonServer, pythonServerName, pythonImplName, 
+                enableRetries, ip, outDir);
+    }
     
-    public static void generate(Reader specReader, String defaultUrl, String jsName,
-            String perlClientName, String perlServerName, String perlImplName, String perlPsgiName, 
-            String pythonClientName, String pythonServerName, String pythonImplName, 
+    public static void generate(Reader specReader, String defaultUrl, 
+            boolean genJs, String jsClientName,
+            boolean genPerl, String perlClientName, boolean genPerlServer, 
+            String perlServerName, String perlImplName, String perlPsgiName, 
+            boolean genPython, String pythonClientName, boolean genPythonServer,
+            String pythonServerName, String pythonImplName,
             boolean enableRetries, IncludeProvider ip, File outDir) throws Exception {
         if (ip == null)
             ip = new FileIncludeProvider(new File("."));
         List<KbService> srvs = KidlParser.parseSpec(KidlParser.parseSpecInt(specReader, null, ip));
         KbService service = srvs.get(0);
+        if (genJs && jsClientName == null)
+            jsClientName = service.getName() + "Client";
+        if (perlServerName != null || perlImplName != null || perlPsgiName != null)
+            genPerlServer = true;
+        if (genPerlServer) {
+            genPerl = true;
+            if (perlServerName == null)
+                perlServerName = service.getName() + "Server";
+        }
+        if (genPerl && perlClientName == null)
+            perlClientName = service.getName() + "Client";
+        if (pythonServerName != null || pythonImplName != null)
+            genPythonServer = true;
+        if (genPythonServer) {
+            genPython = true;
+            if (pythonServerName == null)
+                pythonServerName = service.getName() + "Server";
+        }
+        if (genPython && pythonClientName == null)
+            pythonClientName = service.getName() + "Client";
         Map<String, Object> context = service.forTemplates(perlImplName, pythonImplName);
         if (defaultUrl != null)
             context.put("default_service_url", defaultUrl);
         context.put("client_package_name", perlClientName);
         context.put("server_package_name", perlServerName);
-        context.put("impl_package_name", perlImplName);
         if (enableRetries)
             context.put("enable_client_retry", true);
         context.put("empty_escaper", "");  // ${empty_escaper}
         context.put("display", new StringUtils());
         if (!outDir.exists())
             outDir.mkdirs();
-        if (jsName != null) {
-            File jsClient = new File(outDir, jsName + ".js");
+        if (jsClientName != null) {
+            File jsClient = new File(outDir, jsClientName + ".js");
             TemplateFormatter.formatTemplate("javascript_client", context, jsClient);
         }
         if (perlClientName != null) {
@@ -57,7 +94,7 @@ public class TemplateBasedGenerator {
             File pythonServer = new File(outDir, pythonServerName + ".py");
             TemplateFormatter.formatTemplate("python_server", context, pythonServer);
         }
-        if (perlImplName != null || pythonImplName != null) {
+        if (genPerlServer || genPythonServer) {
             List<Map<String, Object>> modules = (List<Map<String, Object>>)context.get("modules");
             for (int modulePos = 0; modulePos < modules.size(); modulePos++) {
                 Map<String, Object> module = new LinkedHashMap<String, Object>(modules.get(modulePos));
@@ -66,7 +103,7 @@ public class TemplateBasedGenerator {
                 for (Map<String, Object> method : methods)
                     methodNames.add(method.get("name").toString());
                 File perlImpl = null;
-                if (perlImplName != null) {
+                if (genPerlServer) {
                     String perlModuleImplName = (String)module.get("impl_package_name");
                     perlImpl = new File(outDir, perlModuleImplName + ".pm");
                     Map<String, String> prevCode = PrevCodeParser.parsePrevCode(perlImpl, "#", methodNames, false);
@@ -78,7 +115,7 @@ public class TemplateBasedGenerator {
                     }
                 }
                 File pythonImpl = null;
-                if (pythonImplName != null) {
+                if (genPythonServer) {
                     String pythonModuleImplName = (String)module.get("pymodule");
                     pythonImpl = new File(outDir, pythonModuleImplName + ".py");
                     Map<String, String> prevCode = PrevCodeParser.parsePrevCode(pythonImpl, "#", methodNames, true);
@@ -95,9 +132,9 @@ public class TemplateBasedGenerator {
                 moduleContext.put("server_package_name", perlServerName);
                 moduleContext.put("empty_escaper", "");  // ${empty_escaper}
                 moduleContext.put("display", new StringUtils());
-                if (perlImplName != null)
+                if (genPerlServer)
                     TemplateFormatter.formatTemplate("perl_impl", moduleContext, perlImpl);
-                if (pythonImplName != null)
+                if (genPythonServer)
                     TemplateFormatter.formatTemplate("python_impl", moduleContext, pythonImpl);
             }
         }

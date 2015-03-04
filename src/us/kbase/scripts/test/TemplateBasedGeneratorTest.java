@@ -35,7 +35,8 @@ public class TemplateBasedGeneratorTest {
         File specFile = new File(workDir, "spec." + testNum + ".spec");
         prepareSpec(specFile, KidlTest.readTestSpec(testNum));
         FileReader fr = new FileReader(specFile);
-        String defUrl = "https://kbase.us/services/ws";
+        String defUrl = null;  //"https://kbase.us/services/ws";
+        boolean enableRetries = true;
         String jsClient = "JsClient";
         String perlClient = "PerlClient";
         String perlServer = "PerlServer";
@@ -46,12 +47,12 @@ public class TemplateBasedGeneratorTest {
         String pythonImpl = "PythonImpl";
         long time1 = System.currentTimeMillis();
         File oldDir = prepareOldTypecompCode(specFile, defUrl, jsClient, perlClient, perlServer, 
-                perlImpl, perlPsgi, pythonClient, pythonServer, pythonImpl);
+                perlImpl, perlPsgi, pythonClient, pythonServer, pythonImpl, enableRetries);
         time1 = System.currentTimeMillis() - time1;
         File outDir = new File(workDir, "new");
         long time2 = System.currentTimeMillis();
-        TemplateBasedGenerator.generate(fr, defUrl, jsClient, perlClient, perlServer, 
-                perlImpl, perlPsgi, pythonClient, pythonServer, pythonImpl, false, null, outDir);
+        TemplateBasedGenerator.generate(fr, defUrl, true, jsClient, true, perlClient, true, perlServer, 
+                perlImpl, perlPsgi, true, pythonClient, true, pythonServer, pythonImpl, enableRetries, null, outDir);
         time2 = System.currentTimeMillis() - time2;
         //System.out.println("Test [" + testNum + "], old-time: " + time1 + ", new-time: " + time2);
         boolean ok = true;
@@ -81,18 +82,30 @@ public class TemplateBasedGeneratorTest {
 
     private static File prepareOldTypecompCode(File testSpec, String defUrl, String jsClient, 
             String perlClient, String perlServer, String perlImpl, String perlPsgi, 
-            String pythonClient, String pythonServer, String pythonImpl) throws IOException {
+            String pythonClient, String pythonServer, String pythonImpl, boolean enableRetries) 
+                    throws IOException {
         File workDir = testSpec.getParentFile();
         File bashFile = new File(workDir, "parse_old.sh");
         File serverOutDir = new File(workDir, "old");
         serverOutDir.mkdir();
+        String params = "";
+        params += "--path " + workDir.getAbsolutePath() + " ";
+        params += "--scripts " + serverOutDir.getName() + " ";
+        params += "--psgi " + perlPsgi + " ";
+        params += "--impl " + perlImpl + " ";
+        params += "--service " + perlServer + " ";
+        params += "--client " + perlClient + " ";
+        params += "--js " + jsClient + " ";
+        params += "--py " + pythonClient + " ";
+        params += "--pyserver " + pythonServer + " ";
+        params += "--pyimpl " + pythonImpl + " ";
+        if (defUrl != null)
+            params += "--url " + defUrl + " ";
+        if (enableRetries)
+            params += "--enable-retries ";
         TextUtils.writeFileLines(Arrays.asList(
                 "#!/bin/bash",
-                getKbBinDir() + "compile_typespec --path " + workDir.getAbsolutePath() + " --url " +
-                defUrl + " --scripts " + serverOutDir.getName() + " --psgi " + perlPsgi + " --impl " + 
-                perlImpl + " --service " + perlServer + " --client " + perlClient + " --js " + 
-                jsClient + " --py " + pythonClient + " --pyserver " + pythonServer + " --pyimpl " + 
-                pythonImpl + " " + testSpec.getName() + " " + serverOutDir.getName() + " >t.out 2>t.err"
+                getKbBinDir() + "compile_typespec " + params + testSpec.getName() + " " + serverOutDir.getName() + " >t.out 2>t.err"
                 ), bashFile);
         ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
         return serverOutDir;

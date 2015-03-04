@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -36,6 +37,7 @@ import us.kbase.scripts.JavaData;
 import us.kbase.scripts.JavaFunc;
 import us.kbase.scripts.JavaModule;
 import us.kbase.scripts.JavaTypeGenerator;
+import us.kbase.scripts.TemplateBasedGenerator;
 import us.kbase.scripts.TextUtils;
 import us.kbase.scripts.util.ProcessHelper;
 
@@ -325,6 +327,17 @@ public class TypeGeneratorTest extends Assert {
 	}
 
 	protected static File preparePerlAndPyServerCode(int testNum, File workDir)
+	        throws Exception {
+        File testFile = new File(workDir, "test" + testNum + ".spec");
+        File serverOutDir = new File(workDir, "out");
+        serverOutDir.mkdir();
+        TemplateBasedGenerator.generate(testFile, null, true, null, 
+                true, null, true, null, null, "service.psgi", true, null, true, null, 
+                null, false, serverOutDir);
+        return serverOutDir;
+	}
+	
+	/*protected static File preparePerlAndPyOldCode(int testNum, File workDir)
 			throws IOException {
 		String testFileName = "test" + testNum + ".spec";
 		File bashFile = new File(workDir, "parse.sh");
@@ -339,7 +352,14 @@ public class TypeGeneratorTest extends Assert {
 		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
 		return serverOutDir;
 	}
-	
+
+	private static String getKbBinDir() {
+	    String kbTop = System.getenv("KB_TOP");
+	    if (kbTop != null && kbTop.trim().length() > 0)
+	        return kbTop + "/bin/";
+	    return "";
+	}*/
+
 	protected static JavaData prepareJavaCode(int testNum, File workDir,
 			String testPackage, File libDir, File binDir, Integer defaultUrlPort,
 			boolean needJavaServerCorrection) throws Exception,
@@ -404,13 +424,6 @@ public class TypeGeneratorTest extends Assert {
 
 	private static String getGwtPackageName(int testNum) {
 		return rootPackageName + ".gwt";
-	}
-	
-	private static String getKbBinDir() {
-		String kbTop = System.getenv("KB_TOP");
-		if (kbTop != null && kbTop.trim().length() > 0)
-			return kbTop + "/bin/";
-		return "";
 	}
 	
 	private static File findPythonServerScript(File dir) {

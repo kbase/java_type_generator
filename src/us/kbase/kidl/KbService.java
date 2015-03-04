@@ -68,11 +68,10 @@ public class KbService {
                 }
         }
         only &= funcCount > 0;
-        if (modules.size() == 1) {
-            modules.get(0).put("impl_package_name", perlImplName);
-            modules.get(0).put("pymodule", pythonImplName);
-        } else {
-            throw new IllegalStateException("It's not supported yet");
+        for (Map<String, Object> module : modules) {
+            String moduleName = (String)module.get("module_name");
+            module.put("impl_package_name", perlImplName == null ? (moduleName + "Impl") : perlImplName);
+            module.put("pymodule", pythonImplName == null ? (moduleName + "Impl") : pythonImplName);
         }
         ret.put("modules", modules);
         if (psbl)
