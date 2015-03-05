@@ -25,24 +25,15 @@ DESCRIPTION
       
 # first parse options to get the testconfig file
 my $tests_filename;
-my $client_module;
 my $endpoint;
 
 my $help;
 
 my $opt = GetOptions (
         "tests=s" => \$tests_filename,
-        "module=s" => \$client_module,
         "endpoint=s" => \$endpoint,
         "help|h" => \$help,
         );
-
-# client module must be defined
-if (!$client_module) {
-    fail("client module parameter must be defined");
-    done_testing();
-    exit 1;
-}
 
 # endpoint must be defined
 if (!$endpoint) {
@@ -69,6 +60,7 @@ close($fh);
 my $tests_json = JSON->new->decode($tests_string);
 
 my $tests = $tests_json->{tests};
+my $client_module = $tests_json->{module};
 
 # make sure we can import the module
 my $json = JSON->new->canonical;
@@ -85,11 +77,11 @@ foreach my $test (@{$tests}) {
     my $method  = $test->{method};
     my $params  = $test->{params};
     my $outcome = $test->{outcome};
-    my $result;
+    my @result;
     {
         no strict "refs";
         ok($client->can($method), 'method "'.$method.'" exists');
-        eval { $result = $client->$method(@{$params}); };
+        eval { @result = $client->$method(@{$params}); };
         if($@) {
             ok($outcome->{status} eq 'fail', 'expected failure, and yes it failed');
             # could do more checks here for different failure modes
@@ -97,9 +89,9 @@ foreach my $test (@{$tests}) {
     }
     if ($outcome->{status} eq 'pass') {
         pass('expected to run successfully, and it did');
-        ok($result,"recieved a response");
+        ok(@result,"recieved a response");
         my $serialized_params = $json->encode($params);
-        my $serialized_result = $json->encode($result);
+        my $serialized_result = $json->encode(\@result);
         ok($serialized_params eq $serialized_result,"response matches input parameters");
         if ($serialized_params ne $serialized_result) {
             print "\nin:  ".$serialized_params."\n";

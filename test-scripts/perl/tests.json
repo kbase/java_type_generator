@@ -1,9 +1,10 @@
 {
+   "module": "Test1",
    "tests":[
        {
-           "method":"list_workspaces",
+           "method":"many_complex_params",
            "auth":false,
-           "params": [{"test":"test"}],
+           "params": [{"test":"test"}, {}],
            "outcome":{"status":"pass"}
        }
    ]
