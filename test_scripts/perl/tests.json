@@ -6,7 +6,19 @@
            "auth":false,
            "params": [{"test":"test"}, {}],
            "outcome":{"status":"pass"}
+       },
+       {
+           "method":"one_simple_param",
+           "auth":false,
+           "params": [44],
+           "outcome":{"status":"pass"}
+       },
+       {
+           "method":"one_simple_param",
+           "auth":false,
+           "context":"scalar",
+           "params": [44],
+           "outcome":{"status":"pass"}
        }
    ]
-
 }

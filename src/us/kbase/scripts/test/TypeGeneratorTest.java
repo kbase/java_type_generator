@@ -584,8 +584,7 @@ public class TypeGeneratorTest extends Assert {
             List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
             //JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
             lines.addAll(Arrays.asList(
-                    "perl ../../../test_scripts/perl/test-client.pl -tests " + configFile.getName() + " -module " +
-                    		serviceName + "Client -endpoint http://localhost:" + portNum + "/"
+                    "perl ../../../test_scripts/perl/test-client.pl -tests " + configFile.getName() + " -endpoint http://localhost:" + portNum + "/"
                     ));
             TextUtils.writeFileLines(lines, shellFile);
         } catch (Exception ex) {
