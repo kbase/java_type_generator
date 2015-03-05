@@ -15,7 +15,7 @@
   <property name="out.bin"	location="${TARGET}/bin"/>
   <property name="out.jar"	location="${TARGET}/lib/jars/kbase"/>
   <property name="classes"	location="classes"/>
-  <property name="test"	location="test"/>
+  <property name="test.dir"	location="temp_test"/>
   <property name="jar.file"	value="GenJavaTypes.jar"/>
   <property name="kidl.jar.file" value="kbase-kidl-parser.jar"/>
   <property name="sh.file"	value="gen_java_types"/>
@@ -47,7 +47,7 @@
     <!-- Create the output directory structure-->
     <mkdir dir="${classes}"/>
     <mkdir dir="${dist}"/>
-    <mkdir dir="${test}"/>
+    <mkdir dir="${test.dir}"/>
     <mkdir dir="${out.lib}"/>
   </target>
 	
@@ -183,7 +183,7 @@ java -cp ${dist.lib.classpath}:${jar.absolute.path} us.kbase.scripts.JavaTypeGen
     <!-- Clean up internal temporary files and folders-->
     <delete dir="${classes}"/>
     <delete dir="${dist}"/>
-    <delete dir="${test}"/>
+    <delete dir="${test.dir}"/>
   </target>
 </project>
 

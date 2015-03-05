@@ -48,6 +48,7 @@ import us.kbase.scripts.util.ProcessHelper;
  */
 public class TypeGeneratorTest extends Assert {
 	public static final String rootPackageName = "us.kbase";
+    public static final String tempDirName = "temp_test";
 	
 	public static void main(String[] args) throws Exception{
 		int testNum = Integer.parseInt(args[0]);
@@ -492,8 +493,8 @@ public class TypeGeneratorTest extends Assert {
 	
 	private static File prepareWorkDir(int testNum) throws IOException {
 		File tempDir = new File(".").getCanonicalFile();
-		if (!tempDir.getName().equals("test")) {
-			tempDir = new File(tempDir, "test");
+		if (!tempDir.getName().equals(tempDirName)) {
+			tempDir = new File(tempDir, tempDirName);
 			if (!tempDir.exists())
 				tempDir.mkdir();
 		}
@@ -583,7 +584,7 @@ public class TypeGeneratorTest extends Assert {
             List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
             //JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
             lines.addAll(Arrays.asList(
-                    "perl ../../../test-scripts/perl/test-client.pl -tests " + configFile.getName() + " -module " +
+                    "perl ../../../test_scripts/perl/test-client.pl -tests " + configFile.getName() + " -module " +
                     		serviceName + "Client -endpoint http://localhost:" + portNum + "/"
                     ));
             TextUtils.writeFileLines(lines, shellFile);

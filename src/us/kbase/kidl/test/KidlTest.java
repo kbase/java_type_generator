@@ -40,11 +40,12 @@ import us.kbase.kidl.KidlParseException;
 import us.kbase.kidl.KidlParser;
 
 public class KidlTest {
+    public static final String tempDirName = "temp_test";
 
 	private static File prepareWorkDir() throws IOException {
 		File tempDir = new File(".").getCanonicalFile();
-		if (!tempDir.getName().equals("test")) {
-			tempDir = new File(tempDir, "test");
+		if (!tempDir.getName().equals(tempDirName)) {
+			tempDir = new File(tempDir, tempDirName);
 			if (!tempDir.exists())
 				tempDir.mkdir();
 		}

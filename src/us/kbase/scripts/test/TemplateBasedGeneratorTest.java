@@ -20,6 +20,7 @@ import us.kbase.scripts.TextUtils;
 import us.kbase.scripts.util.ProcessHelper;
 
 public class TemplateBasedGeneratorTest {
+    public static final String tempDirName = "temp_test";
 
     @Test
     public void mainTest() throws Exception {
@@ -120,8 +121,8 @@ public class TemplateBasedGeneratorTest {
 
     private static File prepareWorkDir(int testNum) throws IOException {
         File tempDir = new File(".").getCanonicalFile();
-        if (!tempDir.getName().equals("test")) {
-            tempDir = new File(tempDir, "test");
+        if (!tempDir.getName().equals(tempDirName)) {
+            tempDir = new File(tempDir, tempDirName);
             if (!tempDir.exists())
                 tempDir.mkdir();
         }
