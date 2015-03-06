@@ -3,7 +3,7 @@
    "tests":[
        {
            "method":"many_complex_params",
-           "auth":false,
+           "auth":true,
            "params": [{"test":"test"}, {}],
            "outcome":{"status":"pass"}
        },
@@ -25,6 +25,12 @@
            "context":"scalar",
            "params": [44],
            "outcome":{"status":"pass"}
+       },
+       {
+           "method":"one_simple_param",
+           "auth":false,
+           "params": [[]],
+           "outcome":{"status":"fail", "error":["Invalid arguments"]}
        },
        {
            "method":"version",

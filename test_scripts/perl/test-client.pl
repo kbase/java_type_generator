@@ -133,7 +133,7 @@ foreach my $test (@{$tests}) {
     
     ok($client->can($method), ' ----------------- method "'.$method.'" exists ------------------------');
     if ($client->can($method)) {
-        my (@result, $scalarResult);
+        my (@result, $scalarResult, $failed);
         {
             no strict "refs";
             eval {
@@ -144,15 +144,33 @@ foreach my $test (@{$tests}) {
                 }
             };
             if($@) {
+                $failed = 1;
                 ok($outcome->{status} eq 'fail', 'expected failure, and yes it failed');
                 if ($outcome->{status} eq 'pass') {
                     # we did not expect an error!  display the message
                     print STDERR "Failing test of '$method', expected to pass but error thrown:\n";
                     print STDERR $@->{message}."\n";
                     if(defined($@->{status_line})) {print STDERR $@->{status_line}."\n" };
-                    print STDERR "\n";
                 }
+                
+                # check that the error message contains the right message
+                if ($outcome->{error}) {
+                    my $returnedErrorMsg = $@->{message};
+                    foreach my $e (@{$outcome->{error}}) {
+                        if(index($returnedErrorMsg, $e) != -1){
+                            pass("returned error message contains $e")
+                        } else {
+                            fail("returned error message did not contain $e");
+                            print STDERR "Failing test of '$method', expected error to contain message, but it didn't:\n";
+                            print STDERR "  looking for: '$e'\n";
+                            print STDERR "  got: '$returnedErrorMsg'\n";
+                        }
+                    }
+                }
+                
+                
                 # could do more checks here for different failure modes
+                
             }
         }
         if ($outcome->{status} eq 'pass') {
@@ -196,7 +214,7 @@ foreach my $test (@{$tests}) {
                 print STDERR "  in/out:  ".$serialized_params."\n";
                 print STDERR "\n";
             }
-        } elsif ($outcome->{status} eq 'fail') {
+        } elsif ($outcome->{status} eq 'fail' && !$failed) {
             fail('expected to fail, but it ran successfully');
         }
     }
