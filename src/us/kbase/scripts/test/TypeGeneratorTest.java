@@ -255,6 +255,7 @@ public class TypeGeneratorTest extends Assert {
 			        "cd \"" + serverOutDir.getAbsolutePath() + "\"",
 			        "if [ ! -d biokbase ]; then",
 			        "  cp -r ../../../lib/biokbase ./",
+                    "  cp -r $KB_TOP/modules/auth/lib/biokbase ./",
 			        "fi",
 			        "python " + serverFile.getName() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
 					"echo $pid > " + pidFile.getName()
@@ -313,6 +314,11 @@ public class TypeGeneratorTest extends Assert {
 			List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
 			//JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
 			lines.addAll(Arrays.asList(
+                    "cd \"" + serverOutDir.getAbsolutePath() + "\"",
+                    "if [ ! -d Bio ]; then",
+                    "  cp -r ../../../lib/Bio ./",
+                    "  cp -r $KB_TOP/modules/auth/lib/Bio ./",
+                    "fi",
 					"plackup --listen :" + portNum + " service.psgi >perl_server.out 2>perl_server.err & pid=$!",
 					"echo $pid > " + pidFile.getAbsolutePath()
 					));
@@ -422,7 +428,7 @@ public class TypeGeneratorTest extends Assert {
 		System.out.println("Compilation time: " + time1 + " vs " + time2);
 		Assert.assertTrue(KidlTest.compareJson(origMap, intMap, "Parsing result for " + testFileName));
 		Assert.assertTrue(KidlTest.compareJsonSchemas(origSchemas, intSchemas, "Json schema for " + testFileName));
-		List<KbService> services = KidlParser.parseSpec(specFile, workDir);
+		List<KbService> services = KidlParser.parseSpec(specFile, workDir, null, null, true);
 		JavaData parsingData = JavaTypeGenerator.processSpec(
 				services, workDir, srcDir, testPackage,
 				true, libDir, gwtPackageName, defaultUrl);

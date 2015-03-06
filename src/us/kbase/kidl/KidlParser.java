@@ -47,7 +47,7 @@ public class KidlParser {
 
 	public static List<KbService> parseSpec(File specFile, File tempDir, 
 			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, String kbTop) throws KidlParseException {
-		return parseSpec(specFile, tempDir, modelToTypeJsonSchemaReturn, kbTop, false);
+		return parseSpec(specFile, tempDir, modelToTypeJsonSchemaReturn, kbTop, true);
 	}
 	
 	public static List<KbService> parseSpec(File specFile, File tempDir, 

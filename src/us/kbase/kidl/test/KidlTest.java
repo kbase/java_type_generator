@@ -456,7 +456,7 @@ public class KidlTest {
 				"    float val2;\n" +
 				"  } my_struct;\n" +
 				"};");
-		List<KbService> srvList = KidlParser.parseSpec(specFile, workDir, null);
+		List<KbService> srvList = KidlParser.parseSpec(specFile, workDir, null, null, false);
 		KbModule module = getModule(srvList);
 		List<KbModuleComp> cmpList = module.getModuleComponents();
 		Assert.assertEquals(3, cmpList.size());

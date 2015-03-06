@@ -142,7 +142,7 @@ public class JavaTypeGenerator {
 	
 	public static JavaData processSpec(File specFile, File tempDir, File srcOutDir, String packageParent, 
 			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
-		List<KbService> services = KidlParser.parseSpec(specFile, tempDir);
+		List<KbService> services = KidlParser.parseSpec(specFile, tempDir, null, null, true);
 		return processSpec(services, tempDir, srcOutDir, packageParent, createServer, libOutDir, gwtPackage, url);
 	}
 	
