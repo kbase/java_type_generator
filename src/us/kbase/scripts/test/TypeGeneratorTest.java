@@ -6,6 +6,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
@@ -28,6 +30,9 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+
+import us.kbase.common.service.UObject;
 import us.kbase.kidl.KbFuncdef;
 import us.kbase.kidl.KbService;
 import us.kbase.kidl.KidlParser;
@@ -577,21 +582,44 @@ public class TypeGeneratorTest extends Assert {
         File shellFile = null;
         try {
             File configFile = new File(outDir, "tests.json");
-            TextUtils.writeFileLines(TextUtils.readStreamLines(TypeGeneratorTest.class.getResourceAsStream(
-                    resourceName)), configFile);
-            String serviceName = parsingData.getModules().get(0).getOriginal().getServiceName();
+            InputStream configIs = TypeGeneratorTest.class.getResourceAsStream(resourceName);
+            Map<String, Object> config = UObject.getMapper().readValue(configIs, 
+                    new TypeReference<Map<String, Object>>() {});
+            configIs.close();
+            //TextUtils.writeFileLines(TextUtils.readStreamLines(), configFile);
+            if (!config.containsKey("module")) {
+                String serviceName = parsingData.getModules().get(0).getOriginal().getServiceName();
+                config.put("module", serviceName + "Client");
+            }
+            UObject.getMapper().writeValue(configFile, config);
             shellFile = new File(outDir, "test_perl_client.sh");
             List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
             //JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
             lines.addAll(Arrays.asList(
-                    "perl ../../../test_scripts/perl/test-client.pl -tests " + configFile.getName() + " -endpoint http://localhost:" + portNum + "/"
+                    "perl ../../../test_scripts/perl/test-client.pl -tests " + configFile.getName() + 
+                    " -endpoint http://localhost:" + portNum + "/"
                     ));
             TextUtils.writeFileLines(lines, shellFile);
         } catch (Exception ex) {
             System.err.println("Perl client test: resource not found [" + resourceName + "]");
         }
         if (shellFile != null) {
-            int exitCode = ProcessHelper.cmd("bash", shellFile.getCanonicalPath()).exec(outDir).getExitCode();
+            //StringWriter outSw = new StringWriter();
+            //PrintWriter outPw = new PrintWriter(outSw);
+            //StringWriter errSw = new StringWriter();
+            //PrintWriter errPw = new PrintWriter(errSw);
+            ProcessHelper ph = ProcessHelper.cmd("bash", shellFile.getCanonicalPath()).exec(outDir, null, true, true);
+            int exitCode = ph.getExitCode();
+            //outPw.close();
+            //errPw.close();
+            if (exitCode != 0) {
+                String out = ph.getSavedOutput();  //outSw.toString();
+                if (!out.isEmpty())
+                    System.out.println("Perl client output:\n" + out);
+                String err = ph.getSavedErrors();  //errSw.toString();
+                if (!err.isEmpty())
+                    System.err.println("Perl client errors:\n" + err);
+            }
             Assert.assertEquals("Perl client exit code should be 0", 0, exitCode);
         }
     }
@@ -599,8 +627,8 @@ public class TypeGeneratorTest extends Assert {
 	private static void extractSpecFiles(int testNum, File workDir,
 			String testFileName) {
 		try {
-			TextUtils.writeFileLines(TextUtils.readStreamLines(TypeGeneratorTest.class.getResourceAsStream(testFileName + ".properties")), 
-					new File(workDir, testFileName));
+			TextUtils.writeFileLines(TextUtils.readStreamLines(TypeGeneratorTest.class.getResourceAsStream(
+			        testFileName + ".properties")), new File(workDir, testFileName));
 		} catch (Exception ex) {
 			String zipFileName = "test" + testNum + ".zip";
 			try {

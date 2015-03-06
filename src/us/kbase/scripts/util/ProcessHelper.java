@@ -58,7 +58,12 @@ public class ProcessHelper {
 
     public static ProcessHelper exec(CommandHolder cmd, File workDir, BufferedReader input, PrintWriter output,
                                      PrintWriter error, boolean waitFor) throws IOException {
-        return new ProcessHelper(cmd, workDir, OutType.StringOut, OutType.SystemErr, input, output, error, waitFor);
+        return new ProcessHelper(cmd, workDir, OutType.StringOut, OutType.StringErr, input, output, error, waitFor);
+    }
+
+    public static ProcessHelper exec(CommandHolder cmd, File workDir, BufferedReader input, boolean saveOutput, boolean saveErrors, boolean waitFor) throws IOException {
+        return new ProcessHelper(cmd, workDir, saveOutput ? OutType.StringOut : OutType.SystemOut, 
+                saveErrors ? OutType.StringErr : OutType.SystemErr, input, null, null, waitFor);
     }
 
     public ProcessHelper(CommandHolder cmd, File workDir, boolean waitFor) throws IOException {
@@ -206,6 +211,10 @@ public class ProcessHelper {
 
         public ProcessHelper exec(File workDir, BufferedReader input, PrintWriter output, PrintWriter error) throws IOException {
             return ProcessHelper.exec(this, workDir, input, output, error, waitFor);
+        }
+
+        public ProcessHelper exec(File workDir, BufferedReader input, boolean saveOutput, boolean saveErrors) throws IOException {
+            return ProcessHelper.exec(this, workDir, input, saveOutput, saveErrors, waitFor);
         }
     }
 }
