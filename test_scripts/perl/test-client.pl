@@ -126,27 +126,79 @@ foreach my $test (@{$tests}) {
     my $method  = $test->{method};
     my $params  = $test->{params};
     my $outcome = $test->{outcome};
-    my @result;
-    {
-        no strict "refs";
-        ok($client->can($method), 'method "'.$method.'" exists');
-        eval { @result = $client->$method(@{$params}); };
-        if($@) {
-            ok($outcome->{status} eq 'fail', 'expected failure, and yes it failed');
-            # could do more checks here for different failure modes
-        }
+    my $useScalarContext;
+    if ($test->{context} && $test->{context} eq 'scalar') {
+        $useScalarContext=1;
     }
-    if ($outcome->{status} eq 'pass') {
-        pass('expected to run successfully, and it did');
-        ok(@result,"recieved a response");
-        my $serialized_params = $json->encode($params);
-        my $serialized_result = $json->encode(\@result);
-        ok($serialized_params eq $serialized_result,"response matches input parameters");
-        if ($serialized_params ne $serialized_result) {
-            print "\nin:  ".$serialized_params."\n";
-            print "out: ".$serialized_result."\n";
+    
+    ok($client->can($method), ' ----------------- method "'.$method.'" exists ------------------------');
+    if ($client->can($method)) {
+        my (@result, $scalarResult);
+        {
+            no strict "refs";
+            eval {
+                if ($useScalarContext) {
+                    $scalarResult = $client->$method(@{$params});
+                } else {
+                    @result = $client->$method(@{$params});
+                }
+            };
+            if($@) {
+                ok($outcome->{status} eq 'fail', 'expected failure, and yes it failed');
+                if ($outcome->{status} eq 'pass') {
+                    # we did not expect an error!  display the message
+                    print STDERR "Failing test of '$method', expected to pass but error thrown:\n";
+                    print STDERR $@->{message}."\n";
+                    if(defined($@->{status_line})) {print STDERR $@->{status_line}."\n" };
+                    print STDERR "\n";
+                }
+                # could do more checks here for different failure modes
+            }
         }
-        
+        if ($outcome->{status} eq 'pass') {
+            pass('expected to run successfully, and it did');
+            my ($serialized_params, $serialized_result);
+            if ($useScalarContext) {
+                ok($scalarResult,"recieved a response in scalar context");
+                $serialized_params = $json->encode([@{$params}[0]]);
+                $serialized_result = $json->encode([$scalarResult]);
+            } else {
+                ok(@result,"recieved a response in array context");
+                $serialized_params = $json->encode($params);
+                $serialized_result = $json->encode(\@result);
+            }
+            
+            ok($serialized_params eq $serialized_result,"response matches input parameters");
+            
+            if ($serialized_params ne $serialized_result) {
+                print STDERR "Failing test of '$method', expected input to match output, but they don't match:\n";
+                print STDERR "  in:  ".$serialized_params."\n";
+                print STDERR "  out: ".$serialized_result."\n";
+                print STDERR "\n";
+            }
+        } elsif ($outcome->{status} eq 'nomatch') {
+            pass('expected to run successfully, and it did');
+            my ($serialized_params, $serialized_result);
+            if ($useScalarContext) {
+                ok($scalarResult,"recieved a response in scalar context");
+                $serialized_params = $json->encode([@{$params}[0]]);
+                $serialized_result = $json->encode([$scalarResult]);
+            } else {
+                ok(@result,"recieved a response in array context");
+                $serialized_params = $json->encode($params);
+                $serialized_result = $json->encode(\@result);
+            }
+            
+            ok($serialized_params ne $serialized_result,"response does NOT match input parameters");
+            
+            if ($serialized_params eq $serialized_result) {
+                print STDERR "Failing test of '$method', expected input to NOT match output, but they did match:\n";
+                print STDERR "  in/out:  ".$serialized_params."\n";
+                print STDERR "\n";
+            }
+        } elsif ($outcome->{status} eq 'fail') {
+            fail('expected to fail, but it ran successfully');
+        }
     }
 }
 
