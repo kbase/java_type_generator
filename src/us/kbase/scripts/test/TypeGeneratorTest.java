@@ -603,7 +603,8 @@ public class TypeGeneratorTest extends Assert {
             //JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
             lines.addAll(Arrays.asList(
                     "perl ../../../test_scripts/perl/test-client.pl -tests " + configFile.getName() + 
-                    " -endpoint http://localhost:" + portNum + "/"
+                    " -endpoint http://localhost:" + portNum + "/ -user " + System.getProperty("test.user") +
+                    " -password \"" + System.getProperty("test.pwd") + "\""
                     ));
             TextUtils.writeFileLines(lines, shellFile);
         } catch (Exception ex) {
