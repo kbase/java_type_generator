@@ -19,6 +19,8 @@ module basicsrv:Basic {
     } complex_struct;
 
     funcdef one_simple_param(int val) returns (int);
+    
+    funcdef nothing() returns ();
 
     funcdef one_complex_param(complex_struct val2) returns (complex_struct);
 

@@ -5,7 +5,7 @@
            "method":"many_complex_params",
            "auth":false,
            "params": [{"test":"test"}, {}],
-           "outcome":{"status":"passes"}
+           "outcome":{"status":"pass"}
        },
        {
            "method":"one_simple_param",
@@ -17,6 +17,19 @@
            "method":"one_simple_param",
            "auth":false,
            "params": [44],
+           "outcome":{"status":"pass"}
+       },
+       {
+           "method":"nothing",
+           "auth":false,
+           "params": [],
+           "outcome":{"status":"pass"}
+       },
+       {
+           "method":"nothing",
+           "auth":false,
+           "context":"scalar",
+           "params": [],
            "outcome":{"status":"pass"}
        },
        {

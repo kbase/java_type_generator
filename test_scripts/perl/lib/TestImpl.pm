@@ -105,6 +105,51 @@ sub one_simple_param
 
 
 
+=head2 nothing
+
+  $obj->nothing()
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+
+</pre>
+
+=end html
+
+=begin text
+
+
+
+=end text
+
+
+
+=item Description
+
+
+
+=back
+
+=cut
+
+sub nothing
+{
+    my $self = shift;
+
+    my $ctx = $basicsrvServer::CallContext;
+    #BEGIN nothing
+    #END nothing
+    return();
+}
+
+
+
+
 =head2 one_complex_param
 
   $return = $obj->one_complex_param($val2)

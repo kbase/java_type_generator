@@ -96,7 +96,7 @@ my $json = JSON->new->canonical;
 use_ok($client_module);
 
 #instantiate an authenticated client and a nonauthenticated client
-my $nonauthenticated_client = $client_module->new($endpoint);
+my $nonauthenticated_client = $client_module->new($endpoint,ignore_kbase_config=>1);
 ok(defined($nonauthenticated_client),"instantiating nonauthenticated client");
 
 my $authenticated_client;
@@ -177,11 +177,9 @@ foreach my $test (@{$tests}) {
             pass('expected to run successfully, and it did');
             my ($serialized_params, $serialized_result);
             if ($useScalarContext) {
-                ok($scalarResult,"recieved a response in scalar context");
                 $serialized_params = $json->encode([@{$params}[0]]);
                 $serialized_result = $json->encode([$scalarResult]);
             } else {
-                ok(@result,"recieved a response in array context");
                 $serialized_params = $json->encode($params);
                 $serialized_result = $json->encode(\@result);
             }
