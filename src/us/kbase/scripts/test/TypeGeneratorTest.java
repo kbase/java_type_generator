@@ -608,8 +608,7 @@ public class TypeGeneratorTest extends Assert {
                     ));
             TextUtils.writeFileLines(lines, shellFile);
         } catch (Exception ex) {
-            System.err.println("Perl client test: resource not found [" + resourceName + "]:");
-            ex.printStackTrace();
+            System.err.println("Perl client test: resource not found [" + resourceName + "]");
         }
         if (shellFile != null) {
             //StringWriter outSw = new StringWriter();
