@@ -136,7 +136,7 @@ public class TypeGeneratorTest extends Assert {
 		serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
 		runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir);
 		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, javaPort(testNum), true);
-		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, null);
+		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir);
 	}
 
 	@Test
