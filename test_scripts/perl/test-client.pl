@@ -145,9 +145,10 @@ foreach my $test (@{$tests}) {
             };
             if($@) {
                 $failed = 1;
-                ok($outcome->{status} eq 'fail', 'expected failure, and yes it failed');
-                if ($outcome->{status} eq 'pass') {
-                    # we did not expect an error!  display the message
+                if ($outcome->{status} eq 'fail') {
+                    pass('expected failure, and yes it failed');
+                } else {
+                    fail('did not expect to fail, but it did');
                     print STDERR "Failing test of '$method', expected to pass but error thrown:\n";
                     print STDERR $@->{message}."\n";
                     if(defined($@->{status_line})) {print STDERR $@->{status_line}."\n" };
