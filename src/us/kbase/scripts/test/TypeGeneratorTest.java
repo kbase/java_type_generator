@@ -608,7 +608,11 @@ public class TypeGeneratorTest extends Assert {
                     ));
             TextUtils.writeFileLines(lines, shellFile);
         } catch (Exception ex) {
-            System.err.println("Perl client test: resource not found [" + resourceName + "]");
+            if (ex.getMessage() != null && ex.getMessage().contains("No content to map due to end-of-input")) {
+                System.err.println("Perl client test: resource not found [" + resourceName + "]");
+            } else {
+                throw ex;
+            }
         }
         if (shellFile != null) {
             //StringWriter outSw = new StringWriter();
