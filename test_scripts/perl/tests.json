@@ -1,11 +1,11 @@
 {
-   "module": "Test1",
+   "module": "TestClient",
    "tests":[
        {
            "method":"many_complex_params",
-           "auth":true,
+           "auth":false,
            "params": [{"test":"test"}, {}],
-           "outcome":{"status":"pass"}
+           "outcome":{"status":"passes"}
        },
        {
            "method":"one_simple_param",
@@ -38,6 +38,18 @@
            "context":"scalar",
            "params": [44],
            "outcome":{"status":"nomatch"}
+       },
+       {
+           "method":"with_auth",
+           "auth":true,
+           "params": [44],
+           "outcome":{"status":"pass"}
+       },
+       {
+           "method":"with_auth",
+           "auth":false,
+           "params": [44],
+           "outcome":{"status":"fail", "error":["Authentication required"]}
        }
    ]
 }
