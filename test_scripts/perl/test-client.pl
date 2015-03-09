@@ -145,9 +145,10 @@ foreach my $test (@{$tests}) {
             };
             if($@) {
                 $failed = 1;
-                ok($outcome->{status} eq 'fail', 'expected failure, and yes it failed');
-                if ($outcome->{status} eq 'pass') {
-                    # we did not expect an error!  display the message
+                if ($outcome->{status} eq 'fail') {
+                    pass('expected failure, and yes it failed');
+                } else {
+                    fail('did not expect to fail, but it did');
                     print STDERR "Failing test of '$method', expected to pass but error thrown:\n";
                     print STDERR $@->{message}."\n";
                     if(defined($@->{status_line})) {print STDERR $@->{status_line}."\n" };
@@ -167,7 +168,6 @@ foreach my $test (@{$tests}) {
                         }
                     }
                 }
-                
                 
                 # could do more checks here for different failure modes
                 
@@ -214,8 +214,12 @@ foreach my $test (@{$tests}) {
                 print STDERR "  in/out:  ".$serialized_params."\n";
                 print STDERR "\n";
             }
-        } elsif ($outcome->{status} eq 'fail' && !$failed) {
-            fail('expected to fail, but it ran successfully');
+        } elsif ($outcome->{status} eq 'fail') {
+            if (!$failed) {
+                fail('expected to fail, but it ran successfully');
+            }
+        } else {
+            fail('expected outcome set to "'.$outcome->{status}.'", but that is not recognized.  Outcome can only be: pass | fail | nomatch');
         }
     }
 }
