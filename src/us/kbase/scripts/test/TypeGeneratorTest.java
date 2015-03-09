@@ -136,7 +136,7 @@ public class TypeGeneratorTest extends Assert {
 		serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
 		runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir);
 		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, javaPort(testNum), true);
-		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, null);
+		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir);
 	}
 
 	@Test
@@ -608,8 +608,7 @@ public class TypeGeneratorTest extends Assert {
                     ));
             TextUtils.writeFileLines(lines, shellFile);
         } catch (Exception ex) {
-            System.err.println("Perl client test: resource not found [" + resourceName + "]:");
-            ex.printStackTrace();
+            System.err.println("Perl client test: resource not found [" + resourceName + "]");
         }
         if (shellFile != null) {
             //StringWriter outSw = new StringWriter();
