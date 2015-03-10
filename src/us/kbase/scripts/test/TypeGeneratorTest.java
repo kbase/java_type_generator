@@ -30,7 +30,10 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
 
 import us.kbase.common.service.UObject;
 import us.kbase.kidl.KbFuncdef;
@@ -527,9 +530,10 @@ public class TypeGeneratorTest extends Assert {
 			File libDir, File binDir, int portNum, boolean needClientServer, File outDir) throws Exception {
 	    runJavaClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
 	    if (outDir == null) {
-	        System.out.println("Perl client tests are skipped");
+	        System.out.println("Perl and python client tests are skipped");
 	    } else {
 	        runPerlClientTest(testNum, testPackage, parsingData, portNum, needClientServer, outDir);
+            runPythonClientTest(testNum, testPackage, parsingData, portNum, needClientServer, outDir);
 	    }
 	}
 	
@@ -588,20 +592,7 @@ public class TypeGeneratorTest extends Assert {
         File shellFile = null;
         try {
             File configFile = new File(outDir, "tests.json");
-            InputStream configIs = TypeGeneratorTest.class.getResourceAsStream(resourceName);
-            Map<String, Object> config = UObject.getMapper().readValue(configIs, 
-                    new TypeReference<Map<String, Object>>() {});
-            configIs.close();
-            //TextUtils.writeFileLines(TextUtils.readStreamLines(), configFile);
-            if (!config.containsKey("module_file")) {
-                String serviceName = parsingData.getModules().get(0).getOriginal().getServiceName();
-                config.put("module_file", serviceName + "Client");
-            }
-            if (!config.containsKey("module_name")) {
-                String moduleName = parsingData.getModules().get(0).getOriginal().getModuleName();
-                config.put("module_name", moduleName);
-            }
-            UObject.getMapper().writeValue(configFile, config);
+            prepareClientTestConfigFile(parsingData, resourceName, configFile);
             shellFile = new File(outDir, "test_perl_client.sh");
             List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
             //JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
@@ -619,14 +610,8 @@ public class TypeGeneratorTest extends Assert {
             }
         }
         if (shellFile != null) {
-            //StringWriter outSw = new StringWriter();
-            //PrintWriter outPw = new PrintWriter(outSw);
-            //StringWriter errSw = new StringWriter();
-            //PrintWriter errPw = new PrintWriter(errSw);
             ProcessHelper ph = ProcessHelper.cmd("bash", shellFile.getCanonicalPath()).exec(outDir, null, true, true);
             int exitCode = ph.getExitCode();
-            //outPw.close();
-            //errPw.close();
             if (exitCode != 0) {
                 String out = ph.getSavedOutput();  //outSw.toString();
                 if (!out.isEmpty())
@@ -636,6 +621,64 @@ public class TypeGeneratorTest extends Assert {
                     System.err.println("Perl client errors:\n" + err);
             }
             Assert.assertEquals("Perl client exit code should be 0", 0, exitCode);
+        }
+    }
+
+    private static void prepareClientTestConfigFile(JavaData parsingData,
+            String resourceName, File configFile) throws IOException,
+            JsonParseException, JsonMappingException, JsonGenerationException {
+        InputStream configIs = TypeGeneratorTest.class.getResourceAsStream(resourceName);
+        Map<String, Object> config = UObject.getMapper().readValue(configIs, 
+                new TypeReference<Map<String, Object>>() {});
+        configIs.close();
+        //TextUtils.writeFileLines(TextUtils.readStreamLines(), configFile);
+        if (!config.containsKey("module_file")) {
+            String serviceName = parsingData.getModules().get(0).getOriginal().getServiceName();
+            config.put("module_file", serviceName + "Client");
+        }
+        if (!config.containsKey("class_name")) {
+            String moduleName = parsingData.getModules().get(0).getOriginal().getModuleName();
+            config.put("class_name", moduleName);
+        }
+        UObject.getMapper().writeValue(configFile, config);
+    }
+
+    private static void runPythonClientTest(int testNum, String testPackage, JavaData parsingData, 
+            int portNum, boolean needClientServer, File outDir) throws Exception {
+        if (!needClientServer)
+            return;
+        String resourceName = "Test" + testNum + ".config.properties";
+        File shellFile = null;
+        try {
+            File configFile = new File(outDir, "tests.json");
+            prepareClientTestConfigFile(parsingData, resourceName, configFile);
+            shellFile = new File(outDir, "test_python_client.sh");
+            List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+            lines.addAll(Arrays.asList(
+                    "python ../../../test_scripts/python/test_client.py -t " + configFile.getName() + 
+                    " -e http://localhost:" + portNum + "/ -u " + System.getProperty("test.user") +
+                    " -p \"" + System.getProperty("test.pwd") + "\""
+                    ));
+            TextUtils.writeFileLines(lines, shellFile);
+        } catch (Exception ex) {
+            if (ex.getMessage() != null && ex.getMessage().contains("No content to map due to end-of-input")) {
+                System.err.println("Python client test: resource not found [" + resourceName + "]");
+            } else {
+                throw ex;
+            }
+        }
+        if (shellFile != null) {
+            ProcessHelper ph = ProcessHelper.cmd("bash", shellFile.getCanonicalPath()).exec(outDir, null, true, true);
+            int exitCode = ph.getExitCode();
+            if (exitCode != 0) {
+                String out = ph.getSavedOutput();
+                if (!out.isEmpty())
+                    System.out.println("Python client output:\n" + out);
+                String err = ph.getSavedErrors();
+                if (!err.isEmpty())
+                    System.err.println("Python client errors:\n" + err);
+            }
+            Assert.assertEquals("Python client exit code should be 0", 0, exitCode);
         }
     }
 
