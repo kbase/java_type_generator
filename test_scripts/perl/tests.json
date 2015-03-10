@@ -1,5 +1,5 @@
 {
-   "module": "TestClient",
+   "module_file": "TestClient",
    "tests":[
        {
            "method":"many_complex_params",

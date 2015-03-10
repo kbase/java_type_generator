@@ -593,9 +593,13 @@ public class TypeGeneratorTest extends Assert {
                     new TypeReference<Map<String, Object>>() {});
             configIs.close();
             //TextUtils.writeFileLines(TextUtils.readStreamLines(), configFile);
-            if (!config.containsKey("module")) {
+            if (!config.containsKey("module_file")) {
                 String serviceName = parsingData.getModules().get(0).getOriginal().getServiceName();
-                config.put("module", serviceName + "Client");
+                config.put("module_file", serviceName + "Client");
+            }
+            if (!config.containsKey("module_name")) {
+                String moduleName = parsingData.getModules().get(0).getOriginal().getModuleName();
+                config.put("module_name", moduleName);
             }
             UObject.getMapper().writeValue(configFile, config);
             shellFile = new File(outDir, "test_perl_client.sh");

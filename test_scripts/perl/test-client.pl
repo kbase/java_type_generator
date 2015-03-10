@@ -78,7 +78,7 @@ close($fh);
 my $tests_json = JSON->new->decode($tests_string);
 
 my $tests = $tests_json->{tests};
-my $client_module = $tests_json->{module};
+my $client_module = $tests_json->{module_file};
 
 if (!$tests) {
     fail("tests array not defined in test config file");
