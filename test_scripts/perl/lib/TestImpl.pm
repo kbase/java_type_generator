@@ -224,7 +224,7 @@ sub one_complex_param
     my $ctx = $basicsrvServer::CallContext;
     my($return);
     #BEGIN one_complex_param
-    $return = $val2;
+    $return = {}; #$val2;
     #END one_complex_param
     my @_bad_returns;
     (ref($return) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");
@@ -416,7 +416,6 @@ sub many_complex_params
     #BEGIN many_complex_params
     $return_1 = $simple_val;
     $return_2 = $complex_val;
-    print STDERR "hello!!!\n";
     #END many_complex_params
     my @_bad_returns;
     (ref($return_1) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"return_1\" (value was \"$return_1\")");
