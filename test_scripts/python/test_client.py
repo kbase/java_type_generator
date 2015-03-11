@@ -33,8 +33,8 @@ def main(argv):
             password = arg
     fh = open(tests_filepath)
     tests_json = json.load(fh)
-    module_file = tests_json['module_file']
-    class_name = tests_json['class_name']
+    module_file = tests_json['package']
+    class_name = tests_json['class']
     module = __import__(module_file)
     client_class = getattr(module, class_name)
     for test in tests_json['tests']:
@@ -54,7 +54,7 @@ def main(argv):
             ret = method_instance(*params)
         except Exception as ex:
             error = ex
-        if expected_status == 'pass' or expected_status == 'notmatch':
+        if expected_status == 'pass' or expected_status == 'nomatch':
             if error:
                 print('Unexpected error for method=' + method_name + ", params=" + json.dumps(params) + ":")
                 print(getErrorMessage(error))

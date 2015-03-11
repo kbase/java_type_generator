@@ -634,11 +634,11 @@ public class TypeGeneratorTest extends Assert {
         //TextUtils.writeFileLines(TextUtils.readStreamLines(), configFile);
         if (!config.containsKey("module_file")) {
             String serviceName = parsingData.getModules().get(0).getOriginal().getServiceName();
-            config.put("module_file", serviceName + "Client");
+            config.put("package", serviceName + "Client");
         }
         if (!config.containsKey("class_name")) {
             String moduleName = parsingData.getModules().get(0).getOriginal().getModuleName();
-            config.put("class_name", moduleName);
+            config.put("class", moduleName);
         }
         UObject.getMapper().writeValue(configFile, config);
     }
