@@ -37,9 +37,9 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
     phantom.injectJs(testcfg.package+".js")
 
     // instantiate the clients
-    var noauthClient = new window[testcfg['class']](casper.cli.get('endpoint'));
+    var noauthClient = new window[testcfg['class']](casper.cli.get('endpoint'),null,null,1000);
     test.assertTruthy(noauthClient,'Unauthenticated client instantiated.');
-    var authClient   = new window[testcfg['class']](casper.cli.get('endpoint'),{token:casper.cli.get('token')});
+    var authClient   = new window[testcfg['class']](casper.cli.get('endpoint'),{token:casper.cli.get('token')}, null, 1000);
     test.assertTruthy(noauthClient,'Authenticated client instantiated.');
 
     // run through each test
