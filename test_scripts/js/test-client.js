@@ -37,14 +37,19 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
     phantom.injectJs(testcfg.package+".js")
 
     // instantiate the clients
-    var noauthClient = new window[testcfg['class']](casper.cli.get('endpoint'),null,null,1000);
+    var noauthClient = new window[testcfg['class']](casper.cli.get('endpoint'));
     test.assertTruthy(noauthClient,'Unauthenticated client instantiated.');
-    var authClient   = new window[testcfg['class']](casper.cli.get('endpoint'),{token:casper.cli.get('token')}, null, 1000);
+    var authClient   = new window[testcfg['class']](casper.cli.get('endpoint'),{token:casper.cli.get('token')});
     test.assertTruthy(noauthClient,'Authenticated client instantiated.');
 
     // run through each test
-    var tests = testcfg.tests; var callsReturned = 0; var callsExpected = 0;
-    for(var t=0; t<tests.length; t++) {
+    var tests = testcfg.tests;
+    var runOneTest = null;
+    runOneTest = function(t) {
+        if (t >= tests.length) {
+            test.done();
+            return;
+        }
         var client = noauthClient;
         if(tests[t].auth) { client=authClient; }
 
@@ -71,8 +76,7 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
             }
             params.push(
                 function(result) {
-                    callsReturned = callsReturned +1;
-                    console.log('# receiving success response for  '+trial+' : '+method + ' (' +callsReturned+ ' of '+callsExpected+')');
+                    console.log('# receiving success response for  '+trial+' : '+method);
                     
                     // note: not sure if this is the right way to do this, but had to create another begin block
                     // to properly handle the async test responses
@@ -92,12 +96,11 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
                     });
 
                     // finish up the main test if all the calls returned
-                    if(callsReturned===callsExpected) { test.done(); }
+                    runOneTest(t + 1);
                 });
             params.push(
                 function(err) {
-                    callsReturned = callsReturned +1;
-                    console.log('# receiving   error response for  '+trial+' : '+method + ' (' +callsReturned+ ' of '+callsExpected+')');
+                    console.log('# receiving   error response for  '+trial+' : '+method);
 
                     casper.test.begin('Test Method Response: '+trial+' : '+method,1, function suite(test) {
                         if(outcome.status==='fail') {
@@ -129,16 +132,14 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
                     });
 
                     // finish up if all the calls returned
-                    if(callsReturned===callsExpected) { test.done(); }
+                    runOneTest(t + 1);
                 });
 
             console.log('# submitting async call for '+t+' : '+method);
-            callsExpected = callsExpected +1;
             try {
                 client[method].apply(this,params);
             } catch(err) {
                 console.log('    -> error thrown when invoking '+t+' : '+method);
-                callsExpected = callsExpected-1;
 
                 casper.test.begin('Test Method Response: "'+method+'" - '+trial,1, function suite(test) {
                     if(outcome.status==='fail') {
@@ -153,9 +154,11 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
                     }
                     test.done();
                  });
+                 runOneTest(t + 1);
             }
         })(client, tests[t].method, tests[t].params, tests[t].outcome, t);
-    }
+    };
+    runOneTest(0);
 });
 
 
