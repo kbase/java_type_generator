@@ -24,12 +24,12 @@ public class TemplateBasedGenerator {
             String perlServerName, String perlImplName, String perlPsgiName, 
             boolean genPython, String pythonClientName, boolean genPythonServer,
             String pythonServerName, String pythonImplName,
-            boolean enableRetries, File outDir) throws Exception {
+            boolean enableRetries, boolean newStyle, File outDir) throws Exception {
         IncludeProvider ip = new FileIncludeProvider(specFile.getCanonicalFile().getParentFile());
         generate(new FileReader(specFile), defaultUrl, genJs, jsClientName, genPerl, 
                 perlClientName, genPerlServer, perlServerName, perlImplName, perlPsgiName, 
                 genPython, pythonClientName, genPythonServer, pythonServerName, pythonImplName, 
-                enableRetries, ip, outDir);
+                enableRetries, newStyle, ip, outDir);
     }
     
     public static void generate(Reader specReader, String defaultUrl, 
@@ -38,7 +38,7 @@ public class TemplateBasedGenerator {
             String perlServerName, String perlImplName, String perlPsgiName, 
             boolean genPython, String pythonClientName, boolean genPythonServer,
             String pythonServerName, String pythonImplName,
-            boolean enableRetries, IncludeProvider ip, File outDir) throws Exception {
+            boolean enableRetries, boolean newStyle, IncludeProvider ip, File outDir) throws Exception {
         if (ip == null)
             ip = new FileIncludeProvider(new File("."));
         List<KbService> srvs = KidlParser.parseSpec(KidlParser.parseSpecInt(specReader, null, ip));
@@ -72,6 +72,8 @@ public class TemplateBasedGenerator {
             context.put("enable_client_retry", true);
         context.put("empty_escaper", "");  // ${empty_escaper}
         context.put("display", new StringUtils());
+        if (newStyle)
+            context.put("new_module_builder_style", true);
         if (!outDir.exists())
             outDir.mkdirs();
         if (jsClientName != null) {

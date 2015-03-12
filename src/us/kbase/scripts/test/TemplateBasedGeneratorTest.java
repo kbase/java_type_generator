@@ -52,8 +52,9 @@ public class TemplateBasedGeneratorTest {
         time1 = System.currentTimeMillis() - time1;
         File outDir = new File(workDir, "new");
         long time2 = System.currentTimeMillis();
-        TemplateBasedGenerator.generate(fr, defUrl, true, jsClient, true, perlClient, true, perlServer, 
-                perlImpl, perlPsgi, true, pythonClient, true, pythonServer, pythonImpl, enableRetries, null, outDir);
+        TemplateBasedGenerator.generate(fr, defUrl, true, jsClient, true, perlClient, true, 
+                perlServer, perlImpl, perlPsgi, true, pythonClient, true, pythonServer, 
+                pythonImpl, enableRetries, false, null, outDir);
         time2 = System.currentTimeMillis() - time2;
         //System.out.println("Test [" + testNum + "], old-time: " + time1 + ", new-time: " + time2);
         boolean ok = true;

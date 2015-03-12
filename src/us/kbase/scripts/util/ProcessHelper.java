@@ -100,11 +100,12 @@ public class ProcessHelper {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        try {
-            exitCode = process.waitFor();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        if (waitFor)
+            try {
+                exitCode = process.waitFor();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
     }
 
     public Process getProcess() {

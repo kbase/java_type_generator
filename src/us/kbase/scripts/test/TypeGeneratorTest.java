@@ -350,8 +350,8 @@ public class TypeGeneratorTest extends Assert {
         File serverOutDir = new File(workDir, "out");
         serverOutDir.mkdir();
         TemplateBasedGenerator.generate(testFile, null, true, null, 
-                true, null, true, null, null, "service.psgi", true, null, true, null, 
-                null, false, serverOutDir);
+                true, null, true, null, null, "service.psgi", true, 
+                null, true, null, null, false, true, serverOutDir);
         return serverOutDir;
 	}
 	
@@ -718,7 +718,7 @@ public class TypeGeneratorTest extends Assert {
         if (shellFile != null) {
             ProcessHelper ph = ProcessHelper.cmd("bash", shellFile.getCanonicalPath()).exec(outDir, null, true, true);
             int exitCode = ph.getExitCode();
-            if (exitCode != -100) {
+            if (exitCode != 0) {
                 String out = ph.getSavedOutput();
                 if (!out.isEmpty())
                     System.out.println("JavaScript client output:\n" + out);
