@@ -6,8 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
@@ -35,6 +33,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
+import us.kbase.auth.AuthService;
 import us.kbase.common.service.UObject;
 import us.kbase.kidl.KbFuncdef;
 import us.kbase.kidl.KbService;
@@ -57,6 +56,8 @@ import us.kbase.scripts.util.ProcessHelper;
 public class TypeGeneratorTest extends Assert {
 	public static final String rootPackageName = "us.kbase";
     public static final String tempDirName = "temp_test";
+    
+    private static Boolean isCasperJsInstalled = null;
 	
 	public static void main(String[] args) throws Exception{
 		int testNum = Integer.parseInt(args[0]);
@@ -530,10 +531,11 @@ public class TypeGeneratorTest extends Assert {
 			File libDir, File binDir, int portNum, boolean needClientServer, File outDir) throws Exception {
 	    runJavaClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
 	    if (outDir == null) {
-	        System.out.println("Perl and python client tests are skipped");
+	        System.out.println("Perl/Python/JavaScript client tests are skipped");
 	    } else {
 	        runPerlClientTest(testNum, testPackage, parsingData, portNum, needClientServer, outDir);
             runPythonClientTest(testNum, testPackage, parsingData, portNum, needClientServer, outDir);
+            runJsClientTest(testNum, testPackage, parsingData, portNum, needClientServer, outDir);
 	    }
 	}
 	
@@ -679,6 +681,48 @@ public class TypeGeneratorTest extends Assert {
                     System.err.println("Python client errors:\n" + err);
             }
             Assert.assertEquals("Python client exit code should be 0", 0, exitCode);
+        }
+    }
+
+    private static void runJsClientTest(int testNum, String testPackage, JavaData parsingData, 
+            int portNum, boolean needClientServer, File outDir) throws Exception {
+        if (!needClientServer)
+            return;
+        if (!isCasperJsInstalled()) {
+            System.err.println("JavaScript client tests are skipped");
+        }
+        String resourceName = "Test" + testNum + ".config.properties";
+        File shellFile = null;
+        try {
+            File configFile = new File(outDir, "tests.json");
+            prepareClientTestConfigFile(parsingData, resourceName, configFile);
+            shellFile = new File(outDir, "test_js_client.sh");
+            List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+            String token = AuthService.login(System.getProperty("test.user"), System.getProperty("test.pwd")).getTokenString();
+            lines.addAll(Arrays.asList(
+                    "casperjs test ../../../test_scripts/js/test-client.js --tests=" + configFile.getName() + 
+                    " --endpoint=http://localhost:" + portNum + "/ --token=\"" + token + "\""
+                    ));
+            TextUtils.writeFileLines(lines, shellFile);
+        } catch (Exception ex) {
+            if (ex.getMessage() != null && ex.getMessage().contains("No content to map due to end-of-input")) {
+                System.err.println("JavaScript client test: resource not found [" + resourceName + "]");
+            } else {
+                throw ex;
+            }
+        }
+        if (shellFile != null) {
+            ProcessHelper ph = ProcessHelper.cmd("bash", shellFile.getCanonicalPath()).exec(outDir, null, true, true);
+            int exitCode = ph.getExitCode();
+            if (exitCode != -100) {
+                String out = ph.getSavedOutput();
+                if (!out.isEmpty())
+                    System.out.println("JavaScript client output:\n" + out);
+                String err = ph.getSavedErrors();
+                if (!err.isEmpty())
+                    System.err.println("JavaScript client errors:\n" + err);
+            }
+            Assert.assertEquals("JavaScript client exit code should be 0", 0, exitCode);
         }
     }
 
@@ -832,5 +876,25 @@ public class TypeGeneratorTest extends Assert {
         	classPath.append(':');
         classPath.append("lib/").append(libFile.getName());
         libUrls.add(libFile.toURI().toURL());
+	}
+	
+	private static boolean isCasperJsInstalled() {
+	    if (isCasperJsInstalled != null)
+	        return isCasperJsInstalled;
+	    try {
+	        ProcessHelper ph = ProcessHelper.cmd("casperjs", "--help").exec(new File("."), null, true, true);
+	        String out = ph.getSavedOutput();
+            isCasperJsInstalled = out.contains("CasperJS version") && out.contains("using PhantomJS version");
+            if (!isCasperJsInstalled) {
+                System.out.println("Unexpected CastperJS output:");
+                System.out.println(out);
+                System.out.println("CastperJS errors:");
+                System.out.println(ph.getSavedErrors());
+            }
+	    } catch (Throwable ex) {
+	        System.err.println("CasperJS is not installed (" + ex.getMessage() + ")");
+	        isCasperJsInstalled = false;
+	    }
+	    return isCasperJsInstalled;
 	}
 }
