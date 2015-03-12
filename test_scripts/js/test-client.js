@@ -1,12 +1,12 @@
 //
 // usage:
-//   casperjs test test-client.js --tests=[test_cfg_file] --endpoint=[server_url] --token=[token]
+//   casperjs test test-client.js --jq=[jquery_lib_path] --tests=[test_cfg_file] --endpoint=[server_url] --token=[token]
 //
 //
 
 
 
-casper.test.begin('JS Client Test Initialization', 8, function suite(test) {
+casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
 
     // First test that we have all the arguments we need
     test.assertTruthy(casper.cli.get('tests'),
@@ -16,6 +16,9 @@ casper.test.begin('JS Client Test Initialization', 8, function suite(test) {
 
     test.assertTruthy(casper.cli.get('token'),
     	'Argument "token" must be defined and set to a valid auth token.');
+
+    test.assertTruthy(casper.cli.get('jq'),
+        'Argument "jq" must be defined and set to the path of the JQuery library dependency.');
 
     // Read the config and make sure we have the right things
     var fs = require('fs');
@@ -30,7 +33,7 @@ casper.test.begin('JS Client Test Initialization', 8, function suite(test) {
         'Test config json must define field "tests" (used to find the actual test configs)');
 
     // load the JQuery and the JS file
-    phantom.injectJs('jquery-1.10.2.min.js');
+    phantom.injectJs(casper.cli.get('jq'));
     phantom.injectJs(testcfg.package+".js")
 
     // instantiate the clients

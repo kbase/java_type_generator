@@ -700,7 +700,9 @@ public class TypeGeneratorTest extends Assert {
             List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
             String token = AuthService.login(System.getProperty("test.user"), System.getProperty("test.pwd")).getTokenString();
             lines.addAll(Arrays.asList(
-                    "casperjs test ../../../test_scripts/js/test-client.js --tests=" + configFile.getName() + 
+                    "casperjs test ../../../test_scripts/js/test-client.js "
+                    + "--jq=../../../test_scripts/js/jquery-1.10.2.min.js "
+                    + "--tests=" + configFile.getName() + 
                     " --endpoint=http://localhost:" + portNum + "/ --token=\"" + token + "\""
                     ));
             TextUtils.writeFileLines(lines, shellFile);
