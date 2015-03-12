@@ -59,8 +59,7 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
         //test.assert(typeof client[tests[t].method] === 'function',tests[t].method+' is actually a function');
 
         // Make the async call to the server; use a function to get the right closure
-        (function(client, method, params, outcome) {
-            callsExpected = callsExpected +1;
+        (function(client, method, params, outcome, trial) {
 
             // parameters include the function that handles success and error
             var sent = null;
@@ -72,9 +71,12 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
             }
             params.push(
                 function(result) {
+                    callsReturned = callsReturned +1;
+                    console.log('# receiving success response for  '+trial+' : '+method + ' (' +callsReturned+ ' of '+callsExpected+')');
+                    
                     // note: not sure if this is the right way to do this, but had to create another begin block
                     // to properly handle the async test responses
-                    casper.test.begin('Test Method Response: "'+method+'"', 2, function suite(test) {
+                    casper.test.begin('Test Method Response: '+trial+' : '+method, 2, function suite(test) {
                         if(outcome.status==='pass') {
                             test.pass("Expected to run successfully, and did");
                             test.assertEquals(result, sent, 'method input should match method output');
@@ -90,12 +92,14 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
                     });
 
                     // finish up the main test if all the calls returned
-                    callsReturned = callsReturned +1;
                     if(callsReturned===callsExpected) { test.done(); }
                 });
             params.push(
                 function(err) {
-                    casper.test.begin('Test Method Response: "'+method+'"',1, function suite(test) {
+                    callsReturned = callsReturned +1;
+                    console.log('# receiving   error response for  '+trial+' : '+method + ' (' +callsReturned+ ' of '+callsExpected+')');
+
+                    casper.test.begin('Test Method Response: '+trial+' : '+method,1, function suite(test) {
                         if(outcome.status==='fail') {
                             test.pass("Expected to fail, and did");
                             if(!err.error) {
@@ -114,11 +118,10 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
                                 }
                             }
 
-
                         } else if(outcome.status==='nomatch') {
-                            test.fail("Expected to fail, but ran successfully");
+                            test.fail("Expected to pass, but failed");
                         } else if(outcome.status==='pass') {
-                            test.fail("Expected to fail, but ran successfully");
+                            test.fail("Expected to pass, but failed");
                         } else {
                             test.fail("Unexpected outcome defined: '"+outcome.status+"' - support only for pass | fail | nomatch");
                         }
@@ -126,13 +129,32 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
                     });
 
                     // finish up if all the calls returned
-                    callsReturned = callsReturned +1;
                     if(callsReturned===callsExpected) { test.done(); }
                 });
 
-            console.log('# submitting async call for '+method);
-            client[method].apply(this,params);
-        })(client, tests[t].method, tests[t].params, tests[t].outcome);
+            console.log('# submitting async call for '+t+' : '+method);
+            callsExpected = callsExpected +1;
+            try {
+                client[method].apply(this,params);
+            } catch(err) {
+                console.log('    -> error thrown when invoking '+t+' : '+method);
+                callsExpected = callsExpected-1;
+
+                casper.test.begin('Test Method Response: "'+method+'" - '+trial,1, function suite(test) {
+                    if(outcome.status==='fail') {
+                        test.pass("Expected to fail, and did");
+                        // note: error messages are not checked in this scenario
+                    } else if(outcome.status==='nomatch') {
+                        test.fail("Expected to pass, but failed");
+                    } else if(outcome.status==='pass') {
+                        test.fail("Expected to pass, but failed");
+                    } else {
+                        test.fail("Unexpected outcome defined: '"+outcome.status+"' - support only for pass | fail | nomatch");
+                    }
+                    test.done();
+                 });
+            }
+        })(client, tests[t].method, tests[t].params, tests[t].outcome, t);
     }
 });
 
