@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -690,6 +691,7 @@ public class TypeGeneratorTest extends Assert {
             return;
         if (!isCasperJsInstalled()) {
             System.err.println("JavaScript client tests are skipped");
+            return;
         }
         String resourceName = "Test" + testNum + ".config.properties";
         File shellFile = null;
@@ -882,14 +884,24 @@ public class TypeGeneratorTest extends Assert {
 	    if (isCasperJsInstalled != null)
 	        return isCasperJsInstalled;
 	    try {
-	        ProcessHelper ph = ProcessHelper.cmd("casperjs", "--help").exec(new File("."), null, true, true);
-	        String out = ph.getSavedOutput();
-            isCasperJsInstalled = out.contains("CasperJS version") && out.contains("using PhantomJS version");
+	        ProcessHelper ph = ProcessHelper.cmd("casperjs", "--version").exec(new File("."), null, true, true);
+	        isCasperJsInstalled = false;
+	        String out = ph.getSavedOutput().trim();
+	        if (out.contains("-"))
+	            out = out.substring(0, out.indexOf('-'));
+	        String[] parts = out.split(Pattern.quote("."));
+	        if (parts.length == 3) {
+	            int major = Integer.parseInt(parts[0]);
+	            int minor = Integer.parseInt(parts[1]);
+	            isCasperJsInstalled = (major > 1) || (major == 1 && minor >= 1);
+	        }
             if (!isCasperJsInstalled) {
-                System.out.println("Unexpected CastperJS output:");
-                System.out.println(out);
-                System.out.println("CastperJS errors:");
-                System.out.println(ph.getSavedErrors());
+                System.err.println("Unexpected CastperJS version output (it must be 1.1.0 or higher):");
+                System.err.println(ph.getSavedOutput().trim());
+                if (ph.getSavedErrors().trim().length() > 0) {
+                    System.err.println("CastperJS errors:");
+                    System.err.println(ph.getSavedErrors().trim());
+                }
             }
 	    } catch (Throwable ex) {
 	        System.err.println("CasperJS is not installed (" + ex.getMessage() + ")");
