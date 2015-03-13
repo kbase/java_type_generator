@@ -151,6 +151,7 @@ public class TypeGeneratorTest extends Assert {
 	
 	@Test
 	public void testServerCodeStoring() throws Exception {
+	    ////////////////////////////////////// Java ///////////////////////////////////////
 		int testNum = 8;
 		File workDir = prepareWorkDir(testNum);
 		System.out.println();
@@ -198,6 +199,33 @@ public class TypeGeneratorTest extends Assert {
 		Assert.assertTrue(text.contains("myValue = 0;"));
 		Assert.assertTrue(text.contains("myValue = 1;"));
 		Assert.assertTrue(text.contains("myValue = 2;"));
+        Assert.assertTrue(text.contains("myValue = 3;"));
+        Assert.assertTrue(text.contains("myValue = 4;"));
+		/////////////////////////////// Perl and python ////////////////////////////////////
+        File serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
+        String implName = parsingData.getModules().get(0).getOriginal().getModuleName() + "Impl";
+        File perlImplFile = new File(serverOutDir, implName + ".pm");
+        TextUtils.copyStreams(TypeGeneratorTest.class.getResourceAsStream(
+                "Test" + testNum + ".perl.properties"), new FileOutputStream(perlImplFile));
+        File pythonImplFile = new File(serverOutDir, implName + ".py");
+        TextUtils.copyStreams(TypeGeneratorTest.class.getResourceAsStream(
+                "Test" + testNum + ".python.properties"), new FileOutputStream(pythonImplFile));
+        preparePerlAndPyServerCode(testNum, workDir);
+        text = TextUtils.readFileText(perlImplFile);
+        Assert.assertTrue(text.contains("# Header comment."));
+        Assert.assertTrue(text.contains("myValue = -1"));
+        Assert.assertTrue(text.contains("myValue = 1"));
+        Assert.assertTrue(text.contains("myValue = 2"));
+        Assert.assertTrue(text.contains("myValue = 3"));
+        Assert.assertTrue(text.contains("myValue = 4"));
+        text = TextUtils.readFileText(pythonImplFile);
+        Assert.assertTrue(text.contains("# Header comment."));
+        Assert.assertTrue(text.contains("# Class header comment."));
+        Assert.assertTrue(text.contains("myValue = -1"));
+        Assert.assertTrue(text.contains("myValue = 1"));
+        Assert.assertTrue(text.contains("myValue = 2"));
+        Assert.assertTrue(text.contains("myValue = 3"));
+        Assert.assertTrue(text.contains("myValue = 4"));
 	}
 
 	@Test
@@ -348,6 +376,7 @@ public class TypeGeneratorTest extends Assert {
 	        throws Exception {
         File testFile = new File(workDir, "test" + testNum + ".spec");
         File serverOutDir = new File(workDir, "out");
+        if (!serverOutDir.exists())
         serverOutDir.mkdir();
         TemplateBasedGenerator.generate(testFile, null, true, null, 
                 true, null, true, null, null, "service.psgi", true, 

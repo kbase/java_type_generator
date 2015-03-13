@@ -3,6 +3,7 @@ package us.kbase.scripts;
 import java.io.File;
 import java.io.FileReader;
 import java.io.Reader;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,16 +30,17 @@ public class TemplateBasedGenerator {
         generate(new FileReader(specFile), defaultUrl, genJs, jsClientName, genPerl, 
                 perlClientName, genPerlServer, perlServerName, perlImplName, perlPsgiName, 
                 genPython, pythonClientName, genPythonServer, pythonServerName, pythonImplName, 
-                enableRetries, newStyle, ip, outDir);
+                enableRetries, newStyle, ip, new DiskFileSaver(outDir));
     }
     
+    @SuppressWarnings("unchecked")
     public static void generate(Reader specReader, String defaultUrl, 
             boolean genJs, String jsClientName,
             boolean genPerl, String perlClientName, boolean genPerlServer, 
             String perlServerName, String perlImplName, String perlPsgiName, 
             boolean genPython, String pythonClientName, boolean genPythonServer,
             String pythonServerName, String pythonImplName,
-            boolean enableRetries, boolean newStyle, IncludeProvider ip, File outDir) throws Exception {
+            boolean enableRetries, boolean newStyle, IncludeProvider ip, FileSaver output) throws Exception {
         if (ip == null)
             ip = new FileIncludeProvider(new File("."));
         List<KbService> srvs = KidlParser.parseSpec(KidlParser.parseSpecInt(specReader, null, ip));
@@ -74,27 +76,30 @@ public class TemplateBasedGenerator {
         context.put("display", new StringUtils());
         if (newStyle)
             context.put("new_module_builder_style", true);
-        if (!outDir.exists())
-            outDir.mkdirs();
         if (jsClientName != null) {
-            File jsClient = new File(outDir, jsClientName + ".js");
+            Writer jsClient = output.openWriter(jsClientName + ".js");
             TemplateFormatter.formatTemplate("javascript_client", context, jsClient);
+            jsClient.close();
         }
         if (perlClientName != null) {
-            File perlClient = new File(outDir, perlClientName + ".pm");
+            Writer perlClient = output.openWriter(fixPath(perlClientName, "::") + ".pm");
             TemplateFormatter.formatTemplate("perl_client", context, perlClient);
+            perlClient.close();
         }
         if (pythonClientName != null) {
-            File pythonClient = new File(outDir, pythonClientName + ".py");
+            Writer pythonClient = output.openWriter(fixPath(pythonClientName, ".") + ".py");
             TemplateFormatter.formatTemplate("python_client", context, pythonClient);
+            pythonClient.close();
         }
         if (perlServerName != null) {
-            File perlServer = new File(outDir, perlServerName + ".pm");
+            Writer perlServer = output.openWriter(fixPath(perlServerName, "::") + ".pm");
             TemplateFormatter.formatTemplate("perl_server", context, perlServer);
+            perlServer.close();
         }
         if (pythonServerName != null) {
-            File pythonServer = new File(outDir, pythonServerName + ".py");
+            Writer pythonServer = output.openWriter(fixPath(pythonServerName, ".") + ".py");
             TemplateFormatter.formatTemplate("python_server", context, pythonServer);
+            pythonServer.close();
         }
         if (genPerlServer || genPythonServer) {
             List<Map<String, Object>> modules = (List<Map<String, Object>>)context.get("modules");
@@ -104,11 +109,12 @@ public class TemplateBasedGenerator {
                 List<String> methodNames = new ArrayList<String>();
                 for (Map<String, Object> method : methods)
                     methodNames.add(method.get("name").toString());
-                File perlImpl = null;
+                String perlImplPath = null;
                 if (genPerlServer) {
                     String perlModuleImplName = (String)module.get("impl_package_name");
-                    perlImpl = new File(outDir, perlModuleImplName + ".pm");
-                    Map<String, String> prevCode = PrevCodeParser.parsePrevCode(perlImpl, "#", methodNames, false);
+                    perlImplPath = fixPath(perlModuleImplName, "::") + ".pm";
+                    Map<String, String> prevCode = PrevCodeParser.parsePrevCode(
+                            output.getAsFileOrNull(perlImplPath), "#", methodNames, false);
                     module.put("module_header", prevCode.get(PrevCodeParser.HEADER));
                     module.put("module_constructor", prevCode.get(PrevCodeParser.CONSTRUCTOR));
                     for (Map<String, Object> method : methods) {
@@ -116,11 +122,12 @@ public class TemplateBasedGenerator {
                         method.put("user_code", code == null ? "" : code);
                     }
                 }
-                File pythonImpl = null;
+                String pythonImplPath = null;
                 if (genPythonServer) {
                     String pythonModuleImplName = (String)module.get("pymodule");
-                    pythonImpl = new File(outDir, pythonModuleImplName + ".py");
-                    Map<String, String> prevCode = PrevCodeParser.parsePrevCode(pythonImpl, "#", methodNames, true);
+                    pythonImplPath = fixPath(pythonModuleImplName, ".") + ".py";
+                    Map<String, String> prevCode = PrevCodeParser.parsePrevCode(
+                            output.getAsFileOrNull(pythonImplPath), "#", methodNames, true);
                     module.put("py_module_header", prevCode.get(PrevCodeParser.HEADER));
                     module.put("py_module_class_header", prevCode.get(PrevCodeParser.CLSHEADER));
                     module.put("py_module_constructor", prevCode.get(PrevCodeParser.CONSTRUCTOR));
@@ -134,15 +141,26 @@ public class TemplateBasedGenerator {
                 moduleContext.put("server_package_name", perlServerName);
                 moduleContext.put("empty_escaper", "");  // ${empty_escaper}
                 moduleContext.put("display", new StringUtils());
-                if (genPerlServer)
+                if (genPerlServer) {
+                    Writer perlImpl = output.openWriter(perlImplPath);
                     TemplateFormatter.formatTemplate("perl_impl", moduleContext, perlImpl);
-                if (genPythonServer)
+                    perlImpl.close();
+                }
+                if (genPythonServer) {
+                    Writer pythonImpl = output.openWriter(pythonImplPath);
                     TemplateFormatter.formatTemplate("python_impl", moduleContext, pythonImpl);
+                    pythonImpl.close();
+                }
             }
         }
         if (perlPsgiName != null) {
-            File perlPsgi = new File(outDir, perlPsgiName);
+            Writer perlPsgi = output.openWriter(perlPsgiName);
             TemplateFormatter.formatTemplate("perl_psgi", context, perlPsgi);
+            perlPsgi.close();
         }
+    }
+
+    private static String fixPath(String path, String div) {
+        return path.replace(div, "/");
     }
 }

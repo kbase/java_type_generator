@@ -31,7 +31,7 @@ public class PrevCodeParser {
         Pattern PAT_CONSTRUCTOR = Pattern.compile(".*" + commentPrefix + "BEGIN_CONSTRUCTOR\n(.*\n)?[ \t]*" + 
                 commentPrefix + "END_CONSTRUCTOR\n.*", Pattern.DOTALL);
         HashMap<String, String> code = new HashMap<String, String>();
-        if (!implFile.exists()) {
+        if (implFile == null || !implFile.exists()) {
             code.put(HEADER, "");
             if (withClassHeader)
                 code.put(CLSHEADER, "");

@@ -15,6 +15,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import us.kbase.kidl.test.KidlTest;
+import us.kbase.scripts.DiskFileSaver;
 import us.kbase.scripts.TemplateBasedGenerator;
 import us.kbase.scripts.TextUtils;
 import us.kbase.scripts.util.ProcessHelper;
@@ -27,11 +28,13 @@ public class TemplateBasedGeneratorTest {
         boolean ok = true;
         for (int testNum : KidlTest.getTestSpecNumbers())
             if (testNum < 21)
-                ok &= test(testNum);
+                ok &= test(testNum, testNum == 1 ? "Perl::Bio::KBase::" : "",
+                        testNum == 1 ? "python.biokbase." : "");
         Assert.assertTrue(ok);
     }
     
-    private static boolean test(int testNum) throws Exception {
+    private static boolean test(int testNum, String perlPackagePrefix, 
+            String pyhtonPackagePrefix) throws Exception {
         File workDir = prepareWorkDir(testNum);
         File specFile = new File(workDir, "spec." + testNum + ".spec");
         prepareSpec(specFile, KidlTest.readTestSpec(testNum));
@@ -39,13 +42,13 @@ public class TemplateBasedGeneratorTest {
         String defUrl = null;  //"https://kbase.us/services/ws";
         boolean enableRetries = true;
         String jsClient = "JsClient";
-        String perlClient = "PerlClient";
-        String perlServer = "PerlServer";
-        String perlImpl = "PerlImpl";
+        String perlClient = perlPackagePrefix + "PerlClient";
+        String perlServer = perlPackagePrefix + "PerlServer";
+        String perlImpl = perlPackagePrefix + "PerlImpl";
         String perlPsgi = "PerlPsgi";
-        String pythonClient = "PythonClient";
-        String pythonServer = "PythonServer";
-        String pythonImpl = "PythonImpl";
+        String pythonClient = pyhtonPackagePrefix + "PythonClient";
+        String pythonServer = pyhtonPackagePrefix + "PythonServer";
+        String pythonImpl = pyhtonPackagePrefix + "PythonImpl";
         long time1 = System.currentTimeMillis();
         File oldDir = prepareOldTypecompCode(specFile, defUrl, jsClient, perlClient, perlServer, 
                 perlImpl, perlPsgi, pythonClient, pythonServer, pythonImpl, enableRetries);
@@ -54,19 +57,23 @@ public class TemplateBasedGeneratorTest {
         long time2 = System.currentTimeMillis();
         TemplateBasedGenerator.generate(fr, defUrl, true, jsClient, true, perlClient, true, 
                 perlServer, perlImpl, perlPsgi, true, pythonClient, true, pythonServer, 
-                pythonImpl, enableRetries, false, null, outDir);
+                pythonImpl, enableRetries, false, null, new DiskFileSaver(outDir));
         time2 = System.currentTimeMillis() - time2;
         //System.out.println("Test [" + testNum + "], old-time: " + time1 + ", new-time: " + time2);
         boolean ok = true;
         ok &= cmpFiles(testNum, outDir, oldDir, jsClient + ".js", false);
-        ok &= cmpFiles(testNum, outDir, oldDir, perlClient + ".pm" , true);
-        ok &= cmpFiles(testNum, outDir, oldDir, pythonClient + ".py" , false);
-        ok &= cmpFiles(testNum, outDir, oldDir, perlServer + ".pm", false);
-        ok &= cmpFiles(testNum, outDir, oldDir, pythonServer + ".py", false);
-        ok &= cmpFiles(testNum, outDir, oldDir, perlImpl + ".pm", true);
-        ok &= cmpFiles(testNum, outDir, oldDir, pythonImpl + ".py", false);
+        ok &= cmpFiles(testNum, outDir, oldDir, fixPath(perlClient, "::") + ".pm" , true);
+        ok &= cmpFiles(testNum, outDir, oldDir, fixPath(pythonClient, ".") + ".py" , false);
+        ok &= cmpFiles(testNum, outDir, oldDir, fixPath(perlServer, "::") + ".pm", false);
+        ok &= cmpFiles(testNum, outDir, oldDir, fixPath(pythonServer, ".") + ".py", false);
+        ok &= cmpFiles(testNum, outDir, oldDir, fixPath(perlImpl, "::") + ".pm", true);
+        ok &= cmpFiles(testNum, outDir, oldDir, fixPath(pythonImpl, ".") + ".py", false);
         ok &= cmpFiles(testNum, outDir, oldDir, perlPsgi, false);
         return ok;
+    }
+    
+    private static String fixPath(String path, String div) {
+        return path.replace(div, "/");
     }
 
     private static void prepareSpec(File specFile, InputStream is) throws IOException {
