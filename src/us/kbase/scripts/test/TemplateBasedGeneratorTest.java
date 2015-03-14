@@ -99,7 +99,7 @@ public class TemplateBasedGeneratorTest {
         serverOutDir.mkdir();
         String params = "";
         params += "--path " + workDir.getAbsolutePath() + " ";
-        params += "--scripts " + serverOutDir.getName() + " ";
+        //params += "--scripts " + serverOutDir.getName() + " ";
         params += "--psgi " + perlPsgi + " ";
         params += "--impl " + perlImpl + " ";
         params += "--service " + perlServer + " ";

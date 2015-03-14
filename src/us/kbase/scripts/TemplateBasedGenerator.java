@@ -32,18 +32,30 @@ public class TemplateBasedGenerator {
                 genPython, pythonClientName, genPythonServer, pythonServerName, pythonImplName, 
                 enableRetries, newStyle, ip, new DiskFileSaver(outDir));
     }
-    
-    @SuppressWarnings("unchecked")
+
     public static void generate(Reader specReader, String defaultUrl, 
             boolean genJs, String jsClientName,
             boolean genPerl, String perlClientName, boolean genPerlServer, 
             String perlServerName, String perlImplName, String perlPsgiName, 
             boolean genPython, String pythonClientName, boolean genPythonServer,
-            String pythonServerName, String pythonImplName,
-            boolean enableRetries, boolean newStyle, IncludeProvider ip, FileSaver output) throws Exception {
+            String pythonServerName, String pythonImplName, boolean enableRetries, 
+            boolean newStyle, IncludeProvider ip, FileSaver output) throws Exception {
         if (ip == null)
             ip = new FileIncludeProvider(new File("."));
         List<KbService> srvs = KidlParser.parseSpec(KidlParser.parseSpecInt(specReader, null, ip));
+        generate(srvs, defaultUrl, genJs, jsClientName, genPerl, perlClientName, genPerlServer, 
+                perlServerName, perlImplName, perlPsgiName, genPython, pythonClientName, 
+                genPythonServer, pythonServerName, pythonImplName, enableRetries, newStyle, ip, output);
+    }
+    
+    @SuppressWarnings("unchecked")
+    public static void generate(List<KbService> srvs, String defaultUrl, 
+            boolean genJs, String jsClientName,
+            boolean genPerl, String perlClientName, boolean genPerlServer, 
+            String perlServerName, String perlImplName, String perlPsgiName, 
+            boolean genPython, String pythonClientName, boolean genPythonServer,
+            String pythonServerName, String pythonImplName, boolean enableRetries, 
+            boolean newStyle, IncludeProvider ip, FileSaver output) throws Exception {
         KbService service = srvs.get(0);
         if (genJs && jsClientName == null)
             jsClientName = service.getName() + "Client";
