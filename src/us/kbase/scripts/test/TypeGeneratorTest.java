@@ -59,6 +59,7 @@ public class TypeGeneratorTest extends Assert {
     public static final String tempDirName = "temp_test";
     
     private static Boolean isCasperJsInstalled = null;
+    private static String token = null;
 	
 	public static void main(String[] args) throws Exception{
 		int testNum = Integer.parseInt(args[0]);
@@ -384,29 +385,6 @@ public class TypeGeneratorTest extends Assert {
         return serverOutDir;
 	}
 	
-	/*protected static File preparePerlAndPyOldCode(int testNum, File workDir)
-			throws IOException {
-		String testFileName = "test" + testNum + ".spec";
-		File bashFile = new File(workDir, "parse.sh");
-		File serverOutDir = new File(workDir, "out");
-		serverOutDir.mkdir();
-		TextUtils.writeFileLines(Arrays.asList(
-				"#!/bin/bash",
-				getKbBinDir() + "compile_typespec --path " + workDir.getAbsolutePath() +
-				" --scripts " + serverOutDir.getName() + " --psgi service.psgi " + 
-				testFileName + " " + serverOutDir.getName() + " >comp.out 2>comp.err"
-				), bashFile);
-		ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
-		return serverOutDir;
-	}
-
-	private static String getKbBinDir() {
-	    String kbTop = System.getenv("KB_TOP");
-	    if (kbTop != null && kbTop.trim().length() > 0)
-	        return kbTop + "/bin/";
-	    return "";
-	}*/
-
 	protected static JavaData prepareJavaCode(int testNum, File workDir,
 			String testPackage, File libDir, File binDir, Integer defaultUrlPort,
 			boolean needJavaServerCorrection) throws Exception,
@@ -451,9 +429,10 @@ public class TypeGeneratorTest extends Assert {
 			File libDir, String testFileName, File srcDir,
 			String gwtPackageName, URL defaultUrl) throws Exception {
 		File specFile = new File(workDir, testFileName);
+		File typecompDir = new File(workDir, "../../typecomp").getCanonicalFile();
 		Map<String, Map<String, String>> origSchemas = new LinkedHashMap<String, Map<String, String>>();
 		long time1 = System.currentTimeMillis();
-		Map<?,?> origMap = KidlParser.parseSpecExt(specFile, workDir, origSchemas, null);
+		Map<?,?> origMap = KidlParser.parseSpecExt(specFile, workDir, origSchemas, typecompDir);
 		time1 = System.currentTimeMillis() - time1;
 		Map<String, Map<String, String>> intSchemas = new LinkedHashMap<String, Map<String, String>>();
 		long time2 = System.currentTimeMillis();
@@ -664,11 +643,11 @@ public class TypeGeneratorTest extends Assert {
                 new TypeReference<Map<String, Object>>() {});
         configIs.close();
         //TextUtils.writeFileLines(TextUtils.readStreamLines(), configFile);
-        if (!config.containsKey("module_file")) {
+        if (!config.containsKey("package")) {
             String serviceName = parsingData.getModules().get(0).getOriginal().getServiceName();
             config.put("package", serviceName + "Client");
         }
-        if (!config.containsKey("class_name")) {
+        if (!config.containsKey("class")) {
             String moduleName = parsingData.getModules().get(0).getOriginal().getModuleName();
             config.put("class", moduleName);
         }
@@ -729,7 +708,7 @@ public class TypeGeneratorTest extends Assert {
             prepareClientTestConfigFile(parsingData, resourceName, configFile);
             shellFile = new File(outDir, "test_js_client.sh");
             List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-            String token = AuthService.login(System.getProperty("test.user"), System.getProperty("test.pwd")).getTokenString();
+            String token = getToken();
             lines.addAll(Arrays.asList(
                     "casperjs test ../../../test_scripts/js/test-client.js "
                     + "--jq=../../../test_scripts/js/jquery-1.10.2.min.js "
@@ -939,5 +918,15 @@ public class TypeGeneratorTest extends Assert {
 	        isCasperJsInstalled = false;
 	    }
 	    return isCasperJsInstalled;
+	}
+	
+	private static String getToken() {
+        if (token == null) {
+            token = "no-token";
+            try {
+                token = AuthService.login(System.getProperty("test.user"), System.getProperty("test.pwd")).getTokenString();
+            } catch (Exception ignore) {} 
+        }
+        return token;
 	}
 }

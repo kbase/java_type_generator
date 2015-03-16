@@ -99,7 +99,6 @@ public class TemplateBasedGeneratorTest {
         serverOutDir.mkdir();
         String params = "";
         params += "--path " + workDir.getAbsolutePath() + " ";
-        //params += "--scripts " + serverOutDir.getName() + " ";
         params += "--psgi " + perlPsgi + " ";
         params += "--impl " + perlImpl + " ";
         params += "--service " + perlServer + " ";
@@ -112,19 +111,14 @@ public class TemplateBasedGeneratorTest {
             params += "--url " + defUrl + " ";
         if (enableRetries)
             params += "--enable-retries ";
+        File typecompDir = new File(workDir, "../../typecomp").getCanonicalFile();
         TextUtils.writeFileLines(Arrays.asList(
                 "#!/bin/bash",
-                getKbBinDir() + "compile_typespec " + params + testSpec.getName() + " " + serverOutDir.getName() + " >t.out 2>t.err"
+                "export PERL5LIB=" + typecompDir + "/lib",
+                "perl " + typecompDir + "/scripts/compile_typespec.pl " + params + testSpec.getName() + " " + serverOutDir.getName() + " >t.out 2>t.err"
                 ), bashFile);
         ProcessHelper.cmd("bash", bashFile.getCanonicalPath()).exec(workDir);
         return serverOutDir;
-    }
-
-    private static String getKbBinDir() {
-        String kbTop = System.getenv("KB_TOP");
-        if (kbTop != null && kbTop.trim().length() > 0)
-            return kbTop + "/bin/";
-        return "";
     }
 
     private static File prepareWorkDir(int testNum) throws IOException {

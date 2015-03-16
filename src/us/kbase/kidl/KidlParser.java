@@ -46,18 +46,18 @@ public class KidlParser {
 	}
 
 	public static List<KbService> parseSpec(File specFile, File tempDir, 
-			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, String kbTop) throws KidlParseException {
-		return parseSpec(specFile, tempDir, modelToTypeJsonSchemaReturn, kbTop, true);
+			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, File typecompDir) throws KidlParseException {
+		return parseSpec(specFile, tempDir, modelToTypeJsonSchemaReturn, typecompDir, true);
 	}
 	
 	public static List<KbService> parseSpec(File specFile, File tempDir, 
-			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, String kbTop, boolean internal) throws KidlParseException {
+			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, File typecompDir, boolean internal) throws KidlParseException {
 		Map<?,?> map = null;
 		try {
 			if (internal) {
 				map = parseSpecInt(specFile, modelToTypeJsonSchemaReturn);
 			} else {
-				map = parseSpecExt(specFile, tempDir, modelToTypeJsonSchemaReturn, kbTop);
+				map = parseSpecExt(specFile, tempDir, modelToTypeJsonSchemaReturn, typecompDir);
 			}
 			return parseSpec(map);
 		} catch (KidlParseException ex) {
@@ -120,7 +120,7 @@ public class KidlParser {
 	
 	@SuppressWarnings("unchecked")
 	public static Map<?,?> parseSpecExt(File specFile, File tempDir, 
-			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, String kbTop) 
+			Map<String, Map<String, String>> modelToTypeJsonSchemaReturn, File typecompDir) 
 					throws KidlParseException, IOException, InterruptedException, 
 					ParserConfigurationException, SAXException {
 		if (tempDir == null)
@@ -131,20 +131,12 @@ public class KidlParser {
 			File bashFile = new File(workDir, "comp_server.sh");
 			File specDir = specFile.getAbsoluteFile().getParentFile();
 			File xmlFile = new File(workDir, "parsing_file.xml");
-			if (kbTop == null)
-				kbTop = System.getenv("KB_TOP");
-			String compileTypespecDir = "";
-			if (kbTop != null && kbTop.trim().length() > 0) {
-				compileTypespecDir = kbTop + "/bin/";
-			} else {
-				System.out.println("WARNING: KB_TOP environment variable is not defined, " +
-						"so compile_typespec is supposed to be in PATH");
-			}
 			PrintWriter pw = new PrintWriter(bashFile);
 			pw.println("#!/bin/bash");
 			boolean createJsonSchemas = modelToTypeJsonSchemaReturn != null;
 			pw.println("" +
-					compileTypespecDir + "compile_typespec --path \"" + specDir.getAbsolutePath() + "\"" +
+			        "export PERL5LIB=" + typecompDir + "/lib\n" +
+					"perl " + typecompDir + "/scripts/compile_typespec.pl --path \"" + specDir.getAbsolutePath() + "\"" +
 					" --xmldump " + xmlFile.getName() + " " + (createJsonSchemas ? "--jsonschema " : "") + 
 					"\"" + specFile.getAbsolutePath() + "\" " + workDir.getName()
 					);

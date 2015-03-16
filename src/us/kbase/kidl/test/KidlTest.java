@@ -268,7 +268,7 @@ public class KidlTest {
 			File workDir = prepareWorkDir();
 			File specFile = prepareSpec(workDir, tests[testNum]);
 			Map<String, Map<String, String>> schemas1 = new HashMap<String, Map<String, String>>();
-			Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, null);
+			Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, getTypecompDir());
 			Map<String, Map<String, String>> schemas2 = new HashMap<String, Map<String, String>>();
 			Map<?,?> parse2 = KidlParser.parseSpecInt(specFile, schemas2);
 			ok = ok & compareJson(parse1, parse2, "Parsing result for test #" + (testNum + 1));
@@ -277,6 +277,10 @@ public class KidlTest {
 		Assert.assertTrue(ok);
 	}
 
+	private static File getTypecompDir() throws IOException {
+	    return new File("typecomp").getCanonicalFile();
+	}
+	
 	public static List<Integer> getTestSpecNumbers() {
 	    List<Integer> ret = new ArrayList<Integer>();
         for (int testNum = 1; testNum <= 22; testNum++) {
@@ -313,7 +317,7 @@ public class KidlTest {
 			ParserConfigurationException, SAXException, Exception,
 			JsonGenerationException, JsonMappingException, JsonParseException {
 		Map<String, Map<String, String>> schemas1 = new HashMap<String, Map<String, String>>();
-		Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, null);
+		Map<?,?> parse1 = KidlParser.parseSpecExt(specFile, workDir, schemas1, getTypecompDir());
 		Map<String, Map<String, String>> schemas2 = new HashMap<String, Map<String, String>>();
 		Map<?, ?> parse = KidlParser.parseSpecInt(specFile, schemas2);
 		Assert.assertTrue(compareJson(parse1, parse, "Parsing result for test #" + (testNum + 1)));
@@ -456,7 +460,7 @@ public class KidlTest {
 				"    float val2;\n" +
 				"  } my_struct;\n" +
 				"};");
-		List<KbService> srvList = KidlParser.parseSpec(specFile, workDir, null, null, false);
+		List<KbService> srvList = KidlParser.parseSpec(specFile, workDir, null, getTypecompDir(), false);
 		KbModule module = getModule(srvList);
 		List<KbModuleComp> cmpList = module.getModuleComponents();
 		Assert.assertEquals(3, cmpList.size());
