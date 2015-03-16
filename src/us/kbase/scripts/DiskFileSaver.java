@@ -1,8 +1,10 @@
 package us.kbase.scripts;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.Writer;
 
 public class DiskFileSaver implements FileSaver {
@@ -23,6 +25,15 @@ public class DiskFileSaver implements FileSaver {
         if (!dir.exists())
             dir.mkdirs();
         return new FileWriter(f);
+    }
+    
+    @Override
+    public OutputStream openStream(String path) throws IOException {
+        File f = getAsFileOrNull(path);
+        File dir = f.getParentFile();
+        if (!dir.exists())
+            dir.mkdirs();
+        return new FileOutputStream(f);
     }
     
     @Override

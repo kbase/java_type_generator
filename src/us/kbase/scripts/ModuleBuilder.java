@@ -2,6 +2,7 @@ package us.kbase.scripts;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.io.Reader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 
 import us.kbase.jkidl.FileIncludeProvider;
+import us.kbase.jkidl.IncludeProvider;
 import us.kbase.kidl.KbService;
 import us.kbase.kidl.KidlParser;
 
@@ -59,7 +61,7 @@ public class ModuleBuilder {
             File srcOutDir = new File(a.javaSrcDir);
             if (!srcOutDir.isAbsolute())
                 srcOutDir = new File(outDir, a.javaSrcDir);
-            JavaTypeGenerator.processSpec(services, null, srcOutDir, a.javaPackageParent, 
+            JavaTypeGenerator.processSpec(services, srcOutDir, a.javaPackageParent, 
                     a.javaServerSide, null, a.javaGwtPackage, url);
         }
         boolean enableRetries = a.perlEnableRetries;
@@ -69,6 +71,47 @@ public class ModuleBuilder {
                 a.perlClientSide, a.perlClientName, a.perlServerSide, a.perlServerName, 
                 a.perlImplName, a.perlPsgiName, a.pyClientSide, a.pyClientName, 
                 a.pyServerSide, a.pyServerName, a.pyImplName, enableRetries, true, 
+                ip, output);
+    }
+
+    public static void generate(File specFile, String defaultUrl, 
+            boolean genJs, String jsClientName,
+            boolean genPerl, String perlClientName, boolean genPerlServer, 
+            String perlServerName, String perlImplName, String perlPsgiName, 
+            boolean genPython, String pythonClientName, boolean genPythonServer,
+            String pythonServerName, String pythonImplName, boolean enableRetries, 
+            boolean newStyle, File outDir) throws Exception {
+        FileSaver output = new DiskFileSaver(outDir);
+        FileIncludeProvider ip = new FileIncludeProvider(specFile.getCanonicalFile().getParentFile());
+    }
+
+    public static void generate(Reader specFile, String url, boolean jsClientSide, 
+            String jsClientName, boolean perlClientSide, String perlClientName, 
+            boolean perlServerSide, String perlServerName, String perlImplName, 
+            String perlPsgiName, boolean perlEnableRetries, boolean pyClientSide, 
+            String pyClientName, boolean pyServerSide, String pyServerName, String pyImplName,
+            boolean javaClientSide, boolean javaServerSide, String javaPackageParent,
+            String  javaSrcDir, String javaLibDir, String  javaBuildXml, String javaGwtPackage,
+            boolean newStyle, IncludeProvider ip, FileSaver output) throws Exception {
+        List<KbService> services = KidlParser.parseSpec(KidlParser.parseSpecInt(specFile, null, ip));
+        if (javaServerSide)
+            javaClientSide = true;
+        if (javaGwtPackage != null)
+            javaClientSide = true;
+        if (javaClientSide) {
+            if (javaBuildXml != null) {
+                throw new IllegalStateException("Unfortunately parameter -javabuildxml is not yet supported.");
+            }
+            File srcOutDir = new File(javaSrcDir);
+            if (!srcOutDir.isAbsolute())
+                srcOutDir = new File(".", javaSrcDir);
+            JavaTypeGenerator.processSpec(services, srcOutDir, javaPackageParent, 
+                    javaServerSide, null, javaGwtPackage, new URL(url));
+        }
+        TemplateBasedGenerator.generate(services, url, jsClientSide, jsClientName, 
+                perlClientSide, perlClientName, perlServerSide, perlServerName, 
+                perlImplName, perlPsgiName, pyClientSide, pyClientName, 
+                pyServerSide, pyServerName, pyImplName, perlEnableRetries, true, 
                 ip, output);
     }
 

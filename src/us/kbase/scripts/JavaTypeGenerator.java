@@ -1,14 +1,15 @@
 package us.kbase.scripts;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.text.ParseException;
@@ -54,7 +55,6 @@ import com.googlecode.jsonschema2pojo.Jackson2Annotator;
 import com.googlecode.jsonschema2pojo.Schema;
 import com.googlecode.jsonschema2pojo.SchemaGenerator;
 import com.googlecode.jsonschema2pojo.SchemaMapper;
-import com.googlecode.jsonschema2pojo.SchemaStore;
 import com.googlecode.jsonschema2pojo.rules.Rule;
 import com.googlecode.jsonschema2pojo.rules.RuleFactory;
 import com.sun.codemodel.JBlock;
@@ -92,12 +92,6 @@ public class JavaTypeGenerator {
             return;
         }
 		File inputFile = parsedArgs.specFile;
-		File tempDir = parsedArgs.tempDir == null ? inputFile.getAbsoluteFile().getParentFile() : new File(parsedArgs.tempDir);
-		boolean deleteTempDir = false;
-		if (!tempDir.exists()) {
-			tempDir.mkdir();
-			deleteTempDir = true;
-		}
 		File srcOutDir = null;
 		String packageParent = parsedArgs.packageParent;
 		File libDir = null;
@@ -123,9 +117,7 @@ public class JavaTypeGenerator {
 				return;
 			}
 		}
-		processSpec(inputFile, tempDir, srcOutDir, packageParent, createServer, libDir, parsedArgs.gwtPackage, url);
-		if (deleteTempDir)
-			tempDir.delete();
+		processSpec(inputFile, srcOutDir, packageParent, createServer, libDir, parsedArgs.gwtPackage, url);
 	}
 
 	private static void showUsage(CmdLineParser parser, String message) {
@@ -141,22 +133,23 @@ public class JavaTypeGenerator {
 		parser.printUsage(out);
 	}
 	
-	public static JavaData processSpec(File specFile, File tempDir, File srcOutDir, String packageParent, 
+	public static JavaData processSpec(File specFile, File srcOutDir, String packageParent, 
 			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
-		List<KbService> services = KidlParser.parseSpec(specFile, tempDir, null, null, true);
-		return processSpec(services, tempDir, srcOutDir, packageParent, createServer, libOutDir, gwtPackage, url);
+		List<KbService> services = KidlParser.parseSpec(specFile, null, null, null, true);
+		return processSpec(services, srcOutDir, packageParent, createServer, libOutDir, gwtPackage, url);
 	}
 	
-	public static JavaData processSpec(List<KbService> services, File tempDir, File srcOutDir, String packageParent, 
+	public static JavaData processSpec(List<KbService> services, File srcOutDir, String packageParent, 
 			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
-		return processParsingFile(services, new File(tempDir, "json-schemas"), 
+		return processParsingFile(services, 
 				srcOutDir, packageParent, createServer, libOutDir, gwtPackage, url);
 	}
 		
-	private static JavaData processParsingFile(List<KbService> services, File jsonSchemaOutDir, File srcOutDir, String packageParent, 
+	private static JavaData processParsingFile(List<KbService> services, File srcOutDir, String packageParent, 
 			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
+	    FileSaver libOut = libOutDir == null ? null : new DiskFileSaver(libOutDir);
 		JavaData data = prepareDataStructures(services);
-		outputData(data, jsonSchemaOutDir, srcOutDir, packageParent, createServer, libOutDir, gwtPackage, url);
+		outputData(data, new DiskFileSaver(srcOutDir), packageParent, createServer, libOut, gwtPackage, url);
 		return data;
 	}
 
@@ -205,11 +198,9 @@ public class JavaTypeGenerator {
 		return data;
 	}
 
-	private static void outputData(JavaData data, File jsonOutDir, File srcOutDir, String packageParent, 
-			boolean createServers, File libOutDir, String gwtPackage, URL url) throws Exception {
-		if (!srcOutDir.exists())
-			srcOutDir.mkdirs();
-		generatePojos(data, jsonOutDir, srcOutDir, packageParent);
+	private static void outputData(JavaData data, FileSaver srcOutDir, String packageParent, 
+			boolean createServers, FileSaver libOutDir, String gwtPackage, URL url) throws Exception {
+		generatePojos(data, srcOutDir, packageParent);
 		generateTupleClasses(data,srcOutDir, packageParent);
 		generateClientClass(data, srcOutDir, packageParent, url);
 		if (createServers)
@@ -220,15 +211,17 @@ public class JavaTypeGenerator {
 		}
 	}
 
-	private static void generatePojos(JavaData data, File jsonOutDir,
-			File srcOutDir, String packageParent) throws Exception {
+	private static void generatePojos(JavaData data, FileSaver srcOutDir, String packageParent) throws Exception {
+        InMemorySchemaStore ss = new InMemorySchemaStore();
 		for (JavaType type : data.getTypes()) {
+		    URI id = new URI("file:/" + type.getModuleName() + "/" + type.getJavaClassName() + ".json");
 			Set<Integer> tupleTypes = data.getTupleTypes();
-			File dir = new File(jsonOutDir, type.getModuleName());
-			if (!dir.exists())
-				dir.mkdirs();
-			File jsonFile = new File(dir, type.getJavaClassName() + ".json"); 
+			ByteArrayOutputStream jsonFile = new ByteArrayOutputStream();
 			writeJsonSchema(jsonFile, packageParent, type, tupleTypes);
+			jsonFile.close();
+			InputStream is = new ByteArrayInputStream(jsonFile.toByteArray());
+			ss.addSchema(id, is);
+			is.close();
 		}
 		JCodeModel codeModel = new JCodeModel();
 		DefaultGenerationConfig cfg = new DefaultGenerationConfig() {
@@ -257,7 +250,6 @@ public class JavaTypeGenerator {
 				return true;
 			}
 		};
-		SchemaStore ss = new SchemaStore();
 		RuleFactory rf = new RuleFactory(cfg, new Jackson2Annotator(), ss) {
 			@Override
 			public Rule<JPackage, JType> getObjectRule() {
@@ -305,24 +297,21 @@ public class JavaTypeGenerator {
 		SchemaGenerator sg = new SchemaGenerator();
 		SchemaMapper sm = new SchemaMapper(rf, sg);
 		for (JavaType type : data.getTypes()) {
-			File jsonFile = new File(new File(jsonOutDir, type.getModuleName()), type.getJavaClassName() + ".json"); 
-			URL source = jsonFile.toURI().toURL();
+			URL source = new URL("file:/" + type.getModuleName() + "/" + type.getJavaClassName() + ".json");
 			sm.generate(codeModel, type.getJavaClassName(), "", source);
 		}
-		codeModel.build(srcOutDir, new PrintStream(new ByteArrayOutputStream()));
-		TextUtils.deleteRecursively(jsonOutDir);
+		FileSaveCodeWriter codeWriter = new FileSaveCodeWriter(srcOutDir);
+		codeModel.build(codeWriter, codeWriter);
 	}
 	
-	private static void generateTupleClasses(JavaData data, File srcOutDir, String packageParent) throws Exception {
+	private static void generateTupleClasses(JavaData data, FileSaver srcOutDir, String packageParent) throws Exception {
 		Set<Integer> tupleTypes = data.getTupleTypes();
 		if (tupleTypes.size() > 0) {
-			File utilDir = new File(srcOutDir.getAbsolutePath() + "/" + utilPackage.replace('.', '/'));
-			if (!utilDir.exists())
-				utilDir.mkdirs();
+			String utilDir = utilPackage.replace('.', '/');
 			for (int tupleType : tupleTypes) {
 				if (tupleType < 1)
 					throw new KidlParseException("Wrong tuple type: " + tupleType);
-				File tupleFile = new File(utilDir, "Tuple" + tupleType + ".java");
+				String tupleFile = utilDir + "/Tuple" + tupleType + ".java";
 				StringBuilder sb = new StringBuilder();
 				for (int i = 0; i < tupleType; i++) {
 					if (sb.length() > 0)
@@ -382,29 +371,24 @@ public class JavaTypeGenerator {
 						"    }",
 						"}"
 						));
-				TextUtils.writeFileLines(classLines, tupleFile);
+				TextUtils.writeFileLines(classLines, srcOutDir.openWriter(tupleFile));
 			}
 		}
 	}
 
-	private static File getParentSourceDir(File srcOutDir, String packageParent) {
-		File parentDir = new File(srcOutDir.getAbsolutePath() + "/" + packageParent.replace('.', '/'));
-		if (!parentDir.exists())
-			parentDir.mkdirs();
-		return parentDir;
+	private static String getParentSourceDir(String packageParent) {
+		return packageParent.replace('.', '/');
 	}
 
-	private static void generateClientClass(JavaData data, File srcOutDir,
+	private static void generateClientClass(JavaData data, FileSaver srcOutDir,
 			String packageParent, URL url) throws Exception {
 		Map<String, JavaType> originalToJavaTypes = getOriginalToJavaTypesMap(data);
-		File parentDir = getParentSourceDir(srcOutDir, packageParent);
+		String parentDir = getParentSourceDir(packageParent);
 		for (JavaModule module : data.getModules()) {
-			File moduleDir = new File(parentDir, module.getModulePackage());
-			if (!moduleDir.exists())
-				moduleDir.mkdir();
+			String moduleDir = parentDir + "/" + module.getModulePackage();
 			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModulePackage());
 			String clientClassName = TextUtils.capitalize(module.getModuleName()) + "Client";
-			File classFile = new File(moduleDir, clientClassName + ".java");
+			String classFile = moduleDir + "/" + clientClassName + ".java";
 			String callerClass = model.ref(utilPackage + ".JsonClientCaller");
 			boolean anyAuth = false;
 			for (JavaFunc func : module.getFuncs()) {
@@ -665,7 +649,7 @@ public class JavaTypeGenerator {
 			headerLines.addAll(model.generateImports());
 			headerLines.add("");
 			classLines.addAll(0, headerLines);
-			TextUtils.writeFileLines(classLines, classFile);
+			TextUtils.writeFileLines(classLines, srcOutDir.openWriter(classFile));
 		}
 	}
 
@@ -810,17 +794,15 @@ public class JavaTypeGenerator {
 		return Arrays.asList(code.split("\n"));
 	}
 	
-	private static void generateServerClass(JavaData data, File srcOutDir, String packageParent) throws Exception {
+	private static void generateServerClass(JavaData data, FileSaver srcOutDir, String packageParent) throws Exception {
 		Map<String, JavaType> originalToJavaTypes = getOriginalToJavaTypesMap(data);
-		File parentDir = getParentSourceDir(srcOutDir, packageParent);
+		String parentDir = getParentSourceDir(packageParent);
 		for (JavaModule module : data.getModules()) {
-			File moduleDir = new File(parentDir, module.getModulePackage());
-			if (!moduleDir.exists())
-				moduleDir.mkdir();
+			String moduleDir = parentDir + "/" + module.getModulePackage();
 			JavaImportHolder model = new JavaImportHolder(packageParent + "." + module.getModulePackage());
 			String serverClassName = TextUtils.capitalize(module.getModuleName()) + "Server";
-			File classFile = new File(moduleDir, serverClassName + ".java");
-			HashMap<String, String> originalCode = parsePrevCode(classFile, module.getFuncs());
+			String classFile = moduleDir + "/" + serverClassName + ".java";
+			HashMap<String, String> originalCode = parsePrevCode(srcOutDir.getAsFileOrNull(classFile), module.getFuncs());
 			List<String> classLines = new ArrayList<String>();
 			printModuleComment(module, classLines);
 			classLines.addAll(Arrays.asList(
@@ -925,7 +907,7 @@ public class JavaTypeGenerator {
 			headerLines.add("//END_HEADER");
 			headerLines.add("");
 			classLines.addAll(0, headerLines);
-			TextUtils.writeFileLines(classLines, classFile);
+			TextUtils.writeFileLines(classLines, srcOutDir.openWriter(classFile));
 		}
 	}
 
@@ -958,11 +940,9 @@ public class JavaTypeGenerator {
 			lines.remove(lines.size() - 1);
 	}
 	
-	private static void checkLibs(File libOutDir, boolean createServers) throws Exception {
+	private static void checkLibs(FileSaver libOutDir, boolean createServers) throws Exception {
 		if (libOutDir == null)
 			return;
-		if (!libOutDir.exists())
-			libOutDir.mkdirs();
 		checkLib(libOutDir, "jackson-annotations-2.2.3");
 		checkLib(libOutDir, "jackson-core-2.2.3");
 		checkLib(libOutDir, "jackson-databind-2.2.3");
@@ -977,7 +957,7 @@ public class JavaTypeGenerator {
 		}
 	}
 	
-	public static void checkLib(File libDir, String libName) throws Exception {
+	public static void checkLib(FileSaver libDir, String libName) throws Exception {
 		File libFile = null;
 		for (URL url : ((URLClassLoader)(Thread.currentThread().getContextClassLoader())).getURLs()) {
 			File maybelibFile = new File(url.getPath());
@@ -988,11 +968,11 @@ public class JavaTypeGenerator {
 		if (libFile == null)
 			throw new KidlParseException("Can't find lib-file for: " + libName);
 		InputStream is = new FileInputStream(libFile);
-		OutputStream os = new FileOutputStream(new File(libDir, libName + ".jar"));
+		OutputStream os = libDir.openStream(libName + ".jar");
 		TextUtils.copyStreams(is, os);
 	}
 	
-	private static void writeJsonSchema(File jsonFile, String packageParent, JavaType type, 
+	private static void writeJsonSchema(OutputStream jsonFile, String packageParent, JavaType type, 
 			Set<Integer> tupleTypes) throws Exception {
 		LinkedHashMap<String, Object> tree = new LinkedHashMap<String, Object>();
 		tree.put("$schema", "http://json-schema.org/draft-04/schema#");

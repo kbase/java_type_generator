@@ -1,6 +1,5 @@
 package us.kbase.scripts;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -14,20 +13,16 @@ import us.kbase.kidl.KbTuple;
 import us.kbase.kidl.KbUnspecifiedObject;
 
 public class GwtGenerator {
-	public static void generate(JavaData data, File srcOutDir, String gwtPackage) throws Exception {
-		if (!srcOutDir.exists())
-			srcOutDir.mkdirs();
+	public static void generate(JavaData data, FileSaver srcOutDir, String gwtPackage) throws Exception {
 		generatePojos(data, srcOutDir, gwtPackage);
 		generateTupleClasses(data,srcOutDir, gwtPackage);
 	}
 	
-	private static void generatePojos(JavaData data, File srcOutDir, String outPackage) throws Exception {
-		File outDir = new File(srcOutDir.getAbsolutePath() + "/" + outPackage.replace('.', '/'));
-		if (!outDir.exists())
-			outDir.mkdirs();
+	private static void generatePojos(JavaData data, FileSaver srcOutDir, String outPackage) throws Exception {
+		String outDir = outPackage.replace('.', '/');
 		for (JavaType type : data.getTypes()) {
 			String className = type.getJavaClassName() + "GWT";
-			File tupleFile = new File(outDir, className + ".java");
+			String tupleFile = outDir + "/" + className + ".java";
 			JavaImportHolder model = new JavaImportHolder(outPackage);
 			List<String> varLines = new ArrayList<String>();
 			List<String> methodLines = new ArrayList<String>();
@@ -59,20 +54,18 @@ public class GwtGenerator {
 			classLines.addAll(varLines);
 			classLines.addAll(methodLines);
 			classLines.add("}");
-			TextUtils.writeFileLines(classLines, tupleFile);
+			TextUtils.writeFileLines(classLines, srcOutDir.openWriter(tupleFile));
 		}
 	}
 	
-	private static void generateTupleClasses(JavaData data, File srcOutDir, String outPackage) throws Exception {
+	private static void generateTupleClasses(JavaData data, FileSaver srcOutDir, String outPackage) throws Exception {
 		Set<Integer> tupleTypes = data.getTupleTypes();
 		if (tupleTypes.size() > 0) {
-			File outDir = new File(srcOutDir.getAbsolutePath() + "/" + outPackage.replace('.', '/'));
-			if (!outDir.exists())
-				outDir.mkdirs();
+			String outDir = outPackage.replace('.', '/');
 			for (int tupleType : tupleTypes) {
 				if (tupleType < 1)
 					throw new IllegalStateException("Wrong tuple type: " + tupleType);
-				File tupleFile = new File(outDir, "Tuple" + tupleType + "GWT.java");
+				String tupleFile = outDir + "/Tuple" + tupleType + "GWT.java";
 				StringBuilder sb = new StringBuilder();
 				for (int i = 0; i < tupleType; i++) {
 					if (sb.length() > 0)
@@ -102,7 +95,7 @@ public class GwtGenerator {
 							));
 				}
 				classLines.add("}");
-				TextUtils.writeFileLines(classLines, tupleFile);
+				TextUtils.writeFileLines(classLines, srcOutDir.openWriter(tupleFile));
 			}
 		}
 	}

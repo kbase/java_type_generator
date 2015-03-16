@@ -40,6 +40,7 @@ import us.kbase.kidl.KbFuncdef;
 import us.kbase.kidl.KbService;
 import us.kbase.kidl.KidlParser;
 import us.kbase.kidl.test.KidlTest;
+import us.kbase.scripts.DiskFileSaver;
 import us.kbase.scripts.JavaData;
 import us.kbase.scripts.JavaFunc;
 import us.kbase.scripts.JavaModule;
@@ -170,7 +171,7 @@ public class TypeGeneratorTest extends Assert {
         // Test for empty server file
 		try {
 			JavaTypeGenerator.processSpec(new File(workDir, testFileName),
-					workDir, srcDir, testPackage, true, libDir, gwtPackageName, null);
+					srcDir, testPackage, true, libDir, gwtPackageName, null);
 		} catch (Exception ex) {
 			boolean key = ex.getMessage().contains("Missing header in original file");
 			if (!key)
@@ -185,7 +186,7 @@ public class TypeGeneratorTest extends Assert {
         TextUtils.copyStreams(testClassIS, new FileOutputStream(serverJavaFile));
         // Test for full server file
 		JavaData parsingData = JavaTypeGenerator.processSpec(
-				new File(workDir, testFileName), workDir, srcDir, testPackage,
+				new File(workDir, testFileName), srcDir, testPackage,
 				true, libDir, gwtPackageName, null);
 		List<URL> cpUrls = new ArrayList<URL>();
 		String classPath = prepareClassPath(libDir, cpUrls);
@@ -442,8 +443,7 @@ public class TypeGeneratorTest extends Assert {
 		Assert.assertTrue(KidlTest.compareJson(origMap, intMap, "Parsing result for " + testFileName));
 		Assert.assertTrue(KidlTest.compareJsonSchemas(origSchemas, intSchemas, "Json schema for " + testFileName));
 		List<KbService> services = KidlParser.parseSpec(specFile, workDir, null, null, true);
-		JavaData parsingData = JavaTypeGenerator.processSpec(
-				services, workDir, srcDir, testPackage,
+		JavaData parsingData = JavaTypeGenerator.processSpec(services, srcDir, testPackage,
 				true, libDir, gwtPackageName, defaultUrl);
 		return parsingData;
 	}
@@ -475,7 +475,7 @@ public class TypeGeneratorTest extends Assert {
 
 	private static String prepareClassPath(File libDir, List<URL> cpUrls)
 			throws Exception {
-		JavaTypeGenerator.checkLib(libDir, "junit-4.9");
+		JavaTypeGenerator.checkLib(new DiskFileSaver(libDir), "junit-4.9");
 		StringBuilder classPathSB = new StringBuilder();
 		for (File jarFile : libDir.listFiles()) {
 			if (!jarFile.getName().endsWith(".jar"))
