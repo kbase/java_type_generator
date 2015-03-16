@@ -1,5 +1,6 @@
 package us.kbase.scripts;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -308,7 +309,7 @@ public class JavaTypeGenerator {
 			URL source = jsonFile.toURI().toURL();
 			sm.generate(codeModel, type.getJavaClassName(), "", source);
 		}
-		codeModel.build(srcOutDir);
+		codeModel.build(srcOutDir, new PrintStream(new ByteArrayOutputStream()));
 		TextUtils.deleteRecursively(jsonOutDir);
 	}
 	
