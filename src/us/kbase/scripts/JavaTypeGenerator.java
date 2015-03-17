@@ -963,9 +963,10 @@ public class JavaTypeGenerator {
 		if (buildXml != null) {
 		    Writer w = buildXml.openWriter("*");
 		    w.write("<project name=\"Generated automatically\" default=\"compile\" basedir=\".\">\n");
+		    w.write("  <property environment=\"env\"/>\n");
 		    w.write("  <property name=\"src\"     location=\"src\"/>\n");
 		    w.write("  <property name=\"classes\" location=\"classes\"/>\n");
-		    w.write("  <property name=\"lib\"     location=\"../jars/lib/jars/\"/>\n");
+		    w.write("  <property name=\"lib\"     location=\"${env.KB_TOP}/modules/jars/lib/jars/\"/>\n");
 		    w.write("  <path id=\"compile.classpath\">\n");
 		    w.write("    <fileset dir=\"${lib}\">\n");
 		    for (String jar : jars)

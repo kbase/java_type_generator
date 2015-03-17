@@ -143,9 +143,9 @@ public class ModuleBuilder {
     private static void showUsage(CmdLineParser parser, String message, PrintStream out) {
         if (message != null)
             out.println(message);
-        out.println("Program generates java client and server classes for JSON RPC calls.");
-        out.println("Usage: <program> [options...] <spec-file>");
-        out.println("Usage: <program> {-h|--help}     - to see this help");
+        out.println("Program generates client and server source files for JSON RPC calls in supported languages.");
+        out.println("Usage: module_builder [options...] <spec-file>");
+        out.println("Usage: module_builder {-h|--help}     - to see this help");
         parser.printUsage(out);
     }
 
