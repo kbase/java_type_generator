@@ -1,6 +1,7 @@
 package us.kbase.scripts;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.PrintStream;
 import java.io.Reader;
 import java.net.MalformedURLException;
@@ -24,7 +25,8 @@ public class ModuleBuilder {
         Args a = new Args();
         CmdLineParser parser = new CmdLineParser(a);
         parser.setUsageWidth(100);
-        if (args.length == 0 || (args.length == 1 && (args[0].equals("-h") || args[0].equals("--help")))) {
+        if (args.length == 0 || (args.length == 1 && (args[0].equals("-h") || 
+                args[0].equals("--help")))) {
             parser.parseArgument("no.spec");
             showUsage(parser, null, System.out);
             return;
@@ -39,60 +41,62 @@ public class ModuleBuilder {
         outDir = outDir.getCanonicalFile();
         if (!outDir.exists())
             outDir.mkdirs();
-        URL url = null;
         if (a.url != null) {
             try {
-                url = new URL(a.url);
+                new URL(a.url);
             } catch (MalformedURLException mue) {
                 showError(parser, "The provided url " + a.url + " is invalid.");
                 return;
             }
         }
-        List<KbService> services = KidlParser.parseSpec(a.specFile, null, null, null, true);
-        if (a.javaServerSide)
-            a.javaClientSide = true;
-        if (a.javaGwtPackage != null)
-            a.javaClientSide = true;
-        if (a.javaClientSide) {
-            if (a.javaBuildXml != null) {
-                showError(parser, "Unfortunately parameter -javabuildxml is not yet supported.");
-                return;
-            }
-            File srcOutDir = new File(a.javaSrcDir);
-            if (!srcOutDir.isAbsolute())
-                srcOutDir = new File(outDir, a.javaSrcDir);
-            JavaTypeGenerator.processSpec(services, srcOutDir, a.javaPackageParent, 
-                    a.javaServerSide, null, a.javaGwtPackage, url);
-        }
-        boolean enableRetries = a.perlEnableRetries;
-        FileIncludeProvider ip = new FileIncludeProvider(a.specFile.getCanonicalFile().getParentFile());
-        FileSaver output = new DiskFileSaver(outDir);
-        TemplateBasedGenerator.generate(services, a.url, a.jsClientSide, a.jsClientName, 
-                a.perlClientSide, a.perlClientName, a.perlServerSide, a.perlServerName, 
-                a.perlImplName, a.perlPsgiName, a.pyClientSide, a.pyClientName, 
-                a.pyServerSide, a.pyServerName, a.pyImplName, enableRetries, true, 
-                ip, output);
+        generate(a.specFile, a.url, a.jsClientSide, a.jsClientName, a.perlClientSide, 
+                a.perlClientName, a.perlServerSide, a.perlServerName, a.perlImplName, 
+                a.perlPsgiName, a.perlEnableRetries, a.pyClientSide, a.pyClientName, 
+                a.pyServerSide, a.pyServerName, a.pyImplName, a.javaClientSide, 
+                a.javaServerSide, a.javaPackageParent, a.javaSrcDir, a.javaLibDir, 
+                a.javaBuildXml, a.javaGwtPackage, true, outDir);
     }
 
-    public static void generate(File specFile, String defaultUrl, 
-            boolean genJs, String jsClientName,
-            boolean genPerl, String perlClientName, boolean genPerlServer, 
-            String perlServerName, String perlImplName, String perlPsgiName, 
-            boolean genPython, String pythonClientName, boolean genPythonServer,
-            String pythonServerName, String pythonImplName, boolean enableRetries, 
-            boolean newStyle, File outDir) throws Exception {
-        FileSaver output = new DiskFileSaver(outDir);
-        FileIncludeProvider ip = new FileIncludeProvider(specFile.getCanonicalFile().getParentFile());
-    }
-
-    public static void generate(Reader specFile, String url, boolean jsClientSide, 
+    public static void generate(File specFile, String url, boolean jsClientSide, 
             String jsClientName, boolean perlClientSide, String perlClientName, 
             boolean perlServerSide, String perlServerName, String perlImplName, 
             String perlPsgiName, boolean perlEnableRetries, boolean pyClientSide, 
-            String pyClientName, boolean pyServerSide, String pyServerName, String pyImplName,
-            boolean javaClientSide, boolean javaServerSide, String javaPackageParent,
-            String  javaSrcDir, String javaLibDir, String  javaBuildXml, String javaGwtPackage,
-            boolean newStyle, IncludeProvider ip, FileSaver output) throws Exception {
+            String pyClientName, boolean pyServerSide, String pyServerName, 
+            String pyImplName, boolean javaClientSide, boolean javaServerSide, 
+            String javaPackageParent, String javaSrcPath, String javaLibPath, 
+            String  javaBuildXml, String javaGwtPackage, boolean newStyle, 
+            File outDir) throws Exception {
+        File javaSrcDir = new File(javaSrcPath);
+        if (!javaSrcDir.isAbsolute())
+            javaSrcDir = new File(outDir, javaSrcPath);
+        FileSaver javaSrcOut = new DiskFileSaver(javaSrcDir);
+        FileSaver javaLibOut = null;
+        if (javaLibPath != null) {
+            File javaLibDir = new File(javaLibPath);
+            if (!javaLibDir.isAbsolute())
+                javaLibDir = new File(outDir, javaLibPath);
+            javaLibOut = new DiskFileSaver(javaLibDir);
+        }
+        IncludeProvider ip = new FileIncludeProvider(specFile.getCanonicalFile().getParentFile());
+        FileSaver output = new DiskFileSaver(outDir);
+        Reader specReader = new FileReader(specFile);
+        generate2(specReader, url, jsClientSide, jsClientName, perlClientSide, 
+                perlClientName, perlServerSide, perlServerName, perlImplName, 
+                perlPsgiName, perlEnableRetries, pyClientSide, pyClientName, pyServerSide, 
+                pyServerName, pyImplName, javaClientSide, javaServerSide, 
+                javaPackageParent, javaSrcOut, javaLibOut, javaBuildXml, javaGwtPackage, 
+                newStyle, ip, output);
+    }
+
+    public static void generate2(Reader specFile, String url, boolean jsClientSide, 
+            String jsClientName, boolean perlClientSide, String perlClientName, 
+            boolean perlServerSide, String perlServerName, String perlImplName, 
+            String perlPsgiName, boolean perlEnableRetries, boolean pyClientSide, 
+            String pyClientName, boolean pyServerSide, String pyServerName, 
+            String pyImplName, boolean javaClientSide, boolean javaServerSide, 
+            String javaPackageParent, FileSaver javaSrcDir, FileSaver javaLibDir, 
+            String javaBuildXml, String javaGwtPackage, boolean newStyle, 
+            IncludeProvider ip, FileSaver output) throws Exception {
         List<KbService> services = KidlParser.parseSpec(KidlParser.parseSpecInt(specFile, null, ip));
         if (javaServerSide)
             javaClientSide = true;
@@ -100,13 +104,11 @@ public class ModuleBuilder {
             javaClientSide = true;
         if (javaClientSide) {
             if (javaBuildXml != null) {
-                throw new IllegalStateException("Unfortunately parameter -javabuildxml is not yet supported.");
+                throw new IllegalStateException("Unfortunately parameter -javabuildxml " +
+                		"is not yet supported.");
             }
-            File srcOutDir = new File(javaSrcDir);
-            if (!srcOutDir.isAbsolute())
-                srcOutDir = new File(".", javaSrcDir);
-            JavaTypeGenerator.processSpec(services, srcOutDir, javaPackageParent, 
-                    javaServerSide, null, javaGwtPackage, new URL(url));
+            JavaTypeGenerator.processSpec(services, javaSrcDir, javaPackageParent, 
+                    javaServerSide, javaLibDir, javaGwtPackage, url == null ? null : new URL(url));
         }
         TemplateBasedGenerator.generate(services, url, jsClientSide, jsClientName, 
                 perlClientSide, perlClientName, perlServerSide, perlServerName, 
@@ -129,25 +131,25 @@ public class ModuleBuilder {
     }
 
     public static class Args {
-        @Option(name="-out",usage="Common output folder (instead of default . folder) which will be used for all relative paths", 
-                metaVar="<out-dir>")
+        @Option(name="-out",usage="Common output folder (instead of default . folder) which " +
+        		"will be used for all relative paths", metaVar="<out-dir>")
         String outDir = null;
         
-        @Option(name="-js", usage="Defines whether or not java-script code for client side should be created, " +
-                "default value is false, use -js for true")
+        @Option(name="-js", usage="Defines whether or not java-script code for client side " +
+        		"should be created, default value is false, use -js for true")
         boolean jsClientSide = false;
 
-        @Option(name="-jsclname", usage="JavaScript client name (if defined then -js will be treated as true automatically)", 
-                metaVar = "<js-client-name>")
+        @Option(name="-jsclname", usage="JavaScript client name (if defined then -js will be " +
+        		"treated as true automatically)", metaVar = "<js-client-name>")
         String jsClientName = null;
 
-        @Option(name="-perl", usage="Defines whether or not perl code for client side should be created, " +
-                "default value is false, use -perl for true")
+        @Option(name="-perl", usage="Defines whether or not perl code for client side should " +
+        		"be created, default value is false, use -perl for true")
         boolean perlClientSide = false;
 
-        @Option(name="-perlclname", usage="Perl client name including prefix with module subfolders separated " +
-        		"by :: if necessary (if defined then -perl will be treated as true automatically)", 
-                metaVar = "<perl-client-name>")
+        @Option(name="-perlclname", usage="Perl client name including prefix with module " +
+        		"subfolders separated by :: if necessary (if defined then -perl will be " +
+        		"treated as true automatically)", metaVar = "<perl-client-name>")
         String perlClientName = null;
 
         @Option(name="-perlsrv", usage="Defines whether or not perl code for server side should be created, " +
@@ -204,8 +206,12 @@ public class ModuleBuilder {
         boolean javaClientSide = false;
 
         @Option(name="-javasrc",usage="Source output folder (if defined then -java will be treated as true " +
-                "automatically)", metaVar="<java-src-dir>")
+                "automatically), default value is 'src'", metaVar="<java-src-dir>")
         String javaSrcDir = "src";
+
+        @Option(name="-javalib",usage="Jars output folder (if defined then -java will be treated as true " +
+                "automatically), is not defined by default", metaVar="<java-lib-dir>")
+        String javaLibDir = null;
 
         @Option(name="-javabuildxml",usage="Template for ant build file", metaVar="<java-build-xml>")
         String javaBuildXml;

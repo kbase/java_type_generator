@@ -141,15 +141,15 @@ public class JavaTypeGenerator {
 	
 	public static JavaData processSpec(List<KbService> services, File srcOutDir, String packageParent, 
 			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
-		return processParsingFile(services, 
-				srcOutDir, packageParent, createServer, libOutDir, gwtPackage, url);
+        FileSaver libOut = libOutDir == null ? null : new DiskFileSaver(libOutDir);
+		return processSpec(services, new DiskFileSaver(srcOutDir), packageParent, 
+		        createServer, libOut, gwtPackage, url);
 	}
 		
-	private static JavaData processParsingFile(List<KbService> services, File srcOutDir, String packageParent, 
-			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
-	    FileSaver libOut = libOutDir == null ? null : new DiskFileSaver(libOutDir);
+	public static JavaData processSpec(List<KbService> services, FileSaver srcOut, String packageParent, 
+			boolean createServer, FileSaver libOut, String gwtPackage, URL url) throws Exception {		
 		JavaData data = prepareDataStructures(services);
-		outputData(data, new DiskFileSaver(srcOutDir), packageParent, createServer, libOut, gwtPackage, url);
+		outputData(data, srcOut, packageParent, createServer, libOut, gwtPackage, url);
 		return data;
 	}
 
