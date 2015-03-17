@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.Writer;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -143,13 +144,14 @@ public class JavaTypeGenerator {
 			boolean createServer, File libOutDir, String gwtPackage, URL url) throws Exception {		
         FileSaver libOut = libOutDir == null ? null : new DiskFileSaver(libOutDir);
 		return processSpec(services, new DiskFileSaver(srcOutDir), packageParent, 
-		        createServer, libOut, gwtPackage, url);
+		        createServer, libOut, gwtPackage, url, null);
 	}
 		
 	public static JavaData processSpec(List<KbService> services, FileSaver srcOut, String packageParent, 
-			boolean createServer, FileSaver libOut, String gwtPackage, URL url) throws Exception {		
+			boolean createServer, FileSaver libOut, String gwtPackage, URL url, 
+			FileSaver buildXml) throws Exception {		
 		JavaData data = prepareDataStructures(services);
-		outputData(data, srcOut, packageParent, createServer, libOut, gwtPackage, url);
+		outputData(data, srcOut, packageParent, createServer, libOut, gwtPackage, url, buildXml);
 		return data;
 	}
 
@@ -199,13 +201,14 @@ public class JavaTypeGenerator {
 	}
 
 	private static void outputData(JavaData data, FileSaver srcOutDir, String packageParent, 
-			boolean createServers, FileSaver libOutDir, String gwtPackage, URL url) throws Exception {
+			boolean createServers, FileSaver libOutDir, String gwtPackage, URL url,
+			FileSaver buildXml) throws Exception {
 		generatePojos(data, srcOutDir, packageParent);
 		generateTupleClasses(data,srcOutDir, packageParent);
 		generateClientClass(data, srcOutDir, packageParent, url);
 		if (createServers)
 			generateServerClass(data, srcOutDir, packageParent);
-		checkLibs(libOutDir, createServers);
+		checkLibs(libOutDir, createServers, buildXml);
 		if (gwtPackage != null) {
 			GwtGenerator.generate(data, srcOutDir, gwtPackage);
 		}
@@ -940,24 +943,45 @@ public class JavaTypeGenerator {
 			lines.remove(lines.size() - 1);
 	}
 	
-	private static void checkLibs(FileSaver libOutDir, boolean createServers) throws Exception {
-		if (libOutDir == null)
+	private static void checkLibs(FileSaver libOutDir, boolean createServers,
+	        FileSaver buildXml) throws Exception {
+		if (libOutDir == null && buildXml == null)
 			return;
-		checkLib(libOutDir, "jackson-annotations-2.2.3");
-		checkLib(libOutDir, "jackson-core-2.2.3");
-		checkLib(libOutDir, "jackson-databind-2.2.3");
-		checkLib(libOutDir, "kbase-auth");
-		checkLib(libOutDir, "kbase-common");
+		List<String> jars = new ArrayList<String>();
+		jars.add(checkLib(libOutDir, "jackson-annotations-2.2.3"));
+		jars.add(checkLib(libOutDir, "jackson-core-2.2.3"));
+		jars.add(checkLib(libOutDir, "jackson-databind-2.2.3"));
+		jars.add(checkLib(libOutDir, "kbase-auth"));
+		jars.add(checkLib(libOutDir, "kbase-common"));
 		if (createServers) {
-			checkLib(libOutDir, "servlet-api-2.5");
-			checkLib(libOutDir, "jetty-all-7.0.0");
-			checkLib(libOutDir, "ini4j-0.5.2");
-			checkLib(libOutDir, "syslog4j-0.9.46");
-			checkLib(libOutDir, "jna-3.4.0");
+		    jars.add(checkLib(libOutDir, "servlet-api-2.5"));
+		    jars.add(checkLib(libOutDir, "jetty-all-7.0.0"));
+		    jars.add(checkLib(libOutDir, "ini4j-0.5.2"));
+		    jars.add(checkLib(libOutDir, "syslog4j-0.9.46"));
+		    jars.add(checkLib(libOutDir, "jna-3.4.0"));
+		}
+		if (buildXml != null) {
+		    Writer w = buildXml.openWriter("*");
+		    w.write("<project name=\"Generated automatically\" default=\"compile\" basedir=\".\">\n");
+		    w.write("  <property name=\"src\"     location=\"src\"/>\n");
+		    w.write("  <property name=\"classes\" location=\"classes\"/>\n");
+		    w.write("  <property name=\"lib\"     location=\"../jars/lib/jars/\"/>\n");
+		    w.write("  <path id=\"compile.classpath\">\n");
+		    w.write("    <fileset dir=\"${lib}\">\n");
+		    for (String jar : jars)
+		        w.write("      <include name=\"" + jar + "\"/>\n");
+            w.write("    </fileset>\n");
+            w.write("  </path>\n");
+            w.write("  <target name=\"compile\" description=\"compile the source\">\n");
+            w.write("    <mkdir dir=\"${classes}\"/>\n");
+            w.write("    <javac srcdir=\"${src}\" destdir=\"${classes}\" includeantruntime=\"false\" debug=\"true\" classpathref=\"compile.classpath\"/>\n");
+            w.write("  </target>\n");
+            w.write("</project>\n");
+            w.close();
 		}
 	}
 	
-	public static void checkLib(FileSaver libDir, String libName) throws Exception {
+	public static String checkLib(FileSaver libDir, String libName) throws Exception {
 		File libFile = null;
 		for (URL url : ((URLClassLoader)(Thread.currentThread().getContextClassLoader())).getURLs()) {
 			File maybelibFile = new File(url.getPath());
@@ -967,9 +991,15 @@ public class JavaTypeGenerator {
 		}
 		if (libFile == null)
 			throw new KidlParseException("Can't find lib-file for: " + libName);
-		InputStream is = new FileInputStream(libFile);
-		OutputStream os = libDir.openStream(libName + ".jar");
-		TextUtils.copyStreams(is, os);
+		if (libDir != null) {
+		    InputStream is = new FileInputStream(libFile);
+		    OutputStream os = libDir.openStream(libName + ".jar");
+		    TextUtils.copyStreams(is, os);
+		}
+		String ret = libFile.getCanonicalPath();
+		if (ret.contains("lib/jars/"))
+		    ret = ret.substring(ret.lastIndexOf("lib/jars/") + 9);
+		return ret;
 	}
 	
 	private static void writeJsonSchema(OutputStream jsonFile, String packageParent, JavaType type, 
