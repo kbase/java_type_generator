@@ -86,7 +86,7 @@ public class KidlParser {
 			root = p.SpecStatement(ip);
 			specDocumentReader.close();
 		} catch (ParseException e) {
-			throw new KidlParseException(e.getMessage());
+			throw new KidlParseException(e.getMessage(), e);
 		}
         Map<String,List<Object>> ret = new LinkedHashMap<String, List<Object>>();
         for (KbModule module : root.values()) {

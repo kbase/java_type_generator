@@ -101,6 +101,11 @@ public class TypeGeneratorTest extends Assert {
 	}
 
 	@Test
+	public void testIncludsAndMultiModules2() throws Exception {
+	    startTest(11);
+	}
+
+	@Test
 	public void testTuples() throws Exception {
 		startTest(3);
 	}

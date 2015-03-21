@@ -83,6 +83,10 @@ public class JavaType implements Comparable<JavaType> {
 		}
 		return javaClassName;
 	}
+	
+	private String getModuleAndJavaName() {
+	    return moduleName + "." + getJavaClassName();
+	}
 
 	private String getTypeNameWithModuleIfNeed(JavaType iType) {
 		return (iType.getModuleName().equals(getModuleName()) ? "" : iType.getModuleName()) + iType.getJavaClassName();
@@ -93,11 +97,11 @@ public class JavaType implements Comparable<JavaType> {
 		if (!(obj instanceof JavaType))
 			return false;
 		JavaType type = (JavaType)obj;
-		return getJavaClassName().equals(type.getJavaClassName());
+		return getModuleAndJavaName().equals(type.getModuleAndJavaName());
 	}
 	
 	@Override
 	public int compareTo(JavaType o) {
-		return getJavaClassName().compareTo(o.getJavaClassName());
+		return getModuleAndJavaName().compareTo(o.getModuleAndJavaName());
 	}
 }
