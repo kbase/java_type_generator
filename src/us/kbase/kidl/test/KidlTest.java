@@ -629,6 +629,110 @@ public class KidlTest {
 						expectedError);
 			}
 		}
+        String[][] specAndResult2 = {
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int authentication;\n" +
+                        "  } test1;\n};",
+                        "AUTHENTICATION"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int required;\n" +
+                        "  } test1;\n};"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int optional;\n" +
+                        "  } test1;\n};"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int none;\n" +
+                        "  } test1;\n};"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int typedef;\n" +
+                        "  } test1;\n};",
+                        "TYPEDEF"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int funcdef;\n" +
+                        "  } test1;\n};",
+                        "FUNCDEF"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int string;\n" +
+                        "  } test1;\n};",
+                        "string"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int int;\n" +
+                        "  } test1;\n};",
+                        "int"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int float;\n" +
+                        "  } test1;\n};",
+                        "float"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int UnspecifiedObject;\n" +
+                        "  } test1;\n};",
+                        "UnspecifiedObject"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int list;\n" +
+                        "  } test1;\n};",
+                        "LIST"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int mapping;\n" +
+                        "  } test1;\n};",
+                        "MAPPING"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int structure;\n" +
+                        "  } test1;\n};",
+                        "STRUCTURE"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int tuple;\n" +
+                        "  } test1;\n};",
+                        "TUPLE"
+                },
+                { "" +
+                        "module Test {\n typedef structure {\n" +
+                        "    int returns;\n" +
+                        "  } test1;\n};",
+                        "RETURNS"
+                }
+        };
+        for (int testNum = 0; testNum < specAndResult2.length; testNum++) {
+            specFile = prepareSpec(workDir, specAndResult2[testNum][0]);
+            try {
+                KidlParser.parseSpec(specFile, workDir, null, null, true);
+                if (specAndResult2[testNum].length > 1)
+                    Assert.fail("Good for case: " + specAndResult2[testNum][0]);
+            } catch (Exception ex) {
+                boolean expectedError = ex.getMessage().toLowerCase().contains(
+                        specAndResult2[testNum][1].toLowerCase());
+                if (!expectedError)
+                    ex.printStackTrace();
+                Assert.assertTrue("Actual message for test #" + (testNum + 1) + ": " + ex.getMessage(), 
+                        expectedError);
+            }
+        }
 	}
 	
 	@Test

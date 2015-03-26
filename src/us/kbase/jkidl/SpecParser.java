@@ -166,6 +166,33 @@ ret.put(module.getModuleName(), module);
     throw new Error("Missing return statement in function");
   }
 
+  final public Token Identifier() throws ParseException {Token ret = null;
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case S_IDENTIFIER:{
+      ret = jj_consume_token(S_IDENTIFIER);
+      break;
+      }
+    case T_required:{
+      ret = jj_consume_token(T_required);
+      break;
+      }
+    case T_optional:{
+      ret = jj_consume_token(T_optional);
+      break;
+      }
+    case T_none:{
+      ret = jj_consume_token(T_none);
+      break;
+      }
+    default:
+      jj_la1[2] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
+    }
+{if ("" != null) return ret;}
+    throw new Error("Missing return statement in function");
+  }
+
 /**
  * Method parses one module. So it iterates over module components (typedefs, funcdefs and auths).
  * They are separated by semicolon.
@@ -179,12 +206,12 @@ ret.put(module.getModuleName(), module);
     first = jj_consume_token(T_module);
 comment = getLastComment(first);
     if (jj_2_1(2147483647)) {
-      srvToken = jj_consume_token(S_IDENTIFIER);
+      srvToken = Identifier();
       jj_consume_token(T_colon);
     } else {
       ;
     }
-    nameToken = jj_consume_token(S_IDENTIFIER);
+    nameToken = Identifier();
 ret = new KbModule(srvToken == null ? null : srvToken.toString(), nameToken.toString(), comment);
     jj_consume_token(T_figure_open_bracket);
     label_3:
@@ -197,7 +224,7 @@ ret = new KbModule(srvToken == null ? null : srvToken.toString(), nameToken.toSt
         break;
         }
       default:
-        jj_la1[2] = jj_gen;
+        jj_la1[3] = jj_gen;
         break label_3;
       }
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
@@ -214,7 +241,7 @@ ret = new KbModule(srvToken == null ? null : srvToken.toString(), nameToken.toSt
         break;
         }
       default:
-        jj_la1[3] = jj_gen;
+        jj_la1[4] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
@@ -240,7 +267,7 @@ if (!(comp instanceof KbAuthdef))
     first = jj_consume_token(T_typedef);
 comment = getLastComment(first);
     type = Type(curModule, includes);
-    name = jj_consume_token(S_IDENTIFIER);
+    name = Identifier();
 try {
                 {if ("" != null) return new KbTypedef(curModule.getModuleName(), name.toString(), type, comment);}
         } catch (KidlParseException ex) {
@@ -296,23 +323,29 @@ ret = new KbList(subType);
       jj_consume_token(38);
       subType = Type(curModule, includes);
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case T_required:
+      case T_optional:
+      case T_none:
       case S_IDENTIFIER:{
-        jj_consume_token(S_IDENTIFIER);
+        Identifier();
         break;
         }
       default:
-        jj_la1[4] = jj_gen;
+        jj_la1[5] = jj_gen;
         ;
       }
       jj_consume_token(T_comma);
       subType2 = Type(curModule, includes);
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case T_required:
+      case T_optional:
+      case T_none:
       case S_IDENTIFIER:{
-        jj_consume_token(S_IDENTIFIER);
+        Identifier();
         break;
         }
       default:
-        jj_la1[5] = jj_gen;
+        jj_la1[6] = jj_gen;
         ;
       }
       jj_consume_token(39);
@@ -333,7 +366,7 @@ ret = new KbTuple();
           break;
           }
         default:
-          jj_la1[6] = jj_gen;
+          jj_la1[7] = jj_gen;
           break label_4;
         }
         jj_consume_token(T_comma);
@@ -350,6 +383,9 @@ ret = new KbStruct();
       label_5:
       while (true) {
         switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+        case T_required:
+        case T_optional:
+        case T_none:
         case T_string:
         case T_int:
         case T_float:
@@ -363,7 +399,7 @@ ret = new KbStruct();
           break;
           }
         default:
-          jj_la1[7] = jj_gen;
+          jj_la1[8] = jj_gen;
           break label_5;
         }
         structItem = StructItem(curModule, includes);
@@ -375,18 +411,21 @@ boolean ok = ((KbStruct)ret).addItem(structItem);
       jj_consume_token(T_figure_close_bracket);
       break;
       }
+    case T_required:
+    case T_optional:
+    case T_none:
     case S_IDENTIFIER:{
       if (jj_2_2(2147483647)) {
-        moduleToken = jj_consume_token(S_IDENTIFIER);
+        moduleToken = Identifier();
         jj_consume_token(T_dot);
       } else {
         ;
       }
-      typeToken = jj_consume_token(S_IDENTIFIER);
+      typeToken = Identifier();
       break;
       }
     default:
-      jj_la1[8] = jj_gen;
+      jj_la1[9] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -417,7 +456,7 @@ if (ret == null) {
   final public KbStructItem StructItem(KbModule curModule, Map<String, KbModule> includes) throws ParseException {KbType type;
   Token name;
     type = Type(curModule, includes);
-    name = jj_consume_token(S_IDENTIFIER);
+    name = Identifier();
 {if ("" != null) return new KbStructItem(type, name.toString());}
     throw new Error("Missing return statement in function");
   }
@@ -438,7 +477,7 @@ if (ret == null) {
       break;
       }
     default:
-      jj_la1[9] = jj_gen;
+      jj_la1[10] = jj_gen;
       jj_consume_token(-1);
       throw new ParseException();
     }
@@ -458,7 +497,7 @@ if (ret == null) {
   KbAuthdef auth;
     first = jj_consume_token(T_funcdef);
 comment = getLastComment(first);
-    name = jj_consume_token(S_IDENTIFIER);
+    name = Identifier();
     jj_consume_token(T_round_open_bracket);
 ret = new KbFuncdef(name.toString(), comment);
     args = OptNameParams(curModule, includes);
@@ -476,7 +515,7 @@ ret.setAuthentication(auth.getType());
       break;
       }
     default:
-      jj_la1[10] = jj_gen;
+      jj_la1[11] = jj_gen;
       ;
     }
 {if ("" != null) return ret;}
@@ -489,6 +528,9 @@ ret.setAuthentication(auth.getType());
   final public List<KbParameter> OptNameParams(KbModule curModule, Map<String, KbModule> includes) throws ParseException {List<KbParameter> ret = new ArrayList<KbParameter>();
   KbParameter param;
     switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case T_required:
+    case T_optional:
+    case T_none:
     case T_string:
     case T_int:
     case T_float:
@@ -508,7 +550,7 @@ ret.add(param);
           break;
           }
         default:
-          jj_la1[11] = jj_gen;
+          jj_la1[12] = jj_gen;
           break label_6;
         }
         jj_consume_token(T_comma);
@@ -518,7 +560,7 @@ ret.add(param);
       break;
       }
     default:
-      jj_la1[12] = jj_gen;
+      jj_la1[13] = jj_gen;
       ;
     }
 {if ("" != null) return ret;}
@@ -533,13 +575,16 @@ ret.add(param);
   String name = null;
     type = Type(curModule, includes);
     switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case T_required:
+    case T_optional:
+    case T_none:
     case S_IDENTIFIER:{
-      nameToken = jj_consume_token(S_IDENTIFIER);
+      nameToken = Identifier();
 name = nameToken.toString();
       break;
       }
     default:
-      jj_la1[13] = jj_gen;
+      jj_la1[14] = jj_gen;
       ;
     }
 {if ("" != null) return new KbParameter(type, name);}
@@ -562,16 +607,33 @@ name = nameToken.toString();
     finally { jj_save(1, xla); }
   }
 
+  private boolean jj_3R_7()
+ {
+    Token xsp;
+    xsp = jj_scanpos;
+    if (jj_scan_token(33)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(11)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(12)) {
+    jj_scanpos = xsp;
+    if (jj_scan_token(13)) return true;
+    }
+    }
+    }
+    return false;
+  }
+
   private boolean jj_3_1()
  {
-    if (jj_scan_token(S_IDENTIFIER)) return true;
+    if (jj_3R_7()) return true;
     if (jj_scan_token(T_colon)) return true;
     return false;
   }
 
   private boolean jj_3_2()
  {
-    if (jj_scan_token(S_IDENTIFIER)) return true;
+    if (jj_3R_7()) return true;
     if (jj_scan_token(T_dot)) return true;
     return false;
   }
@@ -587,7 +649,7 @@ name = nameToken.toString();
   private Token jj_scanpos, jj_lastpos;
   private int jj_la;
   private int jj_gen;
-  final private int[] jj_la1 = new int[14];
+  final private int[] jj_la1 = new int[15];
   static private int[] jj_la1_0;
   static private int[] jj_la1_1;
   static {
@@ -595,10 +657,10 @@ name = nameToken.toString();
       jj_la1_init_1();
    }
    private static void jj_la1_init_0() {
-      jj_la1_0 = new int[] {0x0,0x200,0xc400,0xc400,0x0,0x0,0x8000000,0xff0000,0xff0000,0x3800,0x400,0x8000000,0xff0000,0x0,};
+      jj_la1_0 = new int[] {0x0,0x200,0x3800,0xc400,0xc400,0x3800,0x3800,0x8000000,0xff3800,0xff3800,0x3800,0x400,0x8000000,0xff3800,0x3800,};
    }
    private static void jj_la1_init_1() {
-      jj_la1_1 = new int[] {0x20,0x0,0x0,0x0,0x2,0x2,0x0,0x2,0x2,0x0,0x0,0x0,0x2,0x2,};
+      jj_la1_1 = new int[] {0x20,0x0,0x2,0x0,0x0,0x2,0x2,0x0,0x2,0x2,0x0,0x0,0x0,0x2,0x2,};
    }
   final private JJCalls[] jj_2_rtns = new JJCalls[2];
   private boolean jj_rescan = false;
@@ -615,7 +677,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 15; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -630,7 +692,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 15; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -641,7 +703,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 15; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -652,7 +714,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 15; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -662,7 +724,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 15; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -672,7 +734,7 @@ name = nameToken.toString();
     token = new Token();
     jj_ntk = -1;
     jj_gen = 0;
-    for (int i = 0; i < 14; i++) jj_la1[i] = -1;
+    for (int i = 0; i < 15; i++) jj_la1[i] = -1;
     for (int i = 0; i < jj_2_rtns.length; i++) jj_2_rtns[i] = new JJCalls();
   }
 
@@ -790,7 +852,7 @@ name = nameToken.toString();
       la1tokens[jj_kind] = true;
       jj_kind = -1;
     }
-    for (int i = 0; i < 14; i++) {
+    for (int i = 0; i < 15; i++) {
       if (jj_la1[i] == jj_gen) {
         for (int j = 0; j < 32; j++) {
           if ((jj_la1_0[i] & (1<<j)) != 0) {
