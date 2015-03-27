@@ -42,7 +42,7 @@ def main(argv):
         if 'auth' in test and test['auth']:
             client_instance = client_class(url = endpoint, user_id = user, password = password)
         else:
-            client_instance = client_class(url = endpoint)
+            client_instance = client_class(url = endpoint, ignore_authrc = True)
         method_name = test['method']
         params = test['params']
         method_instance = getattr(client_instance, method_name)
