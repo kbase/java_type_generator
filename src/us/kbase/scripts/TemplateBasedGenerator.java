@@ -86,31 +86,29 @@ public class TemplateBasedGenerator {
             context.put("enable_client_retry", true);
         context.put("empty_escaper", "");  // ${empty_escaper}
         context.put("display", new StringUtils());
-        if (newStyle)
-            context.put("new_module_builder_style", true);
         if (jsClientName != null) {
             Writer jsClient = output.openWriter(jsClientName + ".js");
-            TemplateFormatter.formatTemplate("javascript_client", context, jsClient);
+            TemplateFormatter.formatTemplate("javascript_client", context, newStyle, jsClient);
             jsClient.close();
         }
         if (perlClientName != null) {
             Writer perlClient = output.openWriter(fixPath(perlClientName, "::") + ".pm");
-            TemplateFormatter.formatTemplate("perl_client", context, perlClient);
+            TemplateFormatter.formatTemplate("perl_client", context, newStyle, perlClient);
             perlClient.close();
         }
         if (pythonClientName != null) {
             Writer pythonClient = output.openWriter(fixPath(pythonClientName, ".") + ".py");
-            TemplateFormatter.formatTemplate("python_client", context, pythonClient);
+            TemplateFormatter.formatTemplate("python_client", context, newStyle, pythonClient);
             pythonClient.close();
         }
         if (perlServerName != null) {
             Writer perlServer = output.openWriter(fixPath(perlServerName, "::") + ".pm");
-            TemplateFormatter.formatTemplate("perl_server", context, perlServer);
+            TemplateFormatter.formatTemplate("perl_server", context, newStyle, perlServer);
             perlServer.close();
         }
         if (pythonServerName != null) {
             Writer pythonServer = output.openWriter(fixPath(pythonServerName, ".") + ".py");
-            TemplateFormatter.formatTemplate("python_server", context, pythonServer);
+            TemplateFormatter.formatTemplate("python_server", context, newStyle, pythonServer);
             pythonServer.close();
         }
         if (genPerlServer || genPythonServer) {
@@ -155,19 +153,19 @@ public class TemplateBasedGenerator {
                 moduleContext.put("display", new StringUtils());
                 if (genPerlServer) {
                     Writer perlImpl = output.openWriter(perlImplPath);
-                    TemplateFormatter.formatTemplate("perl_impl", moduleContext, perlImpl);
+                    TemplateFormatter.formatTemplate("perl_impl", moduleContext, newStyle, perlImpl);
                     perlImpl.close();
                 }
                 if (genPythonServer) {
                     Writer pythonImpl = output.openWriter(pythonImplPath);
-                    TemplateFormatter.formatTemplate("python_impl", moduleContext, pythonImpl);
+                    TemplateFormatter.formatTemplate("python_impl", moduleContext, newStyle, pythonImpl);
                     pythonImpl.close();
                 }
             }
         }
         if (perlPsgiName != null) {
             Writer perlPsgi = output.openWriter(perlPsgiName);
-            TemplateFormatter.formatTemplate("perl_psgi", context, perlPsgi);
+            TemplateFormatter.formatTemplate("perl_psgi", context, newStyle, perlPsgi);
             perlPsgi.close();
         }
     }

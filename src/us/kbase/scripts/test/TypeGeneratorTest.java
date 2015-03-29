@@ -25,6 +25,8 @@ import java.util.zip.ZipInputStream;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.log.Log;
+import org.eclipse.jetty.util.log.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -141,12 +143,18 @@ public class TypeGeneratorTest extends Assert {
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
 		File binDir = new File(workDir, "bin");
-		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, perlPort(testNum), true);
-		File serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
-		runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir);
-		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, pyPort(testNum), true);
-		serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
-		runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir);
+		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, perlPort(testNum, false), true);
+		File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, false);
+		runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, false);
+        parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, perlPort(testNum, true), true);
+        serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
+        runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, true);
+		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, pyPort(testNum, false), true);
+		serverOutDir = preparePerlAndPyServerCode(testNum, workDir, false);
+		runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, false);
+        parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, pyPort(testNum, true), true);
+        serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
+        runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, true);
 		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, javaPort(testNum), true);
 		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir);
 	}
@@ -209,30 +217,33 @@ public class TypeGeneratorTest extends Assert {
         Assert.assertTrue(text.contains("myValue = 3;"));
         Assert.assertTrue(text.contains("myValue = 4;"));
 		/////////////////////////////// Perl and python ////////////////////////////////////
-        File serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
-        String implName = parsingData.getModules().get(0).getOriginal().getModuleName() + "Impl";
-        File perlImplFile = new File(serverOutDir, implName + ".pm");
-        TextUtils.copyStreams(TypeGeneratorTest.class.getResourceAsStream(
-                "Test" + testNum + ".perl.properties"), new FileOutputStream(perlImplFile));
-        File pythonImplFile = new File(serverOutDir, implName + ".py");
-        TextUtils.copyStreams(TypeGeneratorTest.class.getResourceAsStream(
-                "Test" + testNum + ".python.properties"), new FileOutputStream(pythonImplFile));
-        preparePerlAndPyServerCode(testNum, workDir);
-        text = TextUtils.readFileText(perlImplFile);
-        Assert.assertTrue(text.contains("# Header comment."));
-        Assert.assertTrue(text.contains("myValue = -1"));
-        Assert.assertTrue(text.contains("myValue = 1"));
-        Assert.assertTrue(text.contains("myValue = 2"));
-        Assert.assertTrue(text.contains("myValue = 3"));
-        Assert.assertTrue(text.contains("myValue = 4"));
-        text = TextUtils.readFileText(pythonImplFile);
-        Assert.assertTrue(text.contains("# Header comment."));
-        Assert.assertTrue(text.contains("# Class header comment."));
-        Assert.assertTrue(text.contains("myValue = -1"));
-        Assert.assertTrue(text.contains("myValue = 1"));
-        Assert.assertTrue(text.contains("myValue = 2"));
-        Assert.assertTrue(text.contains("myValue = 3"));
-        Assert.assertTrue(text.contains("myValue = 4"));
+        for (int i = 0; i < 2; i++) {
+            boolean newStyle = i == 1;
+            File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, newStyle);
+            String implName = parsingData.getModules().get(0).getOriginal().getModuleName() + "Impl";
+            File perlImplFile = new File(serverOutDir, implName + ".pm");
+            TextUtils.copyStreams(TypeGeneratorTest.class.getResourceAsStream(
+                    "Test" + testNum + ".perl.properties"), new FileOutputStream(perlImplFile));
+            File pythonImplFile = new File(serverOutDir, implName + ".py");
+            TextUtils.copyStreams(TypeGeneratorTest.class.getResourceAsStream(
+                    "Test" + testNum + ".python.properties"), new FileOutputStream(pythonImplFile));
+            preparePerlAndPyServerCode(testNum, workDir, newStyle);
+            text = TextUtils.readFileText(perlImplFile);
+            Assert.assertTrue(text.contains("# Header comment."));
+            Assert.assertTrue(text.contains("myValue = -1"));
+            Assert.assertTrue(text.contains("myValue = 1"));
+            Assert.assertTrue(text.contains("myValue = 2"));
+            Assert.assertTrue(text.contains("myValue = 3"));
+            Assert.assertTrue(text.contains("myValue = 4"));
+            text = TextUtils.readFileText(pythonImplFile);
+            Assert.assertTrue(text.contains("# Header comment."));
+            Assert.assertTrue(text.contains("# Class header comment."));
+            Assert.assertTrue(text.contains("myValue = -1"));
+            Assert.assertTrue(text.contains("myValue = 1"));
+            Assert.assertTrue(text.contains("myValue = 2"));
+            Assert.assertTrue(text.contains("myValue = 3"));
+            Assert.assertTrue(text.contains("myValue = 4"));
+        }
 	}
 
 	@Test
@@ -267,23 +278,29 @@ public class TypeGeneratorTest extends Assert {
 		File binDir = new File(workDir, "bin");
 		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null, needClientServer);
 		if (needClientServer) {
-			File serverOutDir = preparePerlAndPyServerCode(testNum, workDir);
-			runPerlServerTest(testNum, needClientServer, workDir, testPackage,
-					libDir, binDir, parsingData, serverOutDir);
-			runJavaServerTest(testNum, needClientServer, testPackage, libDir,
-					binDir, parsingData, serverOutDir);
+            File serverOldDir = preparePerlAndPyServerCode(testNum, workDir, false);
+            File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
+            runPerlServerTest(testNum, needClientServer, workDir, testPackage,
+                    libDir, binDir, parsingData, serverOldDir, false);
+            runPerlServerTest(testNum, needClientServer, workDir, testPackage,
+                    libDir, binDir, parsingData, serverOutDir, true);
+            runPythonServerTest(testNum, needClientServer, workDir,
+                    testPackage, libDir, binDir, parsingData, serverOldDir, false);
 			runPythonServerTest(testNum, needClientServer, workDir,
-					testPackage, libDir, binDir, parsingData, serverOutDir);
+					testPackage, libDir, binDir, parsingData, serverOutDir, true);
+            runJavaServerTest(testNum, needClientServer, testPackage, libDir,
+                    binDir, parsingData, serverOutDir);
 		} else {
-			runClientTest(testNum, testPackage, parsingData, libDir, binDir, -1, needClientServer, null);
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, -1, needClientServer, null, "no");
 		}
 	}
 
 	protected static void runPythonServerTest(int testNum,
 			boolean needClientServer, File workDir, String testPackage,
-			File libDir, File binDir, JavaData parsingData, File serverOutDir)
-			throws IOException, Exception {
-		int portNum = pyPort(testNum);
+			File libDir, File binDir, JavaData parsingData, File serverOutDir,
+			boolean newStyle) throws IOException, Exception {
+		int portNum = pyPort(testNum, newStyle);
+		String serverType = (newStyle ? "New" : "Old") + " python";
 		File pidFile = new File(serverOutDir, "pid.txt");
 		pythonServerCorrection(serverOutDir, parsingData);
 		try {
@@ -297,23 +314,26 @@ public class TypeGeneratorTest extends Assert {
 			        "  cp -r ../../../lib/biokbase ./",
                     "  cp -r $KB_TOP/modules/auth/lib/biokbase ./",
 			        "fi",
-			        "python " + serverFile.getName() + " --host localhost --port " + portNum + " >py_server.out 2>py_server.err & pid=$!",
+			        "python " + serverFile.getName() + " --host localhost --port " + portNum + 
+			            " >py_server.out 2>py_server.err & pid=$!",
 					"echo $pid > " + pidFile.getName()
 					));
 			TextUtils.writeFileLines(lines, uwsgiFile);
 			ProcessHelper.cmd("bash", uwsgiFile.getCanonicalPath()).exec(serverOutDir);
-			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer, serverOutDir);
+			System.out.println(serverType + " server was started up");
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer, 
+			        serverOutDir, serverType);
 		} finally {
 			if (pidFile.exists()) {
 				String pid = TextUtils.readFileLines(pidFile).get(0).trim();
 				ProcessHelper.cmd("kill", pid).exec(workDir);
-				System.out.println("Python server process was finally killed: " + pid);
+				System.out.println(serverType + " server was stopped");
 			}
 		}
 	}
 
-	protected static int pyPort(int testNum) {
-		int portNum = 10200 + testNum;
+	protected static int pyPort(int testNum, boolean newStyle) {
+		int portNum = 10200 + testNum  + (newStyle ? 0 : 1000);
 		return portNum;
 	}
 
@@ -324,16 +344,54 @@ public class TypeGeneratorTest extends Assert {
 		Server javaServer = null;
 		try {
 			JavaModule mainModule = parsingData.getModules().get(0);
-			long time = System.currentTimeMillis();
-			javaServer = startupJavaServer(mainModule, libDir, binDir, testPackage, portNum);
-			System.out.println("Java server startup time: " + (System.currentTimeMillis() - time) + " ms.");
-			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer, serverOutDir);
+			//long time = System.currentTimeMillis();
+	        Log.setLog(new Logger() {
+                @Override
+                public void warn(String arg0, Object arg1, Object arg2) {}
+                @Override
+                public void warn(String arg0, Throwable arg1) {}
+                @Override
+                public void warn(String arg0) {}
+                @Override
+                public void setDebugEnabled(boolean arg0) {}
+                @Override
+                public boolean isDebugEnabled() {
+                    return false;
+                }
+                @Override
+                public void info(String arg0, Object arg1, Object arg2) {}
+                @Override
+                public void info(String arg0) {}
+                @Override
+                public String getName() {
+                    return null;
+                }
+                @Override
+                public Logger getLogger(String arg0) {
+                    return this;
+                }
+                @Override
+                public void debug(String arg0, Object arg1, Object arg2) {}
+                @Override
+                public void debug(String arg0, Throwable arg1) {}
+                @Override
+                public void debug(String arg0) {}
+            });
+	        javaServer = new Server(portNum);
+	        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+	        context.setContextPath("/");
+	        javaServer.setHandler(context);
+	        Class<?> serverClass = createServerServletInstance(mainModule, libDir, binDir, testPackage);
+	        context.addServlet(new ServletHolder(serverClass), "/*");
+	        javaServer.start();
+			System.out.println("Java server was started up");
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer, 
+			        serverOutDir, "Java");
 		} finally {
 			if (javaServer != null) {
 				javaServer.stop();
-				System.out.println("Java server thread was finally stopped");
+				System.out.println("Java server was stopped");
 			}
-			System.out.println();
 		}
 	}
 
@@ -344,11 +402,12 @@ public class TypeGeneratorTest extends Assert {
 
 	protected static void runPerlServerTest(int testNum,
 			boolean needClientServer, File workDir, String testPackage,
-			File libDir, File binDir, JavaData parsingData, File serverOutDir)
-			throws IOException, Exception {
+			File libDir, File binDir, JavaData parsingData, File serverOutDir,
+			boolean newStyle) throws IOException, Exception {
+	    String serverType = (newStyle ? "New" : "Old") + " perl";
 		perlServerCorrection(serverOutDir, parsingData);
 		File pidFile = new File(serverOutDir, "pid.txt");
-		int portNum = perlPort(testNum);
+		int portNum = perlPort(testNum, newStyle);
 		try {
 			File plackupFile = new File(serverOutDir, "start_perl_server.sh");
 			List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
@@ -364,30 +423,35 @@ public class TypeGeneratorTest extends Assert {
 					));
 			TextUtils.writeFileLines(lines, plackupFile);
 			ProcessHelper.cmd("bash", plackupFile.getCanonicalPath()).exec(serverOutDir);
-			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer, serverOutDir);
+            System.out.println(serverType + " server was started up");
+			runClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer, 
+			        serverOutDir, serverType);
 		} finally {
 			if (pidFile.exists()) {
 				String pid = TextUtils.readFileLines(pidFile).get(0).trim();
 				ProcessHelper.cmd("kill", pid).exec(workDir);
-				System.out.println("Perl server process was finally killed: " + pid);
+				System.out.println(serverType + " server was stopped");
 			}
 		}
 	}
-
-	protected static int perlPort(int testNum) {
-		int portNum = 10000 + testNum;
+	
+	protected static int perlPort(int testNum, boolean newStyle) {
+		int portNum = 10000 + testNum + (newStyle ? 0 : 1000);
 		return portNum;
 	}
 
-	protected static File preparePerlAndPyServerCode(int testNum, File workDir)
-	        throws Exception {
+	protected static File preparePerlAndPyServerCode(int testNum, File workDir, 
+	        boolean newStyle) throws Exception {
         File testFile = new File(workDir, "test" + testNum + ".spec");
-        File serverOutDir = new File(workDir, "out");
+        File serverOutDir = new File(workDir, newStyle ? "out" : "old");
         if (!serverOutDir.exists())
-        serverOutDir.mkdir();
+            serverOutDir.mkdir();
         TemplateBasedGenerator.generate(testFile, null, true, null, 
                 true, null, true, null, null, "service.psgi", true, 
-                null, true, null, null, false, true, serverOutDir);
+                null, true, null, null, false, newStyle, serverOutDir);
+        TemplateBasedGenerator.generate(testFile, null, true, null, 
+                true, null, false, null, null, null, true, 
+                null, false, null, null, false, true, serverOutDir);
         return serverOutDir;
 	}
 	
@@ -444,7 +508,7 @@ public class TypeGeneratorTest extends Assert {
 		long time2 = System.currentTimeMillis();
 		Map<?,?> intMap = KidlParser.parseSpecInt(specFile, intSchemas);
 		time2 = System.currentTimeMillis() - time2;
-		System.out.println("Compilation time: " + time1 + " vs " + time2);
+		//System.out.println("Compilation time: " + time1 + " vs " + time2);
 		Assert.assertTrue(KidlTest.compareJson(origMap, intMap, "Parsing result for " + testFileName));
 		Assert.assertTrue(KidlTest.compareJsonSchemas(origSchemas, intSchemas, "Json schema for " + testFileName));
 		List<KbService> services = KidlParser.parseSpec(specFile, workDir, null, null, true);
@@ -490,18 +554,6 @@ public class TypeGeneratorTest extends Assert {
 		return classPathSB.toString();
 	}
 
-	private static Server startupJavaServer(JavaModule module, File libDir, File binDir, 
-			String testPackage, int port) throws Exception {
-		Server server = new Server(port);
-		ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath("/");
-        server.setHandler(context);
-        Class<?> serverClass = createServerServletInstance(module, libDir, binDir, testPackage);
-        context.addServlet(new ServletHolder(serverClass), "/*");
-        server.start();
-        return server;
-	}
-
 	private static Class<?> createServerServletInstance(JavaModule module,
 			File libDir, File binDir, String testPackage) throws Exception,
 			MalformedURLException, ClassNotFoundException {
@@ -542,20 +594,28 @@ public class TypeGeneratorTest extends Assert {
 	}
 
 	private static void runClientTest(int testNum, String testPackage, JavaData parsingData, 
-			File libDir, File binDir, int portNum, boolean needClientServer, File outDir) throws Exception {
+			File libDir, File binDir, int portNum, boolean needClientServer, File outDir,
+			String serverType) throws Exception {
+	    System.out.println("- Java client -> " + serverType + " server");
 	    runJavaClientTest(testNum, testPackage, parsingData, libDir, binDir, portNum, needClientServer);
-	    if (outDir == null) {
-	        System.out.println("Perl/Python/JavaScript client tests are skipped");
-	    } else {
+	    if (outDir != null) {
+            String resourceName = "Test" + testNum + ".config.properties";
+	        if (!checkForClientConfig(resourceName)) {
+	            System.err.println("- Perl/Python/JavaScript client tests are skipped (" + resourceName + "not found)");	
+	            return;
+	        }
+	        System.out.println("- Perl client -> " + serverType + " server");
 	        runPerlClientTest(testNum, testPackage, parsingData, portNum, needClientServer, outDir);
+	        System.out.println("- Python client -> " + serverType + " server");
             runPythonClientTest(testNum, testPackage, parsingData, portNum, needClientServer, outDir);
+            System.out.println("- JavaScript client -> " + serverType + " server");
             runJsClientTest(testNum, testPackage, parsingData, portNum, needClientServer, outDir);
 	    }
 	}
 	
     private static void runJavaClientTest(int testNum, String testPackage, JavaData parsingData, 
             File libDir, File binDir, int portNum, boolean needClientServer) throws Exception {
-		System.out.println("Port: " + portNum);
+		//System.out.println("Port: " + portNum);
         URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
 		ConnectException error = null;
 		for (int n = 0; n < 50; n++) {
@@ -581,7 +641,7 @@ public class TypeGeneratorTest extends Assert {
 					}
 				}
 				error = null;
-				System.out.println("Timeout before server response: " + (n * 100) + " ms.");
+				//System.out.println("Timeout before server response: " + (n * 100) + " ms.");
 				break;
 			} catch (InvocationTargetException ex) {
 				Throwable t = ex.getCause();
@@ -606,25 +666,17 @@ public class TypeGeneratorTest extends Assert {
             return;
         String resourceName = "Test" + testNum + ".config.properties";
         File shellFile = null;
-        try {
-            File configFile = new File(outDir, "tests.json");
-            prepareClientTestConfigFile(parsingData, resourceName, configFile);
-            shellFile = new File(outDir, "test_perl_client.sh");
-            List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-            //JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
-            lines.addAll(Arrays.asList(
-                    "perl ../../../test_scripts/perl/test-client.pl -tests " + configFile.getName() + 
-                    " -endpoint http://localhost:" + portNum + "/ -user " + System.getProperty("test.user") +
-                    " -password \"" + System.getProperty("test.pwd") + "\""
-                    ));
-            TextUtils.writeFileLines(lines, shellFile);
-        } catch (Exception ex) {
-            if (ex.getMessage() != null && ex.getMessage().contains("No content to map due to end-of-input")) {
-                System.err.println("Perl client test: resource not found [" + resourceName + "]");
-            } else {
-                throw ex;
-            }
-        }
+        File configFile = new File(outDir, "tests.json");
+        prepareClientTestConfigFile(parsingData, resourceName, configFile);
+        shellFile = new File(outDir, "test_perl_client.sh");
+        List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+        //JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
+        lines.addAll(Arrays.asList(
+                "perl ../../../test_scripts/perl/test-client.pl -tests " + configFile.getName() + 
+                " -endpoint http://localhost:" + portNum + "/ -user " + System.getProperty("test.user") +
+                " -password \"" + System.getProperty("test.pwd") + "\""
+                ));
+        TextUtils.writeFileLines(lines, shellFile);
         if (shellFile != null) {
             ProcessHelper ph = ProcessHelper.cmd("bash", shellFile.getCanonicalPath()).exec(outDir, null, true, true);
             int exitCode = ph.getExitCode();
@@ -665,24 +717,16 @@ public class TypeGeneratorTest extends Assert {
             return;
         String resourceName = "Test" + testNum + ".config.properties";
         File shellFile = null;
-        try {
-            File configFile = new File(outDir, "tests.json");
-            prepareClientTestConfigFile(parsingData, resourceName, configFile);
-            shellFile = new File(outDir, "test_python_client.sh");
-            List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-            lines.addAll(Arrays.asList(
-                    "python ../../../test_scripts/python/test_client.py -t " + configFile.getName() + 
-                    " -e http://localhost:" + portNum + "/ -u " + System.getProperty("test.user") +
-                    " -p \"" + System.getProperty("test.pwd") + "\""
-                    ));
-            TextUtils.writeFileLines(lines, shellFile);
-        } catch (Exception ex) {
-            if (ex.getMessage() != null && ex.getMessage().contains("No content to map due to end-of-input")) {
-                System.err.println("Python client test: resource not found [" + resourceName + "]");
-            } else {
-                throw ex;
-            }
-        }
+        File configFile = new File(outDir, "tests.json");
+        prepareClientTestConfigFile(parsingData, resourceName, configFile);
+        shellFile = new File(outDir, "test_python_client.sh");
+        List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+        lines.addAll(Arrays.asList(
+                "python ../../../test_scripts/python/test_client.py -t " + configFile.getName() + 
+                " -e http://localhost:" + portNum + "/ -u " + System.getProperty("test.user") +
+                " -p \"" + System.getProperty("test.pwd") + "\""
+                ));
+        TextUtils.writeFileLines(lines, shellFile);
         if (shellFile != null) {
             ProcessHelper ph = ProcessHelper.cmd("bash", shellFile.getCanonicalPath()).exec(outDir, null, true, true);
             int exitCode = ph.getExitCode();
@@ -698,36 +742,36 @@ public class TypeGeneratorTest extends Assert {
         }
     }
 
+    private static boolean checkForClientConfig(String resourceName) throws Exception {
+        InputStream configIs = TypeGeneratorTest.class.getResourceAsStream(resourceName);
+        if (configIs == null)
+            return false;
+        configIs.close();
+        return true;
+    }
+    
     private static void runJsClientTest(int testNum, String testPackage, JavaData parsingData, 
             int portNum, boolean needClientServer, File outDir) throws Exception {
         if (!needClientServer)
             return;
         if (!isCasperJsInstalled()) {
-            System.err.println("JavaScript client tests are skipped");
+            System.err.println("- JavaScript client tests are skipped");
             return;
         }
         String resourceName = "Test" + testNum + ".config.properties";
         File shellFile = null;
-        try {
-            File configFile = new File(outDir, "tests.json");
-            prepareClientTestConfigFile(parsingData, resourceName, configFile);
-            shellFile = new File(outDir, "test_js_client.sh");
-            List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-            String token = getToken();
-            lines.addAll(Arrays.asList(
-                    "casperjs test ../../../test_scripts/js/test-client.js "
-                    + "--jq=../../../test_scripts/js/jquery-1.10.2.min.js "
-                    + "--tests=" + configFile.getName() + 
-                    " --endpoint=http://localhost:" + portNum + "/ --token=\"" + token + "\""
-                    ));
-            TextUtils.writeFileLines(lines, shellFile);
-        } catch (Exception ex) {
-            if (ex.getMessage() != null && ex.getMessage().contains("No content to map due to end-of-input")) {
-                System.err.println("JavaScript client test: resource not found [" + resourceName + "]");
-            } else {
-                throw ex;
-            }
-        }
+        File configFile = new File(outDir, "tests.json");
+        prepareClientTestConfigFile(parsingData, resourceName, configFile);
+        shellFile = new File(outDir, "test_js_client.sh");
+        List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+        String token = getToken();
+        lines.addAll(Arrays.asList(
+                "casperjs test ../../../test_scripts/js/test-client.js "
+                        + "--jq=../../../test_scripts/js/jquery-1.10.2.min.js "
+                        + "--tests=" + configFile.getName() + 
+                        " --endpoint=http://localhost:" + portNum + "/ --token=\"" + token + "\""
+                ));
+        TextUtils.writeFileLines(lines, shellFile);
         if (shellFile != null) {
             ProcessHelper ph = ProcessHelper.cmd("bash", shellFile.getCanonicalPath()).exec(outDir, null, true, true);
             int exitCode = ph.getExitCode();

@@ -15,19 +15,20 @@ import org.apache.velocity.app.Velocity;
 public class TemplateFormatter {
 
     public static boolean formatTemplate(String templateName, Map<?,?> context, 
-            File output) throws IOException {
+            boolean newStyle, File output) throws IOException {
         FileWriter fw = new FileWriter(output);
         try {
-            return formatTemplate(templateName, context, fw);
+            return formatTemplate(templateName, context, newStyle, fw);
         } finally {
             fw.close();
         }
     }
     
-    public static boolean formatTemplate(String templateName, Map<?,?> context, Writer output) {
+    public static boolean formatTemplate(String templateName, Map<?,?> context, 
+            boolean newStyle, Writer output) {
         try {
             Reader input = new InputStreamReader(TemplateFormatter.class.getResourceAsStream(
-                    templateName + ".vm.properties"), Charset.forName("utf-8"));
+                    templateName + "." + (newStyle ? "vm" : "old") + ".properties"), Charset.forName("utf-8"));
             VelocityContext cntx = new VelocityContext(context);
             boolean ret = Velocity.evaluate(cntx, output, "Template " + templateName, input);
             input.close();
