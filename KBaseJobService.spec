@@ -9,13 +9,13 @@ module KBaseJobSystem {
             2013-04-03T08:56:32Z (UTC time)
     */
     typedef string timestamp;
-    
+
     /* A job id. */
     typedef string job_id;
-    
+
     /* A boolean. 0 = false, other = true. */
     typedef int boolean;
-    
+
     /*
         time - the time the call was started;
         service_method - service defined in standard JSON RPC way, typically it's
@@ -37,6 +37,14 @@ module KBaseJobSystem {
     } MethodCall;
 
     /*
+        call_stack - upstream calls details including nested service calls and 
+            parent jobs where calls are listed in order from outer to inner.
+    */
+    typedef structure {
+        list<MethodCall> call_stack;
+    } Context;
+
+    /*
         service - service defined in standard JSON RPC way, typically it's
             module name from spec-file like 'KBaseTrees';
         service_ver - specific version of deployed service, last version is used 
@@ -44,19 +52,33 @@ module KBaseJobSystem {
         method - name of funcdef from spec-file corresponding to running method,
             like 'construct_species_tree' from trees service;
         method_params - the parameters of the method that performed this call;
-        call_stack - upstream calls details including provenance and parent jobs 
-            where calls are listed in order from outer to inner (optional field,
-            could be omitted in case of empty list).
+        context - context of current method call including nested call history
+            (optional field, could be omitted in case there is no call history).
     */
     typedef structure {
         string service;
         string service_ver;
         string method;
         list<UnspecifiedObject> method_params;
-        list<MethodCall> call_stack;
-    } RunAsyncParams;
+        Context context;
+    } RunJobParams;
 
-    funcdef run_async(RunAsyncParams params) returns (job_id job_id) authentication required;
+    /* Start a new job */
+    funcdef run_job(RunJobParams params) returns (job_id job_id) authentication required;
+
+    /*
+        Either 'returned_data' or 'detailed_error' field should be defined;
+        returned_data - keeps exact copy of what original server method returned;
+        detailed_error - keeps exact copy of what original server method has put
+            in error block of JSON RPC response.
+    */
+    typedef structure {
+        UnspecifiedObject returned_data;
+        string detailed_error;
+    } FinishJobParams;
+
+    /* Finish already started job */
+    funcdef finish_job(FinishJobParams params) returns () authentication required;
 
     /*
         finished - indicates whether job is done (including error cases) or not,
@@ -72,5 +94,6 @@ module KBaseJobSystem {
         string detailed_error;
     } JobState;
 
+    /* Check if job is finished and get results/error */ 
     funcdef check_job(job_id job_id) returns (JobState job_state) authentication required;
 };
