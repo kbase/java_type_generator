@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
+import java.net.ServerSocket;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -131,7 +132,8 @@ public class TypeGeneratorTest extends Assert {
 		javaServerCorrectionForTestCallback(srcDir, testPackage, parsingData, testPackage + ".Test" + testNum);
 		String classPath = prepareClassPath(libDir, new ArrayList<URL>());
     	runJavac(workDir, srcDir, classPath, binDir, "src/us/kbase/test5/syslogtest/SyslogTestServer.java");
-		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, null);
+        int portNum = findFreePort();
+		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, null, portNum);
 	}
 	
 	@Test
@@ -143,20 +145,25 @@ public class TypeGeneratorTest extends Assert {
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
 		File binDir = new File(workDir, "bin");
-		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, perlPort(testNum, false), true);
+        int portNum = findFreePort();
+		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
 		File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, false);
-		runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, false);
-        parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, perlPort(testNum, true), true);
+		runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, false, portNum);
+        portNum = findFreePort();
+        parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
         serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
-        runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, true);
-		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, pyPort(testNum, false), true);
+        runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, true, portNum);
+        portNum = findFreePort();
+		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
 		serverOutDir = preparePerlAndPyServerCode(testNum, workDir, false);
-		runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, false);
-        parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, pyPort(testNum, true), true);
+		runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, false, portNum);
+        portNum = findFreePort();
+        parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
         serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
-        runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, true);
-		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, javaPort(testNum), true);
-		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir);
+        runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, parsingData, serverOutDir, true, portNum);
+        portNum = findFreePort();
+		parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
+		runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir, portNum);
 	}
 
 	@Test
@@ -280,16 +287,21 @@ public class TypeGeneratorTest extends Assert {
 		if (needClientServer) {
             File serverOldDir = preparePerlAndPyServerCode(testNum, workDir, false);
             File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
+            int portNum = findFreePort();
             runPerlServerTest(testNum, needClientServer, workDir, testPackage,
-                    libDir, binDir, parsingData, serverOldDir, false);
+                    libDir, binDir, parsingData, serverOldDir, false, portNum);
+            portNum = findFreePort();
             runPerlServerTest(testNum, needClientServer, workDir, testPackage,
-                    libDir, binDir, parsingData, serverOutDir, true);
+                    libDir, binDir, parsingData, serverOutDir, true, portNum);
+            portNum = findFreePort();
             runPythonServerTest(testNum, needClientServer, workDir,
-                    testPackage, libDir, binDir, parsingData, serverOldDir, false);
+                    testPackage, libDir, binDir, parsingData, serverOldDir, false, portNum);
+            portNum = findFreePort();
 			runPythonServerTest(testNum, needClientServer, workDir,
-					testPackage, libDir, binDir, parsingData, serverOutDir, true);
+					testPackage, libDir, binDir, parsingData, serverOutDir, true, portNum);
+	        portNum = findFreePort();
             runJavaServerTest(testNum, needClientServer, testPackage, libDir,
-                    binDir, parsingData, serverOutDir);
+                    binDir, parsingData, serverOutDir, portNum);
 		} else {
 			runClientTest(testNum, testPackage, parsingData, libDir, binDir, -1, needClientServer, null, "no");
 		}
@@ -298,8 +310,7 @@ public class TypeGeneratorTest extends Assert {
 	protected static void runPythonServerTest(int testNum,
 			boolean needClientServer, File workDir, String testPackage,
 			File libDir, File binDir, JavaData parsingData, File serverOutDir,
-			boolean newStyle) throws IOException, Exception {
-		int portNum = pyPort(testNum, newStyle);
+			boolean newStyle, int portNum) throws IOException, Exception {
 		String serverType = (newStyle ? "New" : "Old") + " python";
 		File pidFile = new File(serverOutDir, "pid.txt");
 		pythonServerCorrection(serverOutDir, parsingData);
@@ -332,15 +343,9 @@ public class TypeGeneratorTest extends Assert {
 		}
 	}
 
-	protected static int pyPort(int testNum, boolean newStyle) {
-		int portNum = 10200 + testNum  + (newStyle ? 0 : 1000);
-		return portNum;
-	}
-
 	protected static void runJavaServerTest(int testNum,
 			boolean needClientServer, String testPackage, File libDir,
-			File binDir, JavaData parsingData, File serverOutDir) throws Exception {
-		int portNum = javaPort(testNum);
+			File binDir, JavaData parsingData, File serverOutDir, int portNum) throws Exception {
 		Server javaServer = null;
 		try {
 			JavaModule mainModule = parsingData.getModules().get(0);
@@ -395,19 +400,20 @@ public class TypeGeneratorTest extends Assert {
 		}
 	}
 
-	protected static int javaPort(int testNum) {
-		int portNum = 10100 + testNum;
-		return portNum;
+	public static int findFreePort() {
+	    try (ServerSocket socket = new ServerSocket(0)) {
+	        return socket.getLocalPort();
+	    } catch (IOException e) {}
+	    throw new IllegalStateException("Can not find available port in system");
 	}
-
+	
 	protected static void runPerlServerTest(int testNum,
 			boolean needClientServer, File workDir, String testPackage,
 			File libDir, File binDir, JavaData parsingData, File serverOutDir,
-			boolean newStyle) throws IOException, Exception {
+			boolean newStyle, int portNum) throws IOException, Exception {
 	    String serverType = (newStyle ? "New" : "Old") + " perl";
 		perlServerCorrection(serverOutDir, parsingData);
 		File pidFile = new File(serverOutDir, "pid.txt");
-		int portNum = perlPort(testNum, newStyle);
 		try {
 			File plackupFile = new File(serverOutDir, "start_perl_server.sh");
 			List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
@@ -435,11 +441,6 @@ public class TypeGeneratorTest extends Assert {
 		}
 	}
 	
-	protected static int perlPort(int testNum, boolean newStyle) {
-		int portNum = 10000 + testNum + (newStyle ? 0 : 1000);
-		return portNum;
-	}
-
 	protected static File preparePerlAndPyServerCode(int testNum, File workDir, 
 	        boolean newStyle) throws Exception {
         File testFile = new File(workDir, "test" + testNum + ".spec");
