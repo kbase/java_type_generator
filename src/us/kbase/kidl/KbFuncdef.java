@@ -26,10 +26,14 @@ public class KbFuncdef implements KbModuleComp {
 	private Map<?,?> data = null;
 	
 	public KbFuncdef() {}
-	
+
 	public KbFuncdef(String name, String comment) {
+	    this(name, comment, false);
+	}
+	
+	public KbFuncdef(String name, String comment, boolean async) {
 		this.name = name;
-		this.async = false;
+		this.async = async;
 		this.comment = comment == null ? "" : comment;
 		parameters = new ArrayList<KbParameter>();
 		returnType = new ArrayList<KbParameter>();

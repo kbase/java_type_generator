@@ -309,6 +309,21 @@ public class JavaTypeGenerator {
 	
 	private static void generateTupleClasses(JavaData data, FileSaver srcOutDir, String packageParent) throws Exception {
 		Set<Integer> tupleTypes = data.getTupleTypes();
+		if (!tupleTypes.contains(2)) {
+		    boolean anyAsync = false;
+		    for (JavaModule module : data.getModules()) {
+		        for (JavaFunc func : module.getFuncs()) {
+		            if (func.getOriginal().isAsync()) {
+		                anyAsync = true;
+		                break;
+		            }
+		        }
+		        if (anyAsync)
+		            break;
+		    }
+		    if (anyAsync)
+		        tupleTypes.add(2);
+		}
 		if (tupleTypes.size() > 0) {
 			String utilDir = utilPackage.replace('.', '/');
 			for (int tupleType : tupleTypes) {
@@ -588,61 +603,110 @@ public class JavaTypeGenerator {
 					"    }"
 					));
 			for (JavaFunc func : module.getFuncs()) {
-				JavaType retType = null;
-				if (func.getRetMultyType() == null) {
-					if (func.getReturns().size() > 0) {
-						retType = func.getReturns().get(0).getType();
-					}
-				} else {
-					retType = func.getRetMultyType();
-				}
-				StringBuilder funcParams = new StringBuilder();
-				for (JavaFuncParam param : func.getParams()) {
-					if (funcParams.length() > 0)
-						funcParams.append(", ");
-					funcParams.append(getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
-				}
-				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
-				String listClass = model.ref("java.util.List");
-				String arrayListClass = model.ref("java.util.ArrayList");
-				String exceptions = "throws " + model.ref("java.io.IOException") 
-						+ ", " + model.ref(utilPackage + ".JsonClientException");
-				classLines.add("");
-				printFuncComment(func, originalToJavaTypes, packageParent, classLines, true);
-				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") " + exceptions+ " {");
-				classLines.add("        " + listClass + "<Object> args = new " + arrayListClass + "<Object>();");
-				for (JavaFuncParam param : func.getParams()) {
-					classLines.add("        args.add(" + param.getJavaName() + ");");
-				}
-				String typeReferenceClass = model.ref("com.fasterxml.jackson.core.type.TypeReference");
-				boolean authRequired = func.isAuthRequired();
-				boolean needRet = retType != null;
-				if (func.getRetMultyType() == null) {
-					if (retType == null) {
-						String trFull = typeReferenceClass + "<Object>";
-						classLines.addAll(Arrays.asList(
-								"        " + trFull + " retType = new " + trFull + "() {};",
-								"        caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
-								"    }"
-								));
-					} else {
-						String trFull = typeReferenceClass + "<" + listClass + "<" + retTypeName + ">>";
-						classLines.addAll(Arrays.asList(
-								"        " + trFull + " retType = new " + trFull + "() {};",
-								"        " + listClass + "<" + retTypeName + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
-								"        return res.get(0);",
-								"    }"
-								));
-					}
-				} else {
-					String trFull = typeReferenceClass + "<" + retTypeName + ">";
-					classLines.addAll(Arrays.asList(
-							"        " + trFull + " retType = new " + trFull + "() {};",
-							"        " + retTypeName + " res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
-							"        return res;",
-							"    }"
-							));					
-				}
+                JavaType retType = null;
+                if (func.getRetMultyType() == null) {
+                    if (func.getReturns().size() > 0) {
+                        retType = func.getReturns().get(0).getType();
+                    }
+                } else {
+                    retType = func.getRetMultyType();
+                }
+                StringBuilder funcParams = new StringBuilder();
+                StringBuilder funcParamNames = new StringBuilder();
+                for (JavaFuncParam param : func.getParams()) {
+                    if (funcParams.length() > 0)
+                        funcParams.append(", ");
+                    funcParams.append(getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
+                    if (funcParamNames.length() > 0)
+                        funcParamNames.append(", ");
+                    funcParamNames.append(param.getJavaName());
+                }
+                String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
+                String listClass = model.ref("java.util.List");
+                String arrayListClass = model.ref("java.util.ArrayList");
+                String exceptions = "throws " + model.ref("java.io.IOException") 
+                        + ", " + model.ref(utilPackage + ".JsonClientException");
+			    if (func.getOriginal().isAsync()) {
+			        if (!func.isAuthRequired())
+			            throw new IllegalStateException("Function " + func.getOriginal().getName() + " is async but doesn't require authentication");
+			        classLines.add("");
+			        printFuncComment(func, originalToJavaTypes, packageParent, classLines, true);
+			        classLines.add("    public String " + func.getJavaName() + "Async(" + funcParams + ") " + exceptions+ " {");
+			        classLines.add("        " + listClass + "<Object> args = new " + arrayListClass + "<Object>();");
+			        for (JavaFuncParam param : func.getParams()) {
+			            classLines.add("        args.add(" + param.getJavaName() + ");");
+			        }
+			        String typeReferenceClass = model.ref("com.fasterxml.jackson.core.type.TypeReference");
+			        String trFull = typeReferenceClass + "<List<String>>";
+			        classLines.addAll(Arrays.asList(
+			                "        " + trFull + " retType = new " + trFull + "() {};",
+			                "        " + listClass + "<String> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "_async" + "\", args, retType, true, true);",
+                            "        return res.get(0);",
+			                "    }"
+			                ));
+                    classLines.add("");
+                    String tuple2Type = model.ref(utilPackage + ".Tuple2");
+                    printFuncComment(func, originalToJavaTypes, packageParent, classLines, true);
+                    classLines.add("    public " + retTypeName + " " + func.getJavaName() + "WaitFor(String jobId) " + exceptions+ " {");
+                    classLines.add("        " + listClass + "<Object> args = new " + arrayListClass + "<Object>();");
+                    classLines.add("        args.add(jobId);");
+                    String innerRetType = (func.getRetMultyType() == null) ? ((retType == null) ? "Object" : (listClass + "<" + retTypeName + ">")) : retTypeName;
+                    trFull = typeReferenceClass + "<" + tuple2Type + "<Boolean," + innerRetType + ">>";
+                    classLines.addAll(Arrays.asList(
+                            "        " + trFull + " retType = new " + trFull + "() {};",
+                            "        while (true) {",
+                            "            " + tuple2Type + "<Boolean," + innerRetType + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "_check" + "\", args, retType, true, true);",
+                            "            if (res.getE1())",
+                            "                return" + (func.getRetMultyType() == null ? (retType == null ? "" : " res.getE2().get(0)") : " res.getE2()") + ";",
+                            "        }",
+                            "    }"
+                            ));
+                    classLines.add("");
+                    printFuncComment(func, originalToJavaTypes, packageParent, classLines, true);
+                    classLines.addAll(Arrays.asList(
+                            "    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") " + exceptions+ " {",
+                            "        String jobId = " + func.getJavaName() + "Async(" + funcParamNames + ");",
+                            "        " + (func.getRetMultyType() == null && retType == null ? "" : "return ") + func.getJavaName() + "WaitFor(jobId);",
+                            "    }"
+                            ));
+			    } else {
+			        classLines.add("");
+			        printFuncComment(func, originalToJavaTypes, packageParent, classLines, true);
+			        classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") " + exceptions+ " {");
+			        classLines.add("        " + listClass + "<Object> args = new " + arrayListClass + "<Object>();");
+			        for (JavaFuncParam param : func.getParams()) {
+			            classLines.add("        args.add(" + param.getJavaName() + ");");
+			        }
+			        String typeReferenceClass = model.ref("com.fasterxml.jackson.core.type.TypeReference");
+			        boolean authRequired = func.isAuthRequired();
+			        boolean needRet = retType != null;
+			        if (func.getRetMultyType() == null) {
+			            if (retType == null) {
+			                String trFull = typeReferenceClass + "<Object>";
+			                classLines.addAll(Arrays.asList(
+			                        "        " + trFull + " retType = new " + trFull + "() {};",
+			                        "        caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
+			                        "    }"
+			                        ));
+			            } else {
+			                String trFull = typeReferenceClass + "<" + listClass + "<" + retTypeName + ">>";
+			                classLines.addAll(Arrays.asList(
+			                        "        " + trFull + " retType = new " + trFull + "() {};",
+			                        "        " + listClass + "<" + retTypeName + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
+			                        "        return res.get(0);",
+			                        "    }"
+			                        ));
+			            }
+			        } else {
+			            String trFull = typeReferenceClass + "<" + retTypeName + ">";
+			            classLines.addAll(Arrays.asList(
+			                    "        " + trFull + " retType = new " + trFull + "() {};",
+			                    "        " + retTypeName + " res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
+			                    "        return res;",
+			                    "    }"
+			                    ));					
+			        }
+			    }
 			}
 			classLines.add("}");
 			List<String> headerLines = new ArrayList<String>(Arrays.asList(

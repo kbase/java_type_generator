@@ -30,6 +30,7 @@ import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
@@ -101,11 +102,6 @@ public class TypeGeneratorTest extends Assert {
 	@Test
 	public void testIncludsAndMultiModules() throws Exception {
 		startTest(2);
-	}
-
-	@Test
-	public void testIncludsAndMultiModules2() throws Exception {
-	    startTest(11);
 	}
 
 	@Test
@@ -262,7 +258,18 @@ public class TypeGeneratorTest extends Assert {
 	public void testComments() throws Exception {
 		startTest(10, false);
 	}
-	
+
+	@Test
+	public void testIncludsAndMultiModules2() throws Exception {
+	    startTest(11);
+	}
+
+	@Ignore
+    @Test
+    public void testAsyncMethods() throws Exception {
+        startTest(12);
+    }
+
 	private static void startTest(int testNum) throws Exception {
 		startTest(testNum, true);
 	}
