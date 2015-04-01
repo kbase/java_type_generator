@@ -175,14 +175,16 @@ public class KBaseJobServiceClient {
     /**
      * <p>Original spec-file function name: finish_job</p>
      * <pre>
-     * Finish already started job
+     * Register results of already started job
      * </pre>
+     * @param   jobId   instance of original type "job_id" (A job id.)
      * @param   params   instance of type {@link us.kbase.kbasejobservice.FinishJobParams FinishJobParams}
      * @throws IOException if an IO exception occurs
      * @throws JsonClientException if a JSON RPC exception occurs
      */
-    public void finishJob(FinishJobParams params) throws IOException, JsonClientException {
+    public void finishJob(String jobId, FinishJobParams params) throws IOException, JsonClientException {
         List<Object> args = new ArrayList<Object>();
+        args.add(jobId);
         args.add(params);
         TypeReference<Object> retType = new TypeReference<Object>() {};
         caller.jsonrpcCall("KBaseJobService.finish_job", args, retType, false, true);

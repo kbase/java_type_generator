@@ -30,7 +30,6 @@ import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
@@ -297,36 +296,48 @@ public class TypeGeneratorTest extends Assert {
 	    startTest(11);
 	}
 
-	@Ignore
     @Test
     public void testAsyncMethods() throws Exception {
-        //startTest(12);
 	    int testNum = 12;
 	    File workDir = prepareWorkDir(testNum);
 	    System.out.println();
 	    System.out.println("Test " + testNum + " (testAsyncMethods) is starting in directory: " + workDir.getName());
-	    int jobServicePort = findFreePort();
-	    /////////////////////// Job service start up //////////////////////////
-	    Server jettyServer = new Server(jobServicePort);
-	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-	    context.setContextPath("/");
-	    jettyServer.setHandler(context);
-	    context.addServlet(new ServletHolder(new KBaseJobServiceServer()),"/*");
-	    jettyServer.start();
-        /////////////////////// Job service start up //////////////////////////
+	    Server jettyServer = startJobService(workDir, workDir);
 	    try {
-	        System.setProperty("KB_JOB_SERVICE_URL", "http://localhost:" + jobServicePort + "/");
 	        String testPackage = rootPackageName + ".test" + testNum;
 	        File libDir = new File(workDir, "lib");
 	        File binDir = new File(workDir, "bin");
 	        int portNum = findFreePort();
-	        JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
-	        parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
+	        Map<String, String> javaServerManualCorrections = new LinkedHashMap<String, String>();
+	        javaServerManualCorrections.put("get_with_error", "if (true) throw new IllegalStateException(\"Special async error\")");
+	        JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true,
+	                javaServerManualCorrections);
+	        String moduleName = parsingData.getModules().get(0).getModuleName();
+	        String modulePackage = parsingData.getModules().get(0).getModulePackage();
+	        StringBuilder cp = new StringBuilder(binDir.getAbsolutePath());
+	        for (File f : libDir.listFiles())
+	            cp.append(":").append(f.getAbsolutePath());
+	        List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+	        lines.addAll(Arrays.asList(
+	                "java -cp \"" + cp + "\" " + testPackage + "." + modulePackage + "." + moduleName + "Server $1 $2 $3"
+	                ));
+	        TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
 	        runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, null, portNum);
 	    } finally {
 	        jettyServer.stop();
 	    }
 	}
+
+    private Server startJobService(File binDir, File tempDir) throws Exception {
+        Server jettyServer = new Server(findFreePort());
+	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+	    context.setContextPath("/");
+	    jettyServer.setHandler(context);
+	    context.addServlet(new ServletHolder(new KBaseJobServiceServer().withBinDir(binDir)),"/*");
+	    jettyServer.start();
+        System.setProperty("KB_JOB_SERVICE_URL", "http://localhost:" + jettyServer.getConnectors()[0].getLocalPort() + "/");
+        return jettyServer;
+    }
 
 	private static void startTest(int testNum) throws Exception {
 		startTest(testNum, true);
@@ -488,10 +499,18 @@ public class TypeGeneratorTest extends Assert {
                 null, false, null, null, false, true, serverOutDir);
         return serverOutDir;
 	}
+
+	protected static JavaData prepareJavaCode(int testNum, File workDir,
+	        String testPackage, File libDir, File binDir, Integer defaultUrlPort,
+	        boolean needJavaServerCorrection) throws Exception,
+	        IOException, MalformedURLException, FileNotFoundException {
+	    return prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, defaultUrlPort, 
+	            needJavaServerCorrection, null);
+	}
 	
 	protected static JavaData prepareJavaCode(int testNum, File workDir,
 			String testPackage, File libDir, File binDir, Integer defaultUrlPort,
-			boolean needJavaServerCorrection) throws Exception,
+			boolean needJavaServerCorrection, Map<String, String> serverManualCorrections) throws Exception,
 			IOException, MalformedURLException, FileNotFoundException {
 		JavaData parsingData = null;
 		String testFileName = "test" + testNum + ".spec";
@@ -503,7 +522,7 @@ public class TypeGeneratorTest extends Assert {
 		parsingData = processSpec(workDir, testPackage, libDir, testFileName,
 				srcDir, gwtPackageName, defaultUrl);
 		if (needJavaServerCorrection)
-			javaServerCorrection(srcDir, testPackage, parsingData);
+			javaServerCorrection(srcDir, testPackage, parsingData, serverManualCorrections);
 		parsingData = processSpec(workDir, testPackage, libDir, testFileName,
 				srcDir, gwtPackageName, defaultUrl);
 		List<URL> cpUrls = new ArrayList<URL>();
@@ -888,7 +907,8 @@ public class TypeGeneratorTest extends Assert {
         }
 	}
 
-	private static void javaServerCorrection(File srcDir, String packageParent, JavaData parsingData) throws IOException {
+	private static void javaServerCorrection(File srcDir, String packageParent, JavaData parsingData, 
+	        Map<String, String> serverManualCorrections) throws IOException {
 		for (JavaModule module : parsingData.getModules()) {
             Map<String, JavaFunc> origNameToFunc = new HashMap<String, JavaFunc>();
             for (JavaFunc func : module.getFuncs()) {
@@ -901,7 +921,10 @@ public class TypeGeneratorTest extends Assert {
             	String line = perlServerLines.get(pos);
             	if (line.startsWith("        //BEGIN ")) {
             		String origFuncName = line.substring(line.lastIndexOf(' ') + 1);
-            		if (origNameToFunc.containsKey(origFuncName)) {
+            		if (serverManualCorrections != null && serverManualCorrections.containsKey(origFuncName)) {
+                        pos++;
+                        perlServerLines.add(pos, "        " + serverManualCorrections.get(origFuncName) + ";");            		    
+            		} else if (origNameToFunc.containsKey(origFuncName)) {
             			JavaFunc func = origNameToFunc.get(origFuncName);
             			int paramCount = func.getParams().size();
             			for (int paramPos = 0; paramPos < paramCount; paramPos++) {

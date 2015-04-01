@@ -655,6 +655,7 @@ public class JavaTypeGenerator {
                     classLines.addAll(Arrays.asList(
                             "        " + trFull + " retType = new " + trFull + "() {};",
                             "        while (true) {",
+                            "            try { Thread.sleep(5000); } catch(Exception ignore) {}",
                             "            " + tuple2Type + "<Boolean," + innerRetType + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "_check" + "\", args, retType, true, true);",
                             "            if (res.getE1())",
                             "                return" + (func.getRetMultyType() == null ? (retType == null ? "" : " res.getE2().get(0)") : " res.getE2()") + ";",

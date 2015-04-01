@@ -89,8 +89,8 @@ module KBaseJobService {
         JsonRpcError error;
     } FinishJobParams;
 
-    /* Finish already started job */
-    funcdef finish_job(FinishJobParams params) returns () authentication required;
+    /* Register results of already started job */
+    funcdef finish_job(job_id job_id, FinishJobParams params) returns () authentication required;
 
     /*
         finished - indicates whether job is done (including error cases) or not,

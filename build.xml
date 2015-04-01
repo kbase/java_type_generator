@@ -111,7 +111,10 @@
       <include name="apache_commons/commons-lang-2.4.jar"/>
       <include name="apache_commons/velocity-1.7.jar"/>
       <include name="apache_commons/commons-collections-3.2.1.jar"/>
-      <include name="${commonjar}"/>
+      <!-- include name="${commonjar}"/ -->
+    </fileset>
+    <fileset dir=".">
+      <include name="kbase-common-1427912127-7a6dd5f.jar"/>
     </fileset>
   </path>
 
