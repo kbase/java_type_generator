@@ -1,6 +1,7 @@
 package us.kbase.scripts.test;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -33,11 +34,29 @@ public class TemplateBasedGeneratorTest {
         Assert.assertTrue(ok);
     }
     
+    @Test
+    public void customTest() throws Exception {
+        test(22, "" +
+                "module ServerSideErrors\n" +
+                "{\n" +
+                "    funcdef produce_error_on_server_side(string p1) returns (string);\n" +
+                "};");
+    }
+
+    private static boolean test(int testNum, String spec) throws Exception {
+        return test(testNum, "", "", new ByteArrayInputStream(spec.getBytes()));
+    }
+
     private static boolean test(int testNum, String perlPackagePrefix, 
             String pyhtonPackagePrefix) throws Exception {
+        return test(testNum, perlPackagePrefix, pyhtonPackagePrefix, KidlTest.readTestSpec(testNum));
+    }
+
+    private static boolean test(int testNum, String perlPackagePrefix, 
+            String pyhtonPackagePrefix, InputStream specIS) throws Exception {
         File workDir = prepareWorkDir(testNum);
         File specFile = new File(workDir, "spec." + testNum + ".spec");
-        prepareSpec(specFile, KidlTest.readTestSpec(testNum));
+        prepareSpec(specFile, specIS);
         FileReader fr = new FileReader(specFile);
         String defUrl = null;  //"https://kbase.us/services/ws";
         boolean enableRetries = true;

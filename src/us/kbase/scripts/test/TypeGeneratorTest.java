@@ -325,6 +325,11 @@ public class TypeGeneratorTest extends Assert {
 	    }
 	}
 
+    @Test
+    public void testErrors() throws Exception {
+        startTest(13, true, true, true);
+    }
+
     private Server startJobService(File binDir, File tempDir) throws Exception {
         Server jettyServer = new Server(findFreePort());
 	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
@@ -342,39 +347,46 @@ public class TypeGeneratorTest extends Assert {
 
 	private static String getCallingMethod() {
 		StackTraceElement[] st = Thread.currentThread().getStackTrace();
-		String methodName = st[3].getMethodName();
-		if (methodName.equals("startTest")) {
-			methodName = st[4].getMethodName();
+        int pos = 3;
+		String methodName = st[pos].getMethodName();
+		while (methodName.equals("startTest")) {
+		    pos++;
+			methodName = st[pos].getMethodName();
 		}
 		return methodName;
 	}
 	
 	private static void startTest(int testNum, boolean needClientServer) throws Exception {
+	    startTest(testNum, needClientServer, needClientServer, needClientServer);
+	}
+
+	private static void startTest(int testNum, boolean needJavaServer, boolean needPerlServer, boolean needPythonServer) throws Exception {
 		File workDir = prepareWorkDir(testNum);
 		System.out.println();
 		System.out.println("Test " + testNum + " (" + getCallingMethod() + ") is starting in directory: " + workDir.getName());
 		String testPackage = rootPackageName + ".test" + testNum;
 		File libDir = new File(workDir, "lib");
 		File binDir = new File(workDir, "bin");
+		boolean needClientServer = needJavaServer || needPerlServer || needPythonServer;
 		JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null, needClientServer);
 		if (needClientServer) {
             File serverOldDir = preparePerlAndPyServerCode(testNum, workDir, false);
             File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
-            int portNum = findFreePort();
-            runPerlServerTest(testNum, needClientServer, workDir, testPackage,
-                    libDir, binDir, parsingData, serverOldDir, false, portNum);
-            portNum = findFreePort();
-            runPerlServerTest(testNum, needClientServer, workDir, testPackage,
-                    libDir, binDir, parsingData, serverOutDir, true, portNum);
-            portNum = findFreePort();
-            runPythonServerTest(testNum, needClientServer, workDir,
-                    testPackage, libDir, binDir, parsingData, serverOldDir, false, portNum);
-            portNum = findFreePort();
-			runPythonServerTest(testNum, needClientServer, workDir,
-					testPackage, libDir, binDir, parsingData, serverOutDir, true, portNum);
-	        portNum = findFreePort();
-            runJavaServerTest(testNum, needClientServer, testPackage, libDir,
-                    binDir, parsingData, serverOutDir, portNum);
+		    if (needPerlServer) {
+		        runPerlServerTest(testNum, needClientServer, workDir, testPackage,
+		                libDir, binDir, parsingData, serverOldDir, false, findFreePort());
+		        runPerlServerTest(testNum, needClientServer, workDir, testPackage,
+		                libDir, binDir, parsingData, serverOutDir, true, findFreePort());
+		    }
+            if (needPythonServer) {
+		        runPythonServerTest(testNum, needClientServer, workDir,
+		                testPackage, libDir, binDir, parsingData, serverOldDir, false, findFreePort());
+		        runPythonServerTest(testNum, needClientServer, workDir,
+		                testPackage, libDir, binDir, parsingData, serverOutDir, true, findFreePort());
+		    }
+		    if (needJavaServer)
+		        runJavaServerTest(testNum, needClientServer, testPackage, libDir,
+		                binDir, parsingData, serverOutDir, findFreePort());
 		} else {
 			runClientTest(testNum, testPackage, parsingData, libDir, binDir, -1, needClientServer, null, "no");
 		}
@@ -876,13 +888,19 @@ public class TypeGeneratorTest extends Assert {
             	if (line.startsWith("    #BEGIN ")) {
             		String origFuncName = line.substring(line.lastIndexOf(' ') + 1);
             		if (origNameToFunc.containsKey(origFuncName)) {
-            			KbFuncdef origFunc = origNameToFunc.get(origFuncName).getOriginal();
-            			int paramCount = origFunc.getParameters().size();
-            			for (int paramPos = 0; paramPos < paramCount; paramPos++) {
-            				pos++;
-            				perlServerLines.add(pos, "    $return" + (paramCount > 1 ? ("_" + (paramPos + 1)) : "") + " = $" + 
-            						origFunc.getParameters().get(paramPos).getName() + ";");
-            			}
+                        KbFuncdef origFunc = origNameToFunc.get(origFuncName).getOriginal();
+                        int paramCount = origFunc.getParameters().size();
+            		    if (origFuncName.equals("throw_error_on_server_side")) {
+                            pos++;
+                            perlServerLines.add(pos, "    Bio::KBase::Exceptions::KBaseException->throw(error => " + (paramCount > 0 ? ("$" + 
+                                    getParamPyPlName(origFunc, 0)) : "\"\"") + ", method_name => '" + origFuncName + "');");
+            		    } else {
+            		        for (int paramPos = 0; paramPos < paramCount; paramPos++) {
+            		            pos++;
+            		            perlServerLines.add(pos, "    $return" + (paramCount > 1 ? ("_" + (paramPos + 1)) : "") + " = $" + 
+            		                    getParamPyPlName(origFunc,paramPos) + ";");
+            		        }
+            		    }
             		}
             	}
             }
@@ -925,7 +943,7 @@ public class TypeGeneratorTest extends Assert {
                         perlServerLines.add(pos, "        " + serverManualCorrections.get(origFuncName) + ";");            		    
             		} else if (origNameToFunc.containsKey(origFuncName)) {
             			JavaFunc func = origNameToFunc.get(origFuncName);
-            			if (origFuncName.equals("throw_an_error")) {
+            			if (origFuncName.equals("throw_error_on_server_side")) {
                             String message = func.getParams().size() > 0 ? ("\"\" + " + func.getParams().get(0).getJavaName()) : "";
                             pos++;
                             perlServerLines.add(pos, "        if (true) throw new Exception(" + message + ");");                     
@@ -959,20 +977,33 @@ public class TypeGeneratorTest extends Assert {
             		if (origNameToFunc.containsKey(origFuncName)) {
             			KbFuncdef origFunc = origNameToFunc.get(origFuncName).getOriginal();
             			int paramCount = origFunc.getParameters().size();
-            			for (int paramPos = 0; paramPos < paramCount; paramPos++) {
-            				pos++;
-            				pyServerLines.add(pos, "        return" + (paramCount > 1 ? ("_" + (paramPos + 1)) : "Val") + " = " + 
-            						origFunc.getParameters().get(paramPos).getName());
-            			}
-            			if (paramCount == 0) {
-            				pos++;
-            				pyServerLines.add(pos, "        pass");
-            			}
+                        if (origFuncName.equals("throw_error_on_server_side")) {
+                            pos++;
+                            pyServerLines.add(pos, "        raise Exception(" + (paramCount > 0 ? 
+                                    getParamPyPlName(origFunc,0) : "''") + ")");
+                        } else {
+                            for (int paramPos = 0; paramPos < paramCount; paramPos++) {
+                                pos++;
+                                pyServerLines.add(pos, "        return" + (paramCount > 1 ? ("_" + (paramPos + 1)) : "Val") + " = " + 
+                                        getParamPyPlName(origFunc,paramPos));
+                            }
+                            if (paramCount == 0) {
+                                pos++;
+                                pyServerLines.add(pos, "        pass");
+                            }
+                        }
             		}
             	}
             }
             TextUtils.writeFileLines(pyServerLines, pyServerImpl);
         }
+	}
+	
+	private static String getParamPyPlName(KbFuncdef func, int pos) {
+	    String ret = func.getParameters().get(pos).getOriginalName();
+	    if (ret == null)
+	        ret = "arg_" + (pos + 1);
+	    return ret;
 	}
 
 	private static void runJavac(File workDir, File srcDir, String classPath, File binDir, 
