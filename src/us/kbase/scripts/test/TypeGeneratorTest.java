@@ -308,10 +308,7 @@ public class TypeGeneratorTest extends Assert {
 	        File libDir = new File(workDir, "lib");
 	        File binDir = new File(workDir, "bin");
 	        int portNum = findFreePort();
-	        Map<String, String> javaServerManualCorrections = new LinkedHashMap<String, String>();
-	        javaServerManualCorrections.put("get_with_error", "if (true) throw new IllegalStateException(\"Special async error\")");
-	        JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true,
-	                javaServerManualCorrections);
+	        JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
 	        String moduleName = parsingData.getModules().get(0).getModuleName();
 	        String modulePackage = parsingData.getModules().get(0).getModulePackage();
 	        StringBuilder cp = new StringBuilder(binDir.getAbsolutePath());
@@ -333,7 +330,7 @@ public class TypeGeneratorTest extends Assert {
 	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
 	    context.setContextPath("/");
 	    jettyServer.setHandler(context);
-	    context.addServlet(new ServletHolder(new KBaseJobServiceServer().withBinDir(binDir)),"/*");
+	    context.addServlet(new ServletHolder(new KBaseJobServiceServer().withBinDir(binDir).withTempDir(tempDir)),"/*");
 	    jettyServer.start();
         System.setProperty("KB_JOB_SERVICE_URL", "http://localhost:" + jettyServer.getConnectors()[0].getLocalPort() + "/");
         return jettyServer;
@@ -704,6 +701,8 @@ public class TypeGeneratorTest extends Assert {
 					} else {
 						throw (Exception)t;
 					}
+				} else if (t != null && t instanceof Error) {
+				    throw (Error)t;
 				} else {
 					throw ex;
 				}
@@ -926,11 +925,17 @@ public class TypeGeneratorTest extends Assert {
                         perlServerLines.add(pos, "        " + serverManualCorrections.get(origFuncName) + ";");            		    
             		} else if (origNameToFunc.containsKey(origFuncName)) {
             			JavaFunc func = origNameToFunc.get(origFuncName);
-            			int paramCount = func.getParams().size();
-            			for (int paramPos = 0; paramPos < paramCount; paramPos++) {
-            				pos++;
-            				perlServerLines.add(pos, "        return" + (paramCount > 1 ? ("" + (paramPos + 1)) : "Val") + " = " + 
-            						func.getParams().get(paramPos).getJavaName() + ";");
+            			if (origFuncName.equals("throw_an_error")) {
+                            String message = func.getParams().size() > 0 ? ("\"\" + " + func.getParams().get(0).getJavaName()) : "";
+                            pos++;
+                            perlServerLines.add(pos, "        if (true) throw new Exception(" + message + ");");                     
+            			} else {
+            			    int paramCount = func.getParams().size();
+            			    for (int paramPos = 0; paramPos < paramCount; paramPos++) {
+            			        pos++;
+            			        perlServerLines.add(pos, "        return" + (paramCount > 1 ? ("" + (paramPos + 1)) : "Val") + " = " + 
+            			                func.getParams().get(paramPos).getJavaName() + ";");
+            			    }
             			}
             		}
             	}
