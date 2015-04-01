@@ -1,4 +1,4 @@
-module KBaseJobSystem {
+module KBaseJobService {
 
     /* 
         A time in the format YYYY-MM-DDThh:mm:ssZ, where Z is either the
@@ -18,7 +18,7 @@ module KBaseJobSystem {
 
     /*
         time - the time the call was started;
-        service_method - service defined in standard JSON RPC way, typically it's
+        service - service defined in standard JSON RPC way, typically it's
             module name from spec-file like 'KBaseTrees';
         service_ver - specific version of deployed service;
         method - name of funcdef from spec-file corresponding to running method,
@@ -66,15 +66,27 @@ module KBaseJobSystem {
     /* Start a new job */
     funcdef run_job(RunJobParams params) returns (job_id job_id) authentication required;
 
+    /* Get job params necessary for job execution */
+    funcdef get_job_params(job_id job_id) returns (RunJobParams params) authentication required;
+
+    /* Error block of JSON RPC response */
+    typedef structure {
+        string name;
+        int code;
+        string message;
+        string error;
+    } JsonRpcError;
+
     /*
-        Either 'returned_data' or 'detailed_error' field should be defined;
-        returned_data - keeps exact copy of what original server method returned;
-        detailed_error - keeps exact copy of what original server method has put
+        Either 'result' or 'error' field should be defined;
+        result - keeps exact copy of what original server method puts
+            in result block of JSON RPC response;
+        error - keeps exact copy of what original server method puts
             in error block of JSON RPC response.
     */
     typedef structure {
-        UnspecifiedObject returned_data;
-        string detailed_error;
+        UnspecifiedObject result;
+        JsonRpcError error;
     } FinishJobParams;
 
     /* Finish already started job */
@@ -84,14 +96,15 @@ module KBaseJobSystem {
         finished - indicates whether job is done (including error cases) or not,
             if the value is true then either of 'returned_data' or 'detailed_error'
             should be defined;
-        returned_data - keeps exact copy of what original server method returned;
-        detailed_error - keeps exact copy of what original server method has put
+        result - keeps exact copy of what original server method puts
+            in result block of JSON RPC response;
+        error - keeps exact copy of what original server method puts
             in error block of JSON RPC response.
     */
     typedef structure {
         boolean finished;
-        UnspecifiedObject returned_data;
-        string detailed_error;
+        UnspecifiedObject result;
+        JsonRpcError error;
     } JobState;
 
     /* Check if job is finished and get results/error */ 

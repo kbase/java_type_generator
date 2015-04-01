@@ -915,8 +915,11 @@ public class JavaTypeGenerator {
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
 				printFuncComment(func, originalToJavaTypes, packageParent, classLines, false);
-				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
-						(func.getRetMultyType() == null ? "" : ", tuple = true") + (func.isAuthOptional() ? ", authOptional=true" : "") + ")");
+				classLines.add("    @" + model.ref(utilPackage + ".JsonServerMethod") + "(" +
+						"rpc = \"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\"" +
+						(func.getRetMultyType() == null ? "" : ", tuple = true") + 
+						(func.isAuthOptional() ? ", authOptional=true" : "") + 
+						(func.getOriginal().isAsync() ? ", async=true" : "") + ")");
 				classLines.add("    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") throws Exception {");
 				
 				List<String> funcLines = new LinkedList<String>();
@@ -953,14 +956,19 @@ public class JavaTypeGenerator {
 					classLines.add("    }");					
 				}
 			}
+			String fileType = model.ref("java.io.File");
 			classLines.addAll(Arrays.asList(
 					"",
 					"    public static void main(String[] args) throws Exception {",
-					"        if (args.length != 1) {",
+					"        if (args.length == 1) {",
+                    "            new " + serverClassName + "().startupServer(Integer.parseInt(args[0]));",
+					"        } else if (args.length == 3) {",
+					"            new " + serverClassName + "().processRpcCall(new " + fileType + "(args[0]), new " + fileType + "(args[1]), args[2]);",
+					"        } else {",
 					"            System.out.println(\"Usage: <program> <server_port>\");",
+                    "            System.out.println(\"   or: <program> <context_json_file> <output_json_file> <token>\");",
 					"            return;",
 					"        }",
-					"        new " + serverClassName + "().startupServer(Integer.parseInt(args[0]));",
 					"    }",
 					"}"));
 			List<String> headerLines = new ArrayList<String>(Arrays.asList(

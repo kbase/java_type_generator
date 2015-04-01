@@ -40,6 +40,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 
 import us.kbase.auth.AuthService;
 import us.kbase.common.service.UObject;
+import us.kbase.kbasejobservice.KBaseJobServiceServer;
 import us.kbase.kidl.KbFuncdef;
 import us.kbase.kidl.KbService;
 import us.kbase.kidl.KidlParser;
@@ -92,6 +93,38 @@ public class TypeGeneratorTest extends Assert {
 			String value = props.getProperty(prop);
 			System.setProperty(prop, value);
 		}
+        Log.setLog(new Logger() {
+            @Override
+            public void warn(String arg0, Object arg1, Object arg2) {}
+            @Override
+            public void warn(String arg0, Throwable arg1) {}
+            @Override
+            public void warn(String arg0) {}
+            @Override
+            public void setDebugEnabled(boolean arg0) {}
+            @Override
+            public boolean isDebugEnabled() {
+                return false;
+            }
+            @Override
+            public void info(String arg0, Object arg1, Object arg2) {}
+            @Override
+            public void info(String arg0) {}
+            @Override
+            public String getName() {
+                return null;
+            }
+            @Override
+            public Logger getLogger(String arg0) {
+                return this;
+            }
+            @Override
+            public void debug(String arg0, Object arg1, Object arg2) {}
+            @Override
+            public void debug(String arg0, Throwable arg1) {}
+            @Override
+            public void debug(String arg0) {}
+        });
 	}
 	
 	@Test
@@ -267,8 +300,33 @@ public class TypeGeneratorTest extends Assert {
 	@Ignore
     @Test
     public void testAsyncMethods() throws Exception {
-        startTest(12);
-    }
+        //startTest(12);
+	    int testNum = 12;
+	    File workDir = prepareWorkDir(testNum);
+	    System.out.println();
+	    System.out.println("Test " + testNum + " (testAsyncMethods) is starting in directory: " + workDir.getName());
+	    int jobServicePort = findFreePort();
+	    /////////////////////// Job service start up //////////////////////////
+	    Server jettyServer = new Server(jobServicePort);
+	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+	    context.setContextPath("/");
+	    jettyServer.setHandler(context);
+	    context.addServlet(new ServletHolder(new KBaseJobServiceServer()),"/*");
+	    jettyServer.start();
+        /////////////////////// Job service start up //////////////////////////
+	    try {
+	        System.setProperty("KB_JOB_SERVICE_URL", "http://localhost:" + jobServicePort + "/");
+	        String testPackage = rootPackageName + ".test" + testNum;
+	        File libDir = new File(workDir, "lib");
+	        File binDir = new File(workDir, "bin");
+	        int portNum = findFreePort();
+	        JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
+	        parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
+	        runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, null, portNum);
+	    } finally {
+	        jettyServer.stop();
+	    }
+	}
 
 	private static void startTest(int testNum) throws Exception {
 		startTest(testNum, true);
@@ -357,38 +415,6 @@ public class TypeGeneratorTest extends Assert {
 		try {
 			JavaModule mainModule = parsingData.getModules().get(0);
 			//long time = System.currentTimeMillis();
-	        Log.setLog(new Logger() {
-                @Override
-                public void warn(String arg0, Object arg1, Object arg2) {}
-                @Override
-                public void warn(String arg0, Throwable arg1) {}
-                @Override
-                public void warn(String arg0) {}
-                @Override
-                public void setDebugEnabled(boolean arg0) {}
-                @Override
-                public boolean isDebugEnabled() {
-                    return false;
-                }
-                @Override
-                public void info(String arg0, Object arg1, Object arg2) {}
-                @Override
-                public void info(String arg0) {}
-                @Override
-                public String getName() {
-                    return null;
-                }
-                @Override
-                public Logger getLogger(String arg0) {
-                    return this;
-                }
-                @Override
-                public void debug(String arg0, Object arg1, Object arg2) {}
-                @Override
-                public void debug(String arg0, Throwable arg1) {}
-                @Override
-                public void debug(String arg0) {}
-            });
 	        javaServer = new Server(portNum);
 	        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
 	        context.setContextPath("/");
