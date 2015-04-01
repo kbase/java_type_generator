@@ -76,6 +76,10 @@ public class ModuleBuilder {
         }
         IncludeProvider ip = new FileIncludeProvider(specFile.getCanonicalFile().getParentFile());
         FileSaver output = new DiskFileSaver(outDir);
+        if (javaBuildXml && new File(outDir, "build.xml").exists()) {
+            System.err.println("Warning: build.xml file already exists, generation is skipped for it");
+            javaBuildXml = false;
+        }
         FileSaver buildXml = javaBuildXml ? new OneFileSaver(output, "build.xml") : null;
         FileSaver jsonSchemaOut = null;
         if (jsonSchemaPath != null) {
