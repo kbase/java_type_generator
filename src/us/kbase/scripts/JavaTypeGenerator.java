@@ -208,7 +208,8 @@ public class JavaTypeGenerator {
 		generateClientClass(data, srcOutDir, packageParent, url);
 		if (createServers)
 			generateServerClass(data, srcOutDir, packageParent);
-		checkLibs(libOutDir, createServers, buildXml);
+		List<String> jars = checkLibs(libOutDir, createServers, buildXml);
+		generateBuildXml(data, jars, createServers, buildXml);
 		if (gwtPackage != null) {
 			GwtGenerator.generate(data, srcOutDir, gwtPackage);
 		}
@@ -1016,10 +1017,10 @@ public class JavaTypeGenerator {
 			lines.remove(lines.size() - 1);
 	}
 	
-	private static void checkLibs(FileSaver libOutDir, boolean createServers,
+	private static List<String> checkLibs(FileSaver libOutDir, boolean createServers,
 	        FileSaver buildXml) throws Exception {
 		if (libOutDir == null && buildXml == null)
-			return;
+			return null;
 		List<String> jars = new ArrayList<String>();
 		jars.add(checkLib(libOutDir, "jackson-annotations-2.2.3"));
 		jars.add(checkLib(libOutDir, "jackson-core-2.2.3"));
@@ -1033,24 +1034,100 @@ public class JavaTypeGenerator {
 		    jars.add(checkLib(libOutDir, "syslog4j-0.9.46"));
 		    jars.add(checkLib(libOutDir, "jna-3.4.0"));
 		}
-		if (buildXml != null) {
-		    Writer w = buildXml.openWriter("*");
-		    w.write("<project name=\"Generated automatically\" default=\"compile\" basedir=\".\">\n");
-		    w.write("  <property environment=\"env\"/>\n");
-		    w.write("  <property name=\"src\"     location=\"src\"/>\n");
-		    w.write("  <property name=\"classes\" location=\"classes\"/>\n");
-		    w.write("  <property name=\"lib\"     location=\"${env.KB_TOP}/modules/jars/lib/jars/\"/>\n");
-		    w.write("  <path id=\"compile.classpath\">\n");
-		    w.write("    <fileset dir=\"${lib}\">\n");
+		return jars;
+	}
+
+	private static void generateBuildXml(JavaData data, List<String> jars, boolean createServers,
+	        FileSaver buildXml) throws Exception {
+	    if (buildXml != null) {
+	        JavaModule module = data.getModules().get(0);
+	        List<String> lines = new ArrayList<String>(Arrays.asList(
+		            "<project name=\"Generated automatically\" default=\"compile\" basedir=\".\">",
+		            "  <property environment=\"env\"/>",
+		            "  <property name=\"src\"     location=\"src\"/>",
+		            "  <property name=\"classes\" location=\"classes\"/>",
+                    "  <property name=\"dist\"    location=\"dist\"/>",
+		            "  <property name=\"lib\"     location=\"${env.KB_TOP}/modules/jars/lib/jars/\"/>",
+                    "  <property name=\"module\"  value=\"" + module.getModuleName() + "\"/>",
+                    "  <property name=\"jar.file\" value=\"${module}.jar\"/>",
+		            "",
+		            "  <path id=\"compile.classpath\">",
+		            "    <fileset dir=\"${lib}\">"
+		            ));
 		    for (String jar : jars)
-		        w.write("      <include name=\"" + jar + "\"/>\n");
-            w.write("    </fileset>\n");
-            w.write("  </path>\n");
-            w.write("  <target name=\"compile\" description=\"compile the source\">\n");
-            w.write("    <mkdir dir=\"${classes}\"/>\n");
-            w.write("    <javac srcdir=\"${src}\" destdir=\"${classes}\" includeantruntime=\"false\" debug=\"true\" classpathref=\"compile.classpath\"/>\n");
-            w.write("  </target>\n");
-            w.write("</project>\n");
+		        lines.add("      <include name=\"" + jar + "\"/>");
+		    lines.addAll(Arrays.asList(
+		            "    </fileset>",
+		            "  </path>",
+		            "",
+		            "  <target name=\"compile\" description=\"compile the source\">",
+		            "    <mkdir dir=\"${classes}\"/>",
+		            "    <javac srcdir=\"${src}\" destdir=\"${classes}\" includeantruntime=\"false\" debug=\"true\" classpathref=\"compile.classpath\"/>",
+		            "    <copy todir=\"${classes}\">",
+		            "      <fileset dir=\"${src}\">",
+		            "        <patternset>",
+		            "          <include name=\"**/*\"/>",
+		            "        </patternset>",
+		            "      </fileset>",
+		            "    </copy>",
+		            "    <jar destfile=\"${dist}/${jar.file}\" basedir=\"${classes}\">",
+		            "      <manifest>",
+		            "        <!-- attribute name=\"Main-Class\" value=\"us.kbase." + module.getModulePackage() + "." + module.getModuleName() + "\"/ -->",
+		            "      </manifest>",
+		            "    </jar>",
+		            "    <delete dir=\"${classes}\"/>",
+		            "  </target>",
+		            "",
+		            "  <target name=\"preparejunitreportdir\" if=\"env.JENKINS_REPORT_DIR\">",
+		            "    <delete dir=\"${env.JENKINS_REPORT_DIR}\"/>",
+		            "    <mkdir dir=\"${env.JENKINS_REPORT_DIR}\"/>",
+		            "  </target>",
+		            "",
+		            "  <target name=\"test\" depends=\"compile, preparejunitreportdir\" description=\"run all tests\">",
+		            "    <!-- Define absolute path to main jar file-->",
+		            "    <junit printsummary=\"yes\" haltonfailure=\"yes\" fork=\"true\">",
+		            "      <classpath>",
+		            "        <pathelement location=\"${dist}/${jar.file}\"/>",
+		            "        <path refid=\"compile.classpath\"/>",
+		            "      </classpath>",
+		            "      <formatter type=\"plain\" usefile=\"false\" />",
+		            "      <formatter type=\"xml\" usefile=\"true\" if=\"env.JENKINS_REPORT_DIR\"/>",
+		            "      <batchtest todir=\"${env.JENKINS_REPORT_DIR}\">",
+		            "        <fileset dir=\"${src}\">",
+		            "          <include name=\"**/test/**/**Test.java\"/>",
+		            "        </fileset>",
+		            "      </batchtest>",
+		            "    </junit>",
+		            "  </target>"
+		            ));
+		    if (createServers) {
+		        boolean async = false;
+		        for (JavaFunc func : module.getFuncs())
+		            if (func.getOriginal().isAsync()) {
+		                async = true;
+		                break;
+		            }
+		        if (async) {
+		            String shellFileName = "run_" + module.getModuleName() + "_async_job.sh";
+		            lines.addAll(Arrays.asList(
+		                    "",
+		                    "  <target name=\"make_async_job_script\" depends=\"compile\" description=\"make batch script for async job running\">",
+		                    "    <property name=\"jar.absolute.path\" location=\"${dist}/${jar.file}\"/>",
+		                    "    <pathconvert targetos=\"unix\" property=\"lib.classpath\" refid=\"compile.classpath\"/>",
+		                    "    <echo file=\"${dist}/" + shellFileName + "\">#!/bin/sh",
+		                    "java -cp ${jar.absolute.path}:${lib.classpath} us.kbase." + module.getModulePackage() + "." + module.getModuleName() + "Server" + " $1 $2 $3",
+		                    "    </echo>",
+		                    "<chmod file=\"${dist}/" + shellFileName + "\" perm=\"a+x\"/>",
+		                    "  </target>"
+		                    ));
+		        }
+		    }
+            lines.addAll(Arrays.asList(
+		            "</project>"
+		            ));
+            Writer w = buildXml.openWriter("*");
+            for (String l : lines)
+                w.write(l + "\n");
             w.close();
 		}
 	}
