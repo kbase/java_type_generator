@@ -114,7 +114,7 @@
       <!-- include name="${commonjar}"/ -->
     </fileset>
     <fileset dir=".">
-      <include name="kbase-common-1427912127-7a6dd5f.jar"/>
+      <include name="kbase-common-temp.jar"/>
     </fileset>
   </path>
 

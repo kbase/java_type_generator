@@ -615,13 +615,13 @@ public class JavaTypeGenerator {
                 StringBuilder funcParams = new StringBuilder();
                 StringBuilder funcParamNames = new StringBuilder();
                 for (JavaFuncParam param : func.getParams()) {
-                    if (funcParams.length() > 0)
-                        funcParams.append(", ");
-                    funcParams.append(getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
-                    if (funcParamNames.length() > 0)
-                        funcParamNames.append(", ");
-                    funcParamNames.append(param.getJavaName());
+                    appendWithComma(funcParams, getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
+                    appendWithComma(funcParamNames, param.getJavaName());
                 }
+                String contextType = model.ref("us.kbase.common.service.Context");
+                String contextField = "jsonRpcCallContext";
+                appendWithComma(funcParams, contextType).append("... ").append(contextField);
+                appendWithComma(funcParamNames, contextField);
                 String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
                 String listClass = model.ref("java.util.List");
                 String arrayListClass = model.ref("java.util.ArrayList");
@@ -641,7 +641,8 @@ public class JavaTypeGenerator {
 			        String trFull = typeReferenceClass + "<List<String>>";
 			        classLines.addAll(Arrays.asList(
 			                "        " + trFull + " retType = new " + trFull + "() {};",
-			                "        " + listClass + "<String> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "_async" + "\", args, retType, true, true);",
+			                "        " + listClass + "<String> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + 
+			                        func.getOriginal().getName() + "_async" + "\", args, retType, true, true, " + contextField + ");",
                             "        return res.get(0);",
 			                "    }"
 			                ));
@@ -657,7 +658,8 @@ public class JavaTypeGenerator {
                             "        " + trFull + " retType = new " + trFull + "() {};",
                             "        while (true) {",
                             "            try { Thread.sleep(5000); } catch(Exception ignore) {}",
-                            "            " + tuple2Type + "<Boolean," + innerRetType + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "_check" + "\", args, retType, true, true);",
+                            "            " + tuple2Type + "<Boolean," + innerRetType + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + 
+                                    func.getOriginal().getName() + "_check" + "\", args, retType, true, true);",
                             "            if (res.getE1())",
                             "                return" + (func.getRetMultyType() == null ? (retType == null ? "" : " res.getE2().get(0)") : " res.getE2()") + ";",
                             "        }",
@@ -687,14 +689,14 @@ public class JavaTypeGenerator {
 			                String trFull = typeReferenceClass + "<Object>";
 			                classLines.addAll(Arrays.asList(
 			                        "        " + trFull + " retType = new " + trFull + "() {};",
-			                        "        caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
+			                        "        caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ", " + contextField + ");",
 			                        "    }"
 			                        ));
 			            } else {
 			                String trFull = typeReferenceClass + "<" + listClass + "<" + retTypeName + ">>";
 			                classLines.addAll(Arrays.asList(
 			                        "        " + trFull + " retType = new " + trFull + "() {};",
-			                        "        " + listClass + "<" + retTypeName + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
+			                        "        " + listClass + "<" + retTypeName + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ", " + contextField + ");",
 			                        "        return res.get(0);",
 			                        "    }"
 			                        ));
@@ -703,7 +705,7 @@ public class JavaTypeGenerator {
 			            String trFull = typeReferenceClass + "<" + retTypeName + ">";
 			            classLines.addAll(Arrays.asList(
 			                    "        " + trFull + " retType = new " + trFull + "() {};",
-			                    "        " + retTypeName + " res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ");",
+			                    "        " + retTypeName + " res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "\", args, retType, " + needRet + ", " + authRequired + ", " + contextField + ");",
 			                    "        return res;",
 			                    "    }"
 			                    ));					
@@ -721,6 +723,13 @@ public class JavaTypeGenerator {
 			TextUtils.writeFileLines(classLines, srcOutDir.openWriter(classFile));
 		}
 	}
+
+    private static StringBuilder appendWithComma(StringBuilder text, String item) {
+        if (text.length() > 0)
+            text.append(", ");
+        text.append(item);
+        return text;
+    }
 
 	private static void printFuncComment(JavaFunc func, Map<String, JavaType> originalToJavaTypes, 
 			String packageParent, List<String> classLines, boolean client) {
@@ -904,16 +913,11 @@ public class JavaTypeGenerator {
 					retType = func.getRetMultyType();
 				}
 				StringBuilder funcParams = new StringBuilder();
-				for (JavaFuncParam param : func.getParams()) {
-					if (funcParams.length() > 0)
-						funcParams.append(", ");
-					funcParams.append(getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
-				}
-				if (func.isAuthCouldBeUsed()) {
-					if (funcParams.length() > 0)
-						funcParams.append(", ");
-					funcParams.append(model.ref("us.kbase.auth.AuthToken")).append(" authPart");;					
-				}
+				for (JavaFuncParam param : func.getParams())
+				    appendWithComma(funcParams, getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
+				if (func.isAuthCouldBeUsed())
+				    appendWithComma(funcParams, model.ref("us.kbase.auth.AuthToken")).append(" authPart");
+                appendWithComma(funcParams, model.ref("us.kbase.common.service.Context")).append("... ").append("jsonRpcCallContext");
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
 				printFuncComment(func, originalToJavaTypes, packageParent, classLines, false);
@@ -1055,9 +1059,18 @@ public class JavaTypeGenerator {
 		            "    <fileset dir=\"${lib}\">"
 		            ));
 		    for (String jar : jars)
-		        lines.add("      <include name=\"" + jar + "\"/>");
+		        if (!new File(jar).isAbsolute())
+		            lines.add("      <include name=\"" + jar + "\"/>");
+		    
+		    lines.add("    </fileset>");
+            for (String jar : jars)
+                if (new File(jar).isAbsolute())
+                    lines.addAll(Arrays.asList(
+                            "    <fileset dir=\"" + new File(jar).getParent() + "\">",
+                            "      <include name=\"" + new File(jar).getName() + "\"/>",
+                            "    </fileset>"
+                            ));
 		    lines.addAll(Arrays.asList(
-		            "    </fileset>",
 		            "  </path>",
 		            "",
 		            "  <target name=\"compile\" description=\"compile the source\">",

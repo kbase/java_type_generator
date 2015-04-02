@@ -330,6 +330,25 @@ public class TypeGeneratorTest extends Assert {
         startTest(13, true, true, true);
     }
 
+    @Test
+    public void testRpcContext() throws Exception {
+        int testNum = 14;
+        File workDir = prepareWorkDir(testNum);
+        System.out.println();
+        System.out.println("Test " + testNum + " (testRpcContext) is starting in directory: " + workDir.getName());
+        String testPackage = rootPackageName + ".test" + testNum;
+        File libDir = new File(workDir, "lib");
+        File binDir = new File(workDir, "bin");
+        int portNum = findFreePort();
+        Map<String, String> serverManualCorrections = new HashMap<String, String>();
+        serverManualCorrections.put("send_context", "returnVal = arg1; " +
+        		"returnVal.getMethods().add(jsonRpcCallContext[0].getCallStack().get(0).getMethod()); " +
+        		"returnVal.getMethods().add(jsonRpcCallContext[0].getCallStack().get(1).getMethod())");
+        JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true,
+                serverManualCorrections);
+        runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, null, portNum);
+    }
+
     private Server startJobService(File binDir, File tempDir) throws Exception {
         Server jettyServer = new Server(findFreePort());
 	    ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
