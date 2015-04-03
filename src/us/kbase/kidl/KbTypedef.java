@@ -125,7 +125,7 @@ public class KbTypedef implements KbModuleComp, KbType {
 	}
 	
     @Override
-    public Object forTemplates() {
+    public Map<String, Object> forTemplates() {
         Map<String, Object> ret = new LinkedHashMap<String, Object>();
         ret.put("name", getName());
         ret.put("comment", getComment());

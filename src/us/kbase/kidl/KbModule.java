@@ -165,9 +165,13 @@ public class KbModule {
         ret.put("module_doc", Utils.removeStarsInComment(comment));
         List<Object> methods = new ArrayList<Object>();
         List<Object> types = new ArrayList<Object>();
+        boolean anyAsync = false;
         for (KbModuleComp comp : moduleComponents)
             if (comp instanceof KbFuncdef) {
-                methods.add(comp.forTemplates());
+                Map<String, Object> map = comp.forTemplates();
+                if (map.get("async") != null && map.get("async").toString().equals("true"))
+                    anyAsync = true;
+                methods.add(map);
             } else if (comp instanceof KbTypedef) {
                 types.add(comp.forTemplates());
             } else {
@@ -175,6 +179,8 @@ public class KbModule {
             }
         ret.put("methods", methods);
         ret.put("types", types);
+        if (anyAsync)
+            ret.put("any_async", anyAsync);
 	    return ret;
 	}
 }

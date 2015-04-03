@@ -319,7 +319,8 @@ public class TypeGeneratorTest extends Assert {
 	                "java -cp \"" + cp + "\" " + testPackage + "." + modulePackage + "." + moduleName + "Server $1 $2 $3"
 	                ));
 	        TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
-	        runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, null, portNum);
+            File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
+	        runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir, portNum);
 	    } finally {
 	        jettyServer.stop();
 	    }

@@ -120,7 +120,7 @@ public class KbFuncdef implements KbModuleComp {
 	}
 
     @Override
-    public Object forTemplates() {
+    public Map<String, Object> forTemplates() {
         Map<String, Object> ret = new LinkedHashMap<String, Object>();
         ret.put("name", name);
         ret.put("arg_count", parameters.size());
@@ -162,6 +162,8 @@ public class KbFuncdef implements KbModuleComp {
             returns.add(paramMap);
         }
         ret.put("returns", returns);
+        if (isAsync())
+            ret.put("async", true);
         return ret;
     }
     
