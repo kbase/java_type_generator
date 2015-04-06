@@ -310,21 +310,6 @@ public class JavaTypeGenerator {
 	
 	private static void generateTupleClasses(JavaData data, FileSaver srcOutDir, String packageParent) throws Exception {
 		Set<Integer> tupleTypes = data.getTupleTypes();
-		if (!tupleTypes.contains(2)) {
-		    boolean anyAsync = false;
-		    for (JavaModule module : data.getModules()) {
-		        for (JavaFunc func : module.getFuncs()) {
-		            if (func.getOriginal().isAsync()) {
-		                anyAsync = true;
-		                break;
-		            }
-		        }
-		        if (anyAsync)
-		            break;
-		    }
-		    if (anyAsync)
-		        tupleTypes.add(2);
-		}
 		if (tupleTypes.size() > 0) {
 			String utilDir = utilPackage.replace('.', '/');
 			for (int tupleType : tupleTypes) {
@@ -618,8 +603,8 @@ public class JavaTypeGenerator {
                     appendWithComma(funcParams, getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
                     appendWithComma(funcParamNames, param.getJavaName());
                 }
-                String contextType = model.ref("us.kbase.common.service.Context");
-                String contextField = "jsonRpcCallContext";
+                String contextType = model.ref("us.kbase.common.service.RpcContext");
+                String contextField = "jsonRpcContext";
                 appendWithComma(funcParams, contextType).append("... ").append(contextField);
                 appendWithComma(funcParamNames, contextField);
                 String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
@@ -638,7 +623,7 @@ public class JavaTypeGenerator {
 			            classLines.add("        args.add(" + param.getJavaName() + ");");
 			        }
 			        String typeReferenceClass = model.ref("com.fasterxml.jackson.core.type.TypeReference");
-			        String trFull = typeReferenceClass + "<List<String>>";
+			        String trFull = typeReferenceClass + "<" + listClass + "<String>>";
 			        classLines.addAll(Arrays.asList(
 			                "        " + trFull + " retType = new " + trFull + "() {};",
 			                "        " + listClass + "<String> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + 
@@ -647,22 +632,18 @@ public class JavaTypeGenerator {
 			                "    }"
 			                ));
                     classLines.add("");
-                    String tuple2Type = model.ref(utilPackage + ".Tuple2");
+                    String jobStateType = model.ref("us.kbase.common.service.JobState");
+                    String innerRetType = (func.getRetMultyType() == null) ? ((retType == null) ? "Object" : (listClass + "<" + retTypeName + ">")) : retTypeName;
                     printFuncComment(func, originalToJavaTypes, packageParent, classLines, true);
-                    classLines.add("    public " + retTypeName + " " + func.getJavaName() + "WaitFor(String jobId) " + exceptions+ " {");
+                    classLines.add("    public " + jobStateType + "<" + innerRetType + "> " + func.getJavaName() + "Check(String jobId) " + exceptions+ " {");
                     classLines.add("        " + listClass + "<Object> args = new " + arrayListClass + "<Object>();");
                     classLines.add("        args.add(jobId);");
-                    String innerRetType = (func.getRetMultyType() == null) ? ((retType == null) ? "Object" : (listClass + "<" + retTypeName + ">")) : retTypeName;
-                    trFull = typeReferenceClass + "<" + tuple2Type + "<Boolean," + innerRetType + ">>";
+                    trFull = typeReferenceClass + "<" + listClass + "<" + jobStateType + "<" + innerRetType + ">>>";
                     classLines.addAll(Arrays.asList(
                             "        " + trFull + " retType = new " + trFull + "() {};",
-                            "        while (true) {",
-                            "            try { Thread.sleep(5000); } catch(Exception ignore) {}",
-                            "            " + tuple2Type + "<Boolean," + innerRetType + "> res = caller.jsonrpcCall(\"" + module.getOriginal().getModuleName() + "." + 
-                                    func.getOriginal().getName() + "_check" + "\", args, retType, true, true);",
-                            "            if (res.getE1())",
-                            "                return" + (func.getRetMultyType() == null ? (retType == null ? "" : " res.getE2().get(0)") : " res.getE2()") + ";",
-                            "        }",
+                            "        " + listClass + "<" + jobStateType + "<" + innerRetType + ">> res = caller.jsonrpcCall(\"" + 
+                                    module.getOriginal().getModuleName() + "." + func.getOriginal().getName() + "_check" + "\", args, retType, true, true);",
+                            "        return res.get(0);",
                             "    }"
                             ));
                     classLines.add("");
@@ -670,7 +651,12 @@ public class JavaTypeGenerator {
                     classLines.addAll(Arrays.asList(
                             "    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") " + exceptions+ " {",
                             "        String jobId = " + func.getJavaName() + "Async(" + funcParamNames + ");",
-                            "        " + (func.getRetMultyType() == null && retType == null ? "" : "return ") + func.getJavaName() + "WaitFor(jobId);",
+                            "        while (true) {",
+                            "            try { Thread.sleep(5000); } catch(Exception ignore) {}",
+                            "            " + jobStateType + "<" + innerRetType + "> res = " + func.getJavaName() + "Check(jobId);",
+                            "            if (res.getFinished() != 0L)",
+                            "                return" + (func.getRetMultyType() == null ? (retType == null ? "" : " res.getResult().get(0)") : " res.getResult()") + ";",
+                            "        }",
                             "    }"
                             ));
 			    } else {
@@ -917,7 +903,7 @@ public class JavaTypeGenerator {
 				    appendWithComma(funcParams, getJType(param.getType(), packageParent, model)).append(" ").append(param.getJavaName());
 				if (func.isAuthCouldBeUsed())
 				    appendWithComma(funcParams, model.ref("us.kbase.auth.AuthToken")).append(" authPart");
-                appendWithComma(funcParams, model.ref("us.kbase.common.service.Context")).append("... ").append("jsonRpcCallContext");
+                appendWithComma(funcParams, model.ref("us.kbase.common.service.RpcContext")).append("... ").append("jsonRpcContext");
 				String retTypeName = retType == null ? "void" : getJType(retType, packageParent, model);
 				classLines.add("");
 				printFuncComment(func, originalToJavaTypes, packageParent, classLines, false);
