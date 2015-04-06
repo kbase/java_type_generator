@@ -16,14 +16,14 @@ import us.kbase.common.service.UObject;
 /**
  * <p>Original spec-file type: RunJobParams</p>
  * <pre>
- * service - service defined in standard JSON RPC way, typically it's
- *     module name from spec-file like 'KBaseTrees';
+ * method - service defined in standard JSON RPC way, typically it's
+ *     module name from spec-file followed by '.' and name of funcdef 
+ *     from spec-file corresponding to running method (e.g.
+ *     'KBaseTrees.construct_species_tree' from trees service);
+ * params - the parameters of the method that performed this call;
  * service_ver - specific version of deployed service, last version is used 
  *     if this parameter is not defined (optional field);
- * method - name of funcdef from spec-file corresponding to running method,
- *     like 'construct_species_tree' from trees service;
- * method_params - the parameters of the method that performed this call;
- * context - context of current method call including nested call history
+ * rpc_context - context of current method call including nested call history
  *     (optional field, could be omitted in case there is no call history).
  * </pre>
  * 
@@ -31,46 +31,58 @@ import us.kbase.common.service.UObject;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Generated("com.googlecode.jsonschema2pojo")
 @JsonPropertyOrder({
-    "service",
-    "service_ver",
     "method",
-    "method_params",
-    "context"
+    "params",
+    "service_ver",
+    "rpc_context"
 })
 public class RunJobParams {
 
-    @JsonProperty("service")
-    private String service;
-    @JsonProperty("service_ver")
-    private String serviceVer;
     @JsonProperty("method")
     private String method;
-    @JsonProperty("method_params")
-    private List<UObject> methodParams;
+    @JsonProperty("params")
+    private List<UObject> params;
+    @JsonProperty("service_ver")
+    private String serviceVer;
     /**
-     * <p>Original spec-file type: Context</p>
+     * <p>Original spec-file type: RpcContext</p>
      * <pre>
      * call_stack - upstream calls details including nested service calls and 
      *     parent jobs where calls are listed in order from outer to inner.
      * </pre>
      * 
      */
-    @JsonProperty("context")
-    private Context context;
+    @JsonProperty("rpc_context")
+    private RpcContext rpcContext;
     private Map<String, Object> additionalProperties = new HashMap<String, Object>();
 
-    @JsonProperty("service")
-    public String getService() {
-        return service;
+    @JsonProperty("method")
+    public String getMethod() {
+        return method;
     }
 
-    @JsonProperty("service")
-    public void setService(String service) {
-        this.service = service;
+    @JsonProperty("method")
+    public void setMethod(String method) {
+        this.method = method;
     }
 
-    public RunJobParams withService(String service) {
-        this.service = service;
+    public RunJobParams withMethod(String method) {
+        this.method = method;
+        return this;
+    }
+
+    @JsonProperty("params")
+    public List<UObject> getParams() {
+        return params;
+    }
+
+    @JsonProperty("params")
+    public void setParams(List<UObject> params) {
+        this.params = params;
+    }
+
+    public RunJobParams withParams(List<UObject> params) {
+        this.params = params;
         return this;
     }
 
@@ -89,64 +101,34 @@ public class RunJobParams {
         return this;
     }
 
-    @JsonProperty("method")
-    public String getMethod() {
-        return method;
-    }
-
-    @JsonProperty("method")
-    public void setMethod(String method) {
-        this.method = method;
-    }
-
-    public RunJobParams withMethod(String method) {
-        this.method = method;
-        return this;
-    }
-
-    @JsonProperty("method_params")
-    public List<UObject> getMethodParams() {
-        return methodParams;
-    }
-
-    @JsonProperty("method_params")
-    public void setMethodParams(List<UObject> methodParams) {
-        this.methodParams = methodParams;
-    }
-
-    public RunJobParams withMethodParams(List<UObject> methodParams) {
-        this.methodParams = methodParams;
-        return this;
-    }
-
     /**
-     * <p>Original spec-file type: Context</p>
+     * <p>Original spec-file type: RpcContext</p>
      * <pre>
      * call_stack - upstream calls details including nested service calls and 
      *     parent jobs where calls are listed in order from outer to inner.
      * </pre>
      * 
      */
-    @JsonProperty("context")
-    public Context getContext() {
-        return context;
+    @JsonProperty("rpc_context")
+    public RpcContext getRpcContext() {
+        return rpcContext;
     }
 
     /**
-     * <p>Original spec-file type: Context</p>
+     * <p>Original spec-file type: RpcContext</p>
      * <pre>
      * call_stack - upstream calls details including nested service calls and 
      *     parent jobs where calls are listed in order from outer to inner.
      * </pre>
      * 
      */
-    @JsonProperty("context")
-    public void setContext(Context context) {
-        this.context = context;
+    @JsonProperty("rpc_context")
+    public void setRpcContext(RpcContext rpcContext) {
+        this.rpcContext = rpcContext;
     }
 
-    public RunJobParams withContext(Context context) {
-        this.context = context;
+    public RunJobParams withRpcContext(RpcContext rpcContext) {
+        this.rpcContext = rpcContext;
         return this;
     }
 
@@ -162,7 +144,7 @@ public class RunJobParams {
 
     @Override
     public String toString() {
-        return ((((((((((((("RunJobParams"+" [service=")+ service)+", serviceVer=")+ serviceVer)+", method=")+ method)+", methodParams=")+ methodParams)+", context=")+ context)+", additionalProperties=")+ additionalProperties)+"]");
+        return ((((((((((("RunJobParams"+" [method=")+ method)+", params=")+ params)+", serviceVer=")+ serviceVer)+", rpcContext=")+ rpcContext)+", additionalProperties=")+ additionalProperties)+"]");
     }
 
 }

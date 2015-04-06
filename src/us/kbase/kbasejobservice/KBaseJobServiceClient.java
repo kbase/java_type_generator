@@ -146,11 +146,11 @@ public class KBaseJobServiceClient {
      * @throws IOException if an IO exception occurs
      * @throws JsonClientException if a JSON RPC exception occurs
      */
-    public String runJob(RunJobParams params) throws IOException, JsonClientException {
+    public String runJob(RunJobParams params, us.kbase.common.service.RpcContext... jsonRpcCallContext) throws IOException, JsonClientException {
         List<Object> args = new ArrayList<Object>();
         args.add(params);
         TypeReference<List<String>> retType = new TypeReference<List<String>>() {};
-        List<String> res = caller.jsonrpcCall("KBaseJobService.run_job", args, retType, true, true);
+        List<String> res = caller.jsonrpcCall("KBaseJobService.run_job", args, retType, true, true, jsonRpcCallContext);
         return res.get(0);
     }
 
@@ -164,11 +164,11 @@ public class KBaseJobServiceClient {
      * @throws IOException if an IO exception occurs
      * @throws JsonClientException if a JSON RPC exception occurs
      */
-    public RunJobParams getJobParams(String jobId) throws IOException, JsonClientException {
+    public RunJobParams getJobParams(String jobId, us.kbase.common.service.RpcContext... jsonRpcCallContext) throws IOException, JsonClientException {
         List<Object> args = new ArrayList<Object>();
         args.add(jobId);
         TypeReference<List<RunJobParams>> retType = new TypeReference<List<RunJobParams>>() {};
-        List<RunJobParams> res = caller.jsonrpcCall("KBaseJobService.get_job_params", args, retType, true, true);
+        List<RunJobParams> res = caller.jsonrpcCall("KBaseJobService.get_job_params", args, retType, true, true, jsonRpcCallContext);
         return res.get(0);
     }
 
@@ -182,12 +182,12 @@ public class KBaseJobServiceClient {
      * @throws IOException if an IO exception occurs
      * @throws JsonClientException if a JSON RPC exception occurs
      */
-    public void finishJob(String jobId, FinishJobParams params) throws IOException, JsonClientException {
+    public void finishJob(String jobId, FinishJobParams params, us.kbase.common.service.RpcContext... jsonRpcCallContext) throws IOException, JsonClientException {
         List<Object> args = new ArrayList<Object>();
         args.add(jobId);
         args.add(params);
         TypeReference<Object> retType = new TypeReference<Object>() {};
-        caller.jsonrpcCall("KBaseJobService.finish_job", args, retType, false, true);
+        caller.jsonrpcCall("KBaseJobService.finish_job", args, retType, false, true, jsonRpcCallContext);
     }
 
     /**
@@ -200,11 +200,11 @@ public class KBaseJobServiceClient {
      * @throws IOException if an IO exception occurs
      * @throws JsonClientException if a JSON RPC exception occurs
      */
-    public JobState checkJob(String jobId) throws IOException, JsonClientException {
+    public JobState checkJob(String jobId, us.kbase.common.service.RpcContext... jsonRpcCallContext) throws IOException, JsonClientException {
         List<Object> args = new ArrayList<Object>();
         args.add(jobId);
         TypeReference<List<JobState>> retType = new TypeReference<List<JobState>>() {};
-        List<JobState> res = caller.jsonrpcCall("KBaseJobService.check_job", args, retType, true, true);
+        List<JobState> res = caller.jsonrpcCall("KBaseJobService.check_job", args, retType, true, true, jsonRpcCallContext);
         return res.get(0);
     }
 }

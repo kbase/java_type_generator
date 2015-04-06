@@ -18,21 +18,15 @@ module KBaseJobService {
 
     /*
         time - the time the call was started;
-        service - service defined in standard JSON RPC way, typically it's
-            module name from spec-file like 'KBaseTrees';
-        service_ver - specific version of deployed service;
-        method - name of funcdef from spec-file corresponding to running method,
-            like 'construct_species_tree' from trees service;
-        method_params - the parameters of the method that performed this call;
-        token - user token (required for any asynchronous method);
+        method - service defined in standard JSON RPC way, typically it's
+            module name from spec-file followed by '.' and name of funcdef
+            from spec-file corresponding to running method (e.g.
+            'KBaseTrees.construct_species_tree' from trees service);
         job_id - job id if method is asynchronous (optional field).
     */
     typedef structure {
         timestamp time;
-        string service;
-        string service_ver;
         string method;
-        list<UnspecifiedObject> method_params;
         job_id job_id;
     } MethodCall;
 
@@ -42,25 +36,25 @@ module KBaseJobService {
     */
     typedef structure {
         list<MethodCall> call_stack;
-    } Context;
+        string run_id;
+    } RpcContext;
 
     /*
-        service - service defined in standard JSON RPC way, typically it's
-            module name from spec-file like 'KBaseTrees';
+        method - service defined in standard JSON RPC way, typically it's
+            module name from spec-file followed by '.' and name of funcdef 
+            from spec-file corresponding to running method (e.g.
+            'KBaseTrees.construct_species_tree' from trees service);
+        params - the parameters of the method that performed this call;
         service_ver - specific version of deployed service, last version is used 
             if this parameter is not defined (optional field);
-        method - name of funcdef from spec-file corresponding to running method,
-            like 'construct_species_tree' from trees service;
-        method_params - the parameters of the method that performed this call;
-        context - context of current method call including nested call history
+        rpc_context - context of current method call including nested call history
             (optional field, could be omitted in case there is no call history).
     */
     typedef structure {
-        string service;
-        string service_ver;
         string method;
-        list<UnspecifiedObject> method_params;
-        Context context;
+        list<UnspecifiedObject> params;
+        string service_ver;
+        RpcContext rpc_context;
     } RunJobParams;
 
     /* Start a new job */
@@ -96,6 +90,8 @@ module KBaseJobService {
         finished - indicates whether job is done (including error cases) or not,
             if the value is true then either of 'returned_data' or 'detailed_error'
             should be defined;
+        ujs_url - url of UserAndJobState service used by job service
+        status - tuple returned by UserAndJobState.get_job_status method
         result - keeps exact copy of what original server method puts
             in result block of JSON RPC response;
         error - keeps exact copy of what original server method puts
@@ -103,6 +99,8 @@ module KBaseJobService {
     */
     typedef structure {
         boolean finished;
+        string ujs_url;
+        UnspecifiedObject status;
         UnspecifiedObject result;
         JsonRpcError error;
     } JobState;

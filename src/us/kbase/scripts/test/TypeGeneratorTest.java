@@ -352,8 +352,8 @@ public class TypeGeneratorTest extends Assert {
         int portNum = findFreePort();
         Map<String, String> serverManualCorrections = new HashMap<String, String>();
         serverManualCorrections.put("send_context", "returnVal = arg1; " +
-        		"returnVal.getMethods().add(jsonRpcCallContext[0].getCallStack().get(0).getMethod()); " +
-        		"returnVal.getMethods().add(jsonRpcCallContext[0].getCallStack().get(1).getMethod())");
+        		"returnVal.getMethods().add(jsonRpcContext[0].getCallStack().get(0).getMethod()); " +
+        		"returnVal.getMethods().add(jsonRpcContext[0].getCallStack().get(1).getMethod())");
         JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true,
                 serverManualCorrections);
         runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, null, portNum);
