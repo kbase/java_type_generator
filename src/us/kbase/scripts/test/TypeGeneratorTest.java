@@ -303,6 +303,7 @@ public class TypeGeneratorTest extends Assert {
 	    System.out.println();
 	    System.out.println("Test " + testNum + " (testAsyncMethods) is starting in directory: " + workDir.getName());
 	    Server jettyServer = startJobService(workDir, workDir);
+	    String jobServiceUrl = "http://localhost:" + jettyServer.getConnectors()[0].getLocalPort() + "/";
 	    try {
 	        String testPackage = rootPackageName + ".test" + testNum;
 	        File libDir = new File(workDir, "lib");
@@ -320,7 +321,15 @@ public class TypeGeneratorTest extends Assert {
 	                ));
 	        TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
             File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
-	        runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir, portNum);
+	        //runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir, portNum);
+            lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+            lines.addAll(Arrays.asList(
+                    "cd \"" + serverOutDir.getAbsolutePath() + "\"",
+                    "perl " + findPerlServerScript(serverOutDir).getName() + " $1 $2 $3 > perl_cli.out 2> perl_cli.err"
+                    ));
+            TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
+            runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, 
+                    parsingData, serverOutDir, true, findFreePort(), jobServiceUrl);
 	    } finally {
 	        jettyServer.stop();
 	    }
@@ -483,13 +492,15 @@ public class TypeGeneratorTest extends Assert {
 	protected static void runPerlServerTest(int testNum,
 			boolean needClientServer, File workDir, String testPackage,
 			File libDir, File binDir, JavaData parsingData, File serverOutDir,
-			boolean newStyle, int portNum) throws IOException, Exception {
+			boolean newStyle, int portNum, String... jobServiceUrl) throws IOException, Exception {
 	    String serverType = (newStyle ? "New" : "Old") + " perl";
 		perlServerCorrection(serverOutDir, parsingData);
 		File pidFile = new File(serverOutDir, "pid.txt");
 		try {
 			File plackupFile = new File(serverOutDir, "start_perl_server.sh");
 			List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+			if (jobServiceUrl != null && jobServiceUrl.length == 1)
+			    lines.add("export KB_JOB_SERVICE_URL=" + jobServiceUrl[0]);
 			//JavaTypeGenerator.checkEnvVars(lines, "PERL5LIB");
 			lines.addAll(Arrays.asList(
                     "cd \"" + serverOutDir.getAbsolutePath() + "\"",
@@ -610,7 +621,15 @@ public class TypeGeneratorTest extends Assert {
 		}
 		throw new IllegalStateException("Can not find python server script");
 	}
-	
+
+	private static File findPerlServerScript(File dir) {
+	    for (File f : dir.listFiles()) {
+	        if (f.getName().endsWith("Server.pm"))
+	            return f;
+	    }
+	    throw new IllegalStateException("Can not find perl server script");
+	}
+
 	private static void compileModulesIntoBin(File workDir, File srcDir, String testPackage, 
 			JavaData parsingData, String classPath, File binDir) throws IOException, MalformedURLException {
 		if (!binDir.exists())
@@ -700,7 +719,7 @@ public class TypeGeneratorTest extends Assert {
 		//System.out.println("Port: " + portNum);
         URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
 		ConnectException error = null;
-		for (int n = 0; n < 50; n++) {
+		for (int n = 0; n < 10; n++) {
 			Thread.sleep(100);
 			try {
 				for (JavaModule module : parsingData.getModules()) {
