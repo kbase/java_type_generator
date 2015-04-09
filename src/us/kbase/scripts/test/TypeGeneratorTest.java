@@ -38,6 +38,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
 import us.kbase.auth.AuthService;
+import us.kbase.common.service.ServerException;
 import us.kbase.common.service.UObject;
 import us.kbase.kbasejobservice.KBaseJobServiceServer;
 import us.kbase.kidl.KbFuncdef;
@@ -303,13 +304,12 @@ public class TypeGeneratorTest extends Assert {
 	    System.out.println();
 	    System.out.println("Test " + testNum + " (testAsyncMethods) is starting in directory: " + workDir.getName());
 	    Server jettyServer = startJobService(workDir, workDir);
-	    String jobServiceUrl = "http://localhost:" + jettyServer.getConnectors()[0].getLocalPort() + "/";
+        String jobServiceUrl = "http://localhost:" + jettyServer.getConnectors()[0].getLocalPort() + "/";
 	    try {
 	        String testPackage = rootPackageName + ".test" + testNum;
 	        File libDir = new File(workDir, "lib");
 	        File binDir = new File(workDir, "bin");
-	        int portNum = findFreePort();
-	        JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, portNum, true);
+	        JavaData parsingData = prepareJavaCode(testNum, workDir, testPackage, libDir, binDir, null, true);
 	        String moduleName = parsingData.getModules().get(0).getModuleName();
 	        String modulePackage = parsingData.getModules().get(0).getModulePackage();
 	        StringBuilder cp = new StringBuilder(binDir.getAbsolutePath());
@@ -321,7 +321,15 @@ public class TypeGeneratorTest extends Assert {
 	                ));
 	        TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
             File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
-	        //runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir, portNum);
+	        runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir, findFreePort());
+            lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+            lines.addAll(Arrays.asList(
+                    "cd \"" + serverOutDir.getAbsolutePath() + "\"",
+                    "python " + findPythonServerScript(serverOutDir).getName() + " $1 $2 $3 > py_cli.out 2> py_cli.err"
+                    ));
+            TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
+	        runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, 
+	                parsingData, serverOutDir, true, findFreePort(), jobServiceUrl);
             lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
             lines.addAll(Arrays.asList(
                     "cd \"" + serverOutDir.getAbsolutePath() + "\"",
@@ -424,7 +432,7 @@ public class TypeGeneratorTest extends Assert {
 	protected static void runPythonServerTest(int testNum,
 			boolean needClientServer, File workDir, String testPackage,
 			File libDir, File binDir, JavaData parsingData, File serverOutDir,
-			boolean newStyle, int portNum) throws IOException, Exception {
+			boolean newStyle, int portNum, String... jobServiceUrl) throws IOException, Exception {
 		String serverType = (newStyle ? "New" : "Old") + " python";
 		File pidFile = new File(serverOutDir, "pid.txt");
 		pythonServerCorrection(serverOutDir, parsingData);
@@ -432,6 +440,8 @@ public class TypeGeneratorTest extends Assert {
 			File serverFile = findPythonServerScript(serverOutDir);
 			File uwsgiFile = new File(serverOutDir, "start_py_server.sh");
 			List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+			if (jobServiceUrl != null && jobServiceUrl.length == 1)
+			    lines.add("export KB_JOB_SERVICE_URL=" + jobServiceUrl[0]);
 			//JavaTypeGenerator.checkEnvVars(lines, "PYTHONPATH");
 			lines.addAll(Arrays.asList(
 			        "cd \"" + serverOutDir.getAbsolutePath() + "\"",
@@ -750,6 +760,10 @@ public class TypeGeneratorTest extends Assert {
 					if (t instanceof ConnectException) {
 						error = (ConnectException)t;
 					} else {
+					    if (t instanceof ServerException) {
+					        throw new IllegalStateException("ServerException: " + t.getMessage() + 
+					                " (" + ((ServerException)t).getData() + ")");
+					    }
 						throw (Exception)t;
 					}
 				} else if (t != null && t instanceof Error) {
