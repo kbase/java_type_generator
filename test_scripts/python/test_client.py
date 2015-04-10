@@ -14,14 +14,15 @@ def main(argv):
     endpoint = None
     user = None
     password = None
+    async_job_check_time_ms = None
     try:
-        opts, args = getopt.getopt(argv,"ht:e:u:p:",["help","tests=","endpoint=","user=","password="])
+        opts, args = getopt.getopt(argv,"ht:e:u:p:a:",["help","tests=","endpoint=","user=","password=","asyncchecktime="])
     except getopt.GetoptError:
         print 'Please use "test_client.py -h" or "test_client.py --help" for help'
         sys.exit(2)
     for opt, arg in opts:
         if opt in ("-h", "--help"):
-            print 'test_client.py --tests <json_file> --endpoint <url> [--user <kbase_account> --password <password>]'
+            print 'test_client.py --tests <json_file> --endpoint <url> [--user <kbase_account> --password <password> [--asyncchecktime <ms>]]'
             sys.exit()
         elif opt in ("-t", "--tests"):
             tests_filepath = arg
@@ -31,6 +32,8 @@ def main(argv):
             user = arg
         elif opt in ("-p", "--password"):
             password = arg
+        elif opt in ("-a", "--asyncchecktime"):
+            async_job_check_time_ms = long(arg)
     fh = open(tests_filepath)
     tests_json = json.load(fh)
     module_file = tests_json['package']
@@ -40,7 +43,10 @@ def main(argv):
     for test in tests_json['tests']:
         client_instance = None
         if 'auth' in test and test['auth']:
-            client_instance = client_class(url = endpoint, user_id = user, password = password)
+            if async_job_check_time_ms:
+                client_instance = client_class(url = endpoint, user_id = user, password = password, async_job_check_time_ms = async_job_check_time_ms)
+            else:
+                client_instance = client_class(url = endpoint, user_id = user, password = password)
         else:
             client_instance = client_class(url = endpoint, ignore_authrc = True)
         method_name = test['method']

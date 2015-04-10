@@ -1,6 +1,6 @@
 //
 // usage:
-//   casperjs test test-client.js --jq=[jquery_lib_path] --tests=[test_cfg_file] --endpoint=[server_url] --token=[token]
+//   casperjs test test-client.js --jq=[jquery_lib_path] --tests=[test_cfg_file] --endpoint=[server_url] --token=[token] --asyncchecktime=[ms]
 //
 //
 
@@ -39,7 +39,8 @@ casper.test.begin('JS Client Test Initialization', 9, function suite(test) {
     // instantiate the clients
     var noauthClient = new window[testcfg['class']](casper.cli.get('endpoint'));
     test.assertTruthy(noauthClient,'Unauthenticated client instantiated.');
-    var authClient   = new window[testcfg['class']](casper.cli.get('endpoint'),{token:casper.cli.get('token')});
+    var authClient   = new window[testcfg['class']](casper.cli.get('endpoint'),
+        {token:casper.cli.get('token')}, undefined, undefined, casper.cli.get('asyncchecktime'));
     test.assertTruthy(noauthClient,'Authenticated client instantiated.');
 
     // run through each test

@@ -401,6 +401,13 @@ public class JavaTypeGenerator {
 					break;
 				}
 			}
+            boolean anyAsync = false;
+            for (JavaFunc func : module.getFuncs()) {
+                if (func.getOriginal().isAsync()) {
+                    anyAsync = true;
+                    break;
+                }
+            }
 			List<String> classLines = new ArrayList<String>();
 			String urlClass = model.ref("java.net.URL");
 			String tokenClass = model.ref("us.kbase.auth.AuthToken");
@@ -409,6 +416,8 @@ public class JavaTypeGenerator {
 					"public class " + clientClassName + " {",
 					"    private " + callerClass + " caller;"
 					));
+			if (anyAsync)
+			    classLines.add("    private long asyncJobCheckTimeMs = 5000;");
 			if (url != null) {
 				classLines.addAll(Arrays.asList(
 					"    private static URL DEFAULT_URL = null;",
@@ -588,6 +597,17 @@ public class JavaTypeGenerator {
 					"        caller.setFileForNextRpcResponse(f);",
 					"    }"
 					));
+			if (anyAsync)
+			    classLines.addAll(Arrays.asList(
+			            "",
+			            "    public long getAsyncJobCheckTimeMs() {",
+			            "        return this.asyncJobCheckTimeMs;",
+			            "    }",
+                        "",
+                        "    public void setAsyncJobCheckTimeMs(long newValue) {",
+                        "        this.asyncJobCheckTimeMs = newValue;",
+                        "    }"
+			            ));
 			for (JavaFunc func : module.getFuncs()) {
                 JavaType retType = null;
                 if (func.getRetMultyType() == null) {
@@ -652,7 +672,13 @@ public class JavaTypeGenerator {
                             "    public " + retTypeName + " " + func.getJavaName() + "(" + funcParams + ") " + exceptions+ " {",
                             "        String jobId = " + func.getJavaName() + "Async(" + funcParamNames + ");",
                             "        while (true) {",
-                            "            try { Thread.sleep(5000); } catch(Exception ignore) {}",
+                            "            if (Thread.currentThread().isInterrupted())",
+                            "                throw new " + model.ref(utilPackage + ".JsonClientException") + "(\"Thread was interrupted\");",
+                            "            try { ",
+                            "                Thread.sleep(this.asyncJobCheckTimeMs);",
+                            "            } catch(Exception ex) {",
+                            "                throw new " + model.ref(utilPackage + ".JsonClientException") + "(\"Thread was interrupted\", ex);",
+                            "            }",
                             "            " + jobStateType + "<" + innerRetType + "> res = " + func.getJavaName() + "Check(jobId);",
                             "            if (res.getFinished() != 0L)",
                             "                return" + (func.getRetMultyType() == null ? (retType == null ? "" : " res.getResult().get(0)") : " res.getResult()") + ";",

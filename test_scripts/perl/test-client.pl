@@ -25,6 +25,7 @@ DESCRIPTION
       --endpoint [url]   endpoint of the server to test
       --user [username]  username for testing authenticated calls
       --password [pswd]  password for the user for testing authenticated calls
+      --asyncchecktime [ms] time client waits every cycle of checking state of async methods 
       -h, --help         display this help message, ignore all arguments
 ";
       
@@ -35,6 +36,7 @@ my $endpoint;
 
 my $user;
 my $password;
+my $async_job_check_time_ms;
 
 my $help;
 
@@ -44,6 +46,7 @@ my $opt = GetOptions (
         "endpoint=s" => \$endpoint,
         "user=s" => \$user,
         "password=s" => \$password,
+        "asyncchecktime=i" => \$async_job_check_time_ms,
         "help|h" => \$help,
         );
 
@@ -101,7 +104,11 @@ ok(defined($nonauthenticated_client),"instantiating nonauthenticated client");
 
 my $authenticated_client;
 if($user && $password) {
-    $authenticated_client=$client_module->new($endpoint,user_id=>$user, password=>$password);
+    if ($async_job_check_time_ms) {
+        $authenticated_client=$client_module->new($endpoint,user_id=>$user, password=>$password, async_job_check_time_ms=>$async_job_check_time_ms);
+    } else {
+        $authenticated_client=$client_module->new($endpoint,user_id=>$user, password=>$password);
+    }
     ok(defined($authenticated_client),"instantiating authenticated client");
 }
 

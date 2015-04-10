@@ -66,6 +66,7 @@ public class TypeGeneratorTest extends Assert {
     
     private static Boolean isCasperJsInstalled = null;
     private static String token = null;
+    public static boolean debugClientTimes = false;
 	
 	public static void main(String[] args) throws Exception{
 		int testNum = Integer.parseInt(args[0]);
@@ -317,6 +318,7 @@ public class TypeGeneratorTest extends Assert {
 	            cp.append(":").append(f.getAbsolutePath());
             File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
 	        List<String> lines = null;
+            System.setProperty("KB_JOB_CHECK_WAIT_TIME", "100");
 	        //////////////////////////////////////// Perl server ///////////////////////////////////////////
 	        lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
             lines.addAll(Arrays.asList(
@@ -341,6 +343,7 @@ public class TypeGeneratorTest extends Assert {
                     "java -cp \"" + cp + "\" " + testPackage + "." + modulePackage + "." + moduleName + "Server $1 $2 $3"
                     ));
             TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
+            System.setProperty("KB_JOB_SERVICE_URL", jobServiceUrl);
             runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir, findFreePort());
 	    } finally {
 	        jettyServer.stop();
@@ -378,7 +381,6 @@ public class TypeGeneratorTest extends Assert {
 	    jettyServer.setHandler(context);
 	    context.addServlet(new ServletHolder(new KBaseJobServiceServer().withBinDir(binDir).withTempDir(tempDir)),"/*");
 	    jettyServer.start();
-        System.setProperty("KB_JOB_SERVICE_URL", "http://localhost:" + jettyServer.getConnectors()[0].getLocalPort() + "/");
         return jettyServer;
     }
 
@@ -731,6 +733,7 @@ public class TypeGeneratorTest extends Assert {
     private static void runJavaClientTest(int testNum, String testPackage, JavaData parsingData, 
             File libDir, File binDir, int portNum, boolean needClientServer) throws Exception {
 		//System.out.println("Port: " + portNum);
+        long time = System.currentTimeMillis();
         URLClassLoader urlcl = prepareUrlClassLoader(libDir, binDir);
 		ConnectException error = null;
 		for (int n = 0; n < 10; n++) {
@@ -779,12 +782,15 @@ public class TypeGeneratorTest extends Assert {
 		}
 		if (error != null)
 			throw error;
+		if (debugClientTimes)
+		    System.out.println("  (time=" + (System.currentTimeMillis() - time) + " ms)");
 	}
     
     private static void runPerlClientTest(int testNum, String testPackage, JavaData parsingData, 
             int portNum, boolean needClientServer, File outDir) throws Exception {
         if (!needClientServer)
             return;
+        long time = System.currentTimeMillis();
         String resourceName = "Test" + testNum + ".config.properties";
         File shellFile = null;
         File configFile = new File(outDir, "tests.json");
@@ -795,7 +801,9 @@ public class TypeGeneratorTest extends Assert {
         lines.addAll(Arrays.asList(
                 "perl ../../../test_scripts/perl/test-client.pl -tests " + configFile.getName() + 
                 " -endpoint http://localhost:" + portNum + "/ -user " + System.getProperty("test.user") +
-                " -password \"" + System.getProperty("test.pwd") + "\""
+                " -password \"" + System.getProperty("test.pwd") + "\"" +
+                (System.getProperty("KB_JOB_CHECK_WAIT_TIME") == null ? "" :
+                    (" -asyncchecktime " + System.getProperty("KB_JOB_CHECK_WAIT_TIME")))
                 ));
         TextUtils.writeFileLines(lines, shellFile);
         if (shellFile != null) {
@@ -811,6 +819,8 @@ public class TypeGeneratorTest extends Assert {
             }
             Assert.assertEquals("Perl client exit code should be 0", 0, exitCode);
         }
+        if (debugClientTimes)
+            System.out.println("  (time=" + (System.currentTimeMillis() - time) + " ms)");
     }
 
     private static void prepareClientTestConfigFile(JavaData parsingData,
@@ -836,6 +846,7 @@ public class TypeGeneratorTest extends Assert {
             int portNum, boolean needClientServer, File outDir) throws Exception {
         if (!needClientServer)
             return;
+        long time = System.currentTimeMillis();
         String resourceName = "Test" + testNum + ".config.properties";
         File shellFile = null;
         File configFile = new File(outDir, "tests.json");
@@ -845,7 +856,9 @@ public class TypeGeneratorTest extends Assert {
         lines.addAll(Arrays.asList(
                 "python ../../../test_scripts/python/test_client.py -t " + configFile.getName() + 
                 " -e http://localhost:" + portNum + "/ -u " + System.getProperty("test.user") +
-                " -p \"" + System.getProperty("test.pwd") + "\""
+                " -p \"" + System.getProperty("test.pwd") + "\"" +
+                (System.getProperty("KB_JOB_CHECK_WAIT_TIME") == null ? "" :
+                    (" -a " + System.getProperty("KB_JOB_CHECK_WAIT_TIME")))
                 ));
         TextUtils.writeFileLines(lines, shellFile);
         if (shellFile != null) {
@@ -861,6 +874,8 @@ public class TypeGeneratorTest extends Assert {
             }
             Assert.assertEquals("Python client exit code should be 0", 0, exitCode);
         }
+        if (debugClientTimes)
+            System.out.println("  (time=" + (System.currentTimeMillis() - time) + " ms)");
     }
 
     private static boolean checkForClientConfig(String resourceName) throws Exception {
@@ -879,6 +894,7 @@ public class TypeGeneratorTest extends Assert {
             System.err.println("- JavaScript client tests are skipped");
             return;
         }
+        long time = System.currentTimeMillis();
         String resourceName = "Test" + testNum + ".config.properties";
         File shellFile = null;
         File configFile = new File(outDir, "tests.json");
@@ -890,7 +906,9 @@ public class TypeGeneratorTest extends Assert {
                 "casperjs test ../../../test_scripts/js/test-client.js "
                         + "--jq=../../../test_scripts/js/jquery-1.10.2.min.js "
                         + "--tests=" + configFile.getName() + 
-                        " --endpoint=http://localhost:" + portNum + "/ --token=\"" + token + "\""
+                        " --endpoint=http://localhost:" + portNum + "/ --token=\"" + token + "\"" +
+                        (System.getProperty("KB_JOB_CHECK_WAIT_TIME") == null ? "" :
+                            (" --asyncchecktime=" + System.getProperty("KB_JOB_CHECK_WAIT_TIME")))
                 ));
         TextUtils.writeFileLines(lines, shellFile);
         if (shellFile != null) {
@@ -906,6 +924,8 @@ public class TypeGeneratorTest extends Assert {
             }
             Assert.assertEquals("JavaScript client exit code should be 0", 0, exitCode);
         }
+        if (debugClientTimes)
+            System.out.println("  (time=" + (System.currentTimeMillis() - time) + " ms)");
     }
 
 	private static void extractSpecFiles(int testNum, File workDir,
