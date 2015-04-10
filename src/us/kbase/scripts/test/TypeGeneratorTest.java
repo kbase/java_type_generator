@@ -315,13 +315,18 @@ public class TypeGeneratorTest extends Assert {
 	        StringBuilder cp = new StringBuilder(binDir.getAbsolutePath());
 	        for (File f : libDir.listFiles())
 	            cp.append(":").append(f.getAbsolutePath());
-	        List<String> lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
-	        lines.addAll(Arrays.asList(
-	                "java -cp \"" + cp + "\" " + testPackage + "." + modulePackage + "." + moduleName + "Server $1 $2 $3"
-	                ));
-	        TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
             File serverOutDir = preparePerlAndPyServerCode(testNum, workDir, true);
-	        runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir, findFreePort());
+	        List<String> lines = null;
+	        //////////////////////////////////////// Perl server ///////////////////////////////////////////
+	        lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
+            lines.addAll(Arrays.asList(
+                    "cd \"" + serverOutDir.getAbsolutePath() + "\"",
+                    "perl " + findPerlServerScript(serverOutDir).getName() + " $1 $2 $3 > perl_cli.out 2> perl_cli.err"
+                    ));
+            TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
+            runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, 
+                    parsingData, serverOutDir, true, findFreePort(), jobServiceUrl);
+            //////////////////////////////////////// Python server ///////////////////////////////////////////
             lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
             lines.addAll(Arrays.asList(
                     "cd \"" + serverOutDir.getAbsolutePath() + "\"",
@@ -330,14 +335,13 @@ public class TypeGeneratorTest extends Assert {
             TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
 	        runPythonServerTest(testNum, true, workDir, testPackage, libDir, binDir, 
 	                parsingData, serverOutDir, true, findFreePort(), jobServiceUrl);
+            //////////////////////////////////////// Java server ///////////////////////////////////////////
             lines = new ArrayList<String>(Arrays.asList("#!/bin/bash"));
             lines.addAll(Arrays.asList(
-                    "cd \"" + serverOutDir.getAbsolutePath() + "\"",
-                    "perl " + findPerlServerScript(serverOutDir).getName() + " $1 $2 $3 > perl_cli.out 2> perl_cli.err"
+                    "java -cp \"" + cp + "\" " + testPackage + "." + modulePackage + "." + moduleName + "Server $1 $2 $3"
                     ));
             TextUtils.writeFileLines(lines, new File(workDir, "run_" + moduleName + "_async_job.sh"));
-            runPerlServerTest(testNum, true, workDir, testPackage, libDir, binDir, 
-                    parsingData, serverOutDir, true, findFreePort(), jobServiceUrl);
+            runJavaServerTest(testNum, true, testPackage, libDir, binDir, parsingData, serverOutDir, findFreePort());
 	    } finally {
 	        jettyServer.stop();
 	    }
