@@ -36,9 +36,26 @@ public class KBaseJobServiceServer extends JsonServerServlet {
         this.binDir = binDir;
         return this;
     }
+    
     public KBaseJobServiceServer withTempDir(File tempDir) {
         this.tempDir = tempDir;
         return this;
+    }
+    
+    public File getTempDir() {
+        return tempDir == null ? new File(".") : tempDir;
+    }
+    
+    public String getBinScript(String scriptName) {
+        File ret = null;
+        if (binDir == null) {
+            ret = new File(".", scriptName);
+            if (!ret.exists())
+                return scriptName;
+        } else {
+            ret = new File(binDir, scriptName);
+        }
+        return ret.getAbsolutePath();
     }
     //END_CLASS_HEADER
 
@@ -92,9 +109,9 @@ public class KBaseJobServiceServer extends JsonServerServlet {
                     rpc.put("context", job.getRpcContext());
                     File inputFile = new File(jobDir, "input.json");
                     UObject.getMapper().writeValue(inputFile, rpc);
-                    File scriptFile = new File(binDir, "run_" + serviceName + "_async_job.sh");
+                    String scriptFilePath = getBinScript("run_" + serviceName + "_async_job.sh");
                     File outputFile = new File(jobDir, "output.json");
-                    ProcessHelper.cmd("bash", scriptFile.getCanonicalPath(), inputFile.getCanonicalPath(),
+                    ProcessHelper.cmd("bash", scriptFilePath, inputFile.getCanonicalPath(),
                             outputFile.getCanonicalPath(), token).exec(jobDir);
                     FinishJobParams result = UObject.getMapper().readValue(outputFile, FinishJobParams.class);
                     finishJob(jobId, result, new AuthToken(token));
